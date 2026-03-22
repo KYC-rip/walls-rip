@@ -1,21 +1,52 @@
-import { useState } from 'react';
-import { Sun, Moon, Monitor, Eye, EyeOff, ALargeSmall, Palette, Menu, X } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { Sun, Moon, Monitor, Eye, EyeOff, ALargeSmall, Palette, Menu, X, Globe } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../hooks/useTheme';
+import { SUPPORTED_LANGS, type SupportedLang } from '../i18n/config';
 
-const NAV = [
-  { path: '/', label: 'Home' },
-  { path: '/mail', label: 'Ghost Mail' },
-  { path: '/sms', label: 'SMS Wall' },
-  { path: '/esim', label: 'eSIM' },
-  { path: '/proxy', label: 'Proxy' },
-  { path: '/drop', label: 'Dead Drop' },
-  { path: '/comms', label: 'Comms' },
-  { path: '/faq', label: 'FAQ' },
-  { path: '/api', label: 'API' },
+const LANG_LABELS: Record<SupportedLang, string> = {
+  en: 'EN',
+  'zh-TW': '中文',
+  ru: 'RU',
+  es: 'ES',
+  pt: 'PT',
+  ja: 'JA',
+};
+
+const NAV_KEYS = [
+  { path: '/', key: 'header.home' },
+  { path: '/mail', key: 'header.ghost_mail' },
+  { path: '/sms', key: 'header.sms_wall' },
+  { path: '/esim', key: 'header.esim' },
+  { path: '/proxy', key: 'header.proxy' },
+  { path: '/drop', key: 'header.dead_drop' },
+  { path: '/comms', key: 'header.comms' },
+  { path: '/faq', key: 'header.faq' },
+  { path: '/api', key: 'header.api' },
 ];
 
+function stripLangPrefix(path: string): string {
+  const segments = path.split('/');
+  if (segments[1] && (SUPPORTED_LANGS as readonly string[]).includes(segments[1])) {
+    return '/' + segments.slice(2).join('/') || '/';
+  }
+  return path;
+}
+
+function buildLangPath(lang: string, currentPath: string): string {
+  const stripped = stripLangPrefix(currentPath);
+  if (lang === 'en') return stripped;
+  return `/${lang}${stripped === '/' ? '' : stripped}`;
+}
+
+function navLinkPath(basePath: string, currentLang: string): string {
+  if (currentLang === 'en') return basePath;
+  return `/${currentLang}${basePath === '/' ? '' : basePath}`;
+}
+
 export function Header() {
+  const { t, i18n } = useTranslation();
   const {
     mode, cycleTheme,
     contrast, toggleContrast,
@@ -23,13 +54,40 @@ export function Header() {
     skin, skinLabel, cycleSkin,
   } = useTheme();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef<HTMLDivElement>(null);
+
+  const currentLang = (SUPPORTED_LANGS as readonly string[]).includes(i18n.language)
+    ? i18n.language
+    : 'en';
+
+  const strippedPath = stripLangPrefix(pathname);
+
+  // Close lang dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) {
+        setLangOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleLangChange = (lang: SupportedLang) => {
+    i18n.changeLanguage(lang);
+    const newPath = buildLangPath(lang, pathname);
+    navigate(newPath);
+    setLangOpen(false);
+  };
 
   return (
     <header className="w-full max-w-6xl mx-auto px-4 md:px-6 py-5 flex items-center justify-between relative z-20">
       {/* Logo + Nav */}
       <div className="flex items-center gap-6">
-        <Link to="/" className="flex items-center gap-0.5 group shrink-0">
+        <Link to={navLinkPath('/', currentLang)} className="flex items-center gap-0.5 group shrink-0">
           <span className="relative flex h-2 w-2 mr-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-wr-accent opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-wr-accent" />
@@ -39,17 +97,17 @@ export function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">
-          {NAV.map((item) => (
+          {NAV_KEYS.map((item) => (
             <Link
               key={item.path}
-              to={item.path}
+              to={navLinkPath(item.path, currentLang)}
               className={`text-[11px] font-bold px-2.5 py-1.5 rounded-sm transition-colors ${
-                pathname === item.path
+                strippedPath === item.path
                   ? 'text-wr-accent bg-wr-accent/10'
                   : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'
               }`}
             >
-              {item.label}
+              {t(item.key)}
             </Link>
           ))}
         </nav>
@@ -57,6 +115,36 @@ export function Header() {
 
       {/* Controls */}
       <div className="flex items-center gap-1">
+        {/* Language selector */}
+        <div className="relative" ref={langRef}>
+          <button
+            onClick={() => setLangOpen(!langOpen)}
+            className="p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current flex items-center gap-1"
+            title="Language"
+          >
+            <Globe size={15} />
+            <span className="text-[9px] font-bold uppercase">{LANG_LABELS[currentLang as SupportedLang] || 'EN'}</span>
+          </button>
+
+          {langOpen && (
+            <div className="absolute right-0 top-full mt-1 bg-wr-surface border border-wr-border rounded-sm shadow-xl z-50 min-w-[100px] py-1">
+              {SUPPORTED_LANGS.map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => handleLangChange(lang)}
+                  className={`w-full text-left px-3 py-1.5 text-[11px] font-bold transition-colors ${
+                    currentLang === lang
+                      ? 'text-wr-accent bg-wr-accent/10'
+                      : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'
+                  }`}
+                >
+                  {LANG_LABELS[lang]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <button
           onClick={toggleContrast}
           className="p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current"
@@ -110,18 +198,18 @@ export function Header() {
       {menuOpen && (
         <div className="absolute top-full left-0 right-0 bg-wr-surface border-b border-wr-border p-4 md:hidden z-50">
           <nav className="flex flex-col gap-1">
-            {NAV.map((item) => (
+            {NAV_KEYS.map((item) => (
               <Link
                 key={item.path}
-                to={item.path}
+                to={navLinkPath(item.path, currentLang)}
                 onClick={() => setMenuOpen(false)}
                 className={`text-sm font-bold px-3 py-2 rounded-sm transition-colors ${
-                  pathname === item.path
+                  strippedPath === item.path
                     ? 'text-wr-accent bg-wr-accent/10'
                     : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'
                 }`}
               >
-                {item.label}
+                {t(item.key)}
               </Link>
             ))}
           </nav>

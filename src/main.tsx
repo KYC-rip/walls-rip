@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HelmetProvider } from '@dr.pogodin/react-helmet';
-import './i18n';
+import './i18n/config';
 import App from './App';
 import './index.css';
 
