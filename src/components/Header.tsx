@@ -6,10 +6,13 @@ import { useTheme } from '../hooks/useTheme';
 const NAV = [
   { path: '/', label: 'Home' },
   { path: '/mail', label: 'Ghost Mail' },
-  { path: '/comms', label: 'Comms' },
-  { path: '/drop', label: 'Dead Drop' },
   { path: '/sms', label: 'SMS Wall' },
+  { path: '/esim', label: 'eSIM' },
+  { path: '/proxy', label: 'Proxy' },
+  { path: '/drop', label: 'Dead Drop' },
+  { path: '/comms', label: 'Comms' },
   { path: '/faq', label: 'FAQ' },
+  { path: '/api', label: 'API' },
 ];
 
 export function Header() {

@@ -1,5 +1,5 @@
 import {
-  Mail, Flame, MessageSquare, Phone, Shield, EyeOff, Zap,
+  Mail, Flame, MessageSquare, Phone, Shield, EyeOff, Zap, Smartphone,
   ArrowRight, ExternalLink, Lock, Globe, CreditCard, CheckCircle,
   Server, KeyRound, UserX, Clock, ShieldCheck, Layers
 } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
+import { BrickBreaker } from '../components/BrickBreaker';
 
 const TOOLS = [
   {
@@ -56,6 +57,30 @@ const TOOLS = [
     borderColor: 'border-purple-400/20 hover:border-purple-400/50',
     glowColor: 'from-purple-400/20',
     bgAccent: 'bg-purple-400',
+  },
+  {
+    icon: Smartphone,
+    name: 'eSIM',
+    tagline: 'Anonymous data connectivity',
+    description: 'Global eSIM plans for anonymous data. 120+ countries, 3G/4G/5G. Install via QR code, pay with XMR.',
+    path: '/esim',
+    status: 'SOON' as const,
+    color: 'text-yellow-400',
+    borderColor: 'border-yellow-400/20 hover:border-yellow-400/50',
+    glowColor: 'from-yellow-400/20',
+    bgAccent: 'bg-yellow-400',
+  },
+  {
+    icon: Shield,
+    name: 'Proxy Wall',
+    tagline: 'Anonymous proxy access',
+    description: 'Residential, datacenter, and mobile proxies. SOCKS5 & HTTP. Global coverage, anonymous payments.',
+    path: '/proxy',
+    status: 'SOON' as const,
+    color: 'text-teal-400',
+    borderColor: 'border-teal-400/20 hover:border-teal-400/50',
+    glowColor: 'from-teal-400/20',
+    bgAccent: 'bg-teal-400',
   },
 ];
 
@@ -143,6 +168,7 @@ const COMPARISONS = [
 export default function HomePage() {
   return (
     <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
+      <BrickBreaker />
       <SEO path="/" />
 
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
@@ -243,7 +269,7 @@ export default function HomePage() {
                         <p className={`text-[10px] font-bold ${tool.color}`}>{tool.tagline}</p>
                       </div>
                     </div>
-                    <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border text-green-400 border-green-400/30 bg-green-400/10">
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tool.status === 'SOON' ? 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10' : 'text-green-400 border-green-400/30 bg-green-400/10'}`}>
                       {tool.status}
                     </span>
                   </div>

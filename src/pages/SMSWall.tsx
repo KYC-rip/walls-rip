@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus } from 'lucide-react';
+import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus, Bell, BellOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Header } from '../components/Header';
@@ -7,9 +7,9 @@ import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
 
-interface Country { ID: number; name: string; short_name: string }
-interface Service { ID: number; name: string; favourite: number }
-interface PriceInfo { price: string; cost_price: string; success_rate: number }
+interface Country { id: string; name: string; shortName: string; engine: string }
+interface Service { id: string; name: string; category?: string; engine: string }
+interface PriceInfo { price: string; cost_price: string; success_rate: number; engine: string }
 
 interface PaymentData {
   method: 'XMR' | 'LN';
@@ -20,18 +20,23 @@ interface PaymentData {
 }
 
 interface PurchaseResult {
-  success: number;
-  number: string;
-  order_id: string;
+  orderId: string;
+  phoneNumber: string;
+  country: string;
+  service: string;
+  costPrice: number;
+  engine: string;
+  createdAt: number;
   balanceUSD: number;
   charged: number;
 }
 
 interface SMSCheckResult {
-  success: number;
+  orderId: string;
+  status: 'PENDING' | 'RECEIVED' | 'EXPIRED' | 'CANCELLED';
   sms?: string;
-  full_sms?: string;
-  status: number;
+  fullSms?: string;
+  engine: string;
   refunded?: number;
   balanceUSD?: number;
 }
@@ -46,6 +51,8 @@ const POPULAR_SERVICES = [
   'Instagram', 'Facebook', 'Steam', 'Microsoft', 'Amazon',
 ];
 
+interface StockInfo { available: boolean; count?: number }
+
 export function SMSWall() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -55,6 +62,8 @@ export function SMSWall() {
   const [countrySearch, setCountrySearch] = useState('');
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
+  const [stockInfo, setStockInfo] = useState<StockInfo | null>(null);
+  const [suggestedCountryIds, setSuggestedCountryIds] = useState<Set<string>>(new Set());
 
   // Wallet
   const [walletToken, setWalletToken] = useState<string | null>(() => localStorage.getItem(WALLET_KEY));
@@ -78,6 +87,21 @@ export function SMSWall() {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Push notifications
+  const [notifEnabled, setNotifEnabled] = useState(() => Notification.permission === 'granted');
+
+  const requestNotifPermission = async () => {
+    if (!('Notification' in window)) return;
+    const perm = await Notification.requestPermission();
+    setNotifEnabled(perm === 'granted');
+    if (perm === 'granted') toast.success('Notifications enabled');
+  };
+
+  const fireNotification = (title: string, body: string) => {
+    if (!notifEnabled || document.hasFocus()) return;
+    try { new Notification(title, { body, icon: '/og-sms.jpg', tag: 'sms-wall' }); } catch { /* noop */ }
+  };
+
   // Load data
   useEffect(() => {
     Promise.all([
@@ -96,26 +120,39 @@ export function SMSWall() {
       .catch(() => { localStorage.removeItem(WALLET_KEY); setWalletToken(null); setBalanceUSD(0); });
   }, [walletToken]);
 
-  // Fetch price
+  // Fetch price + stock when country+service selected
   useEffect(() => {
-    if (!selectedCountry || !selectedService) { setPriceInfo(null); return; }
+    if (!selectedCountry || !selectedService) { setPriceInfo(null); setStockInfo(null); return; }
     setLoadingPrice(true);
-    apiClient<PriceInfo>(`/v1/tools/sms/price?country=${selectedCountry}&service=${selectedService}`)
-      .then(data => setPriceInfo(data))
-      .catch(() => { setPriceInfo(null); toast.error('Service not available'); })
+    Promise.all([
+      apiClient<PriceInfo>(`/v1/tools/sms/price?country=${selectedCountry}&service=${selectedService}`),
+      apiClient<StockInfo>(`/v1/tools/sms/stock?country=${selectedCountry}&service=${selectedService}`).catch(() => null),
+    ]).then(([price, stock]) => {
+      setPriceInfo(price);
+      setStockInfo(stock);
+    }).catch(() => { setPriceInfo(null); setStockInfo(null); toast.error('Service not available'); })
       .finally(() => setLoadingPrice(false));
   }, [selectedCountry, selectedService]);
+
+  // Fetch suggested countries when service changes
+  useEffect(() => {
+    if (!selectedService) { setSuggestedCountryIds(new Set()); return; }
+    apiClient<Country[]>(`/v1/tools/sms/suggested?service=${selectedService}`)
+      .then(data => setSuggestedCountryIds(new Set(data.map(c => c.id))))
+      .catch(() => setSuggestedCountryIds(new Set()));
+  }, [selectedService]);
 
   // Poll for SMS
   useEffect(() => {
     if (!polling || !purchase) return;
     const interval = setInterval(async () => {
       try {
-        const result = await apiClient<SMSCheckResult>(`/v1/tools/sms/check?order_id=${purchase.order_id}&token=${walletToken}`);
-        if (result.status === 3 && result.sms) {
+        const result = await apiClient<SMSCheckResult>(`/v1/tools/sms/check?order_id=${purchase.orderId}&token=${walletToken}`);
+        if (result.status === 'RECEIVED' && result.sms) {
           setSmsResult(result); setPolling(false); setStep('RECEIVED');
           toast.success('SMS received!');
-        } else if (result.status === 2) {
+          fireNotification('SMS Received', `Code: ${result.sms}`);
+        } else if (result.status === 'EXPIRED') {
           setPolling(false); setStep('SELECT');
           if (result.refunded) {
             setBalanceUSD(result.balanceUSD || balanceUSD + result.refunded);
@@ -144,6 +181,7 @@ export function SMSWall() {
           localStorage.setItem(WALLET_KEY, result.walletToken);
           setPaymentData(null); setShowPaymentModal(false);
           toast.success(`$${paymentData.usd.toFixed(2)} deposited!`);
+          fireNotification('Payment Confirmed', `$${paymentData.usd.toFixed(2)} deposited to wallet`);
 
           // If per-sms mode, auto-purchase after payment
           if (pendingPurchase) {
@@ -181,7 +219,7 @@ export function SMSWall() {
         method: 'POST',
         body: { country, service, token },
       });
-      if (data.success === 1) {
+      if (data.orderId) {
         setPurchase(data); setBalanceUSD(data.balanceUSD); setPolling(true); setStep('WAITING');
       } else {
         toast.error('Failed to get number');
@@ -213,7 +251,7 @@ export function SMSWall() {
   const handleCancel = async () => {
     if (!purchase || !walletToken) return;
     try {
-      const data = await apiClient<{ balanceUSD: number }>(`/v1/tools/sms/cancel?order_id=${purchase.order_id}&token=${walletToken}`);
+      const data = await apiClient<{ balanceUSD: number }>(`/v1/tools/sms/cancel?order_id=${purchase.orderId}&token=${walletToken}`);
       setBalanceUSD(data.balanceUSD); setPurchase(null); setPolling(false); setStep('SELECT');
       toast.success('Cancelled — refunded to wallet');
     } catch { toast.error('Failed to cancel'); }
@@ -230,10 +268,16 @@ export function SMSWall() {
   };
 
   const filteredServices = services.filter(s => s.name.toLowerCase().includes(serviceSearch.toLowerCase()));
-  const filteredCountries = countries.filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()));
+  const filteredCountries = countries
+    .filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()))
+    .sort((a, b) => {
+      const aS = suggestedCountryIds.has(a.id) ? 0 : 1;
+      const bS = suggestedCountryIds.has(b.id) ? 0 : 1;
+      return aS - bS;
+    });
 
-  const selectedCountryName = countries.find(c => String(c.ID) === selectedCountry)?.name || '';
-  const selectedServiceName = services.find(s => String(s.ID) === selectedService)?.name || '';
+  const selectedCountryName = countries.find(c => c.id === selectedCountry)?.name || '';
+  const selectedServiceName = services.find(s => s.id === selectedService)?.name || '';
 
   if (loading) {
     return (
@@ -265,14 +309,18 @@ export function SMSWall() {
             </div>
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-cyan-400 rounded-sm blur opacity-30 group-hover:opacity-50 transition duration-300" />
-              <button onClick={() => copyText(purchase.number)} className="w-full relative p-5 rounded bg-wr-base border border-wr-border flex items-center justify-between gap-4 hover:border-wr-green transition-colors">
-                <span className="font-mono text-2xl font-bold text-wr-green">{purchase.number}</span>
+              <button onClick={() => copyText(purchase.phoneNumber)} className="w-full relative p-5 rounded bg-wr-base border border-wr-border flex items-center justify-between gap-4 hover:border-wr-green transition-colors">
+                <span className="font-mono text-2xl font-bold text-wr-green">{purchase.phoneNumber}</span>
                 {copied ? <Check size={18} className="text-green-500" /> : <Copy size={18} className="text-wr-dim" />}
               </button>
             </div>
             <div className="flex items-center justify-center gap-2 text-xs text-wr-dim">
               <RefreshCw size={12} className="animate-spin" /> Polling every 5 seconds...
             </div>
+            <button onClick={notifEnabled ? () => setNotifEnabled(false) : requestNotifPermission}
+              className={`flex items-center justify-center gap-2 text-xs transition-colors ${notifEnabled ? 'text-green-400 hover:text-wr-dim' : 'text-wr-dim hover:text-wr-accent'}`}>
+              {notifEnabled ? <><Bell size={12} /> Push notification ON</> : <><BellOff size={12} /> Enable push notification</>}
+            </button>
             <div className="text-[10px] text-wr-dim">Charged: ${purchase.charged.toFixed(2)} — Wallet: ${balanceUSD.toFixed(2)}</div>
             <button onClick={handleCancel} className="text-xs font-bold uppercase text-wr-dim hover:text-red-400 transition-colors">
               Cancel (refund to wallet)
@@ -299,7 +347,7 @@ export function SMSWall() {
             <button onClick={() => copyText(smsResult.sms || '')} className="w-full p-5 rounded bg-wr-base border border-wr-green flex items-center justify-between gap-4 hover:bg-wr-green/5 transition-colors text-left">
               <div>
                 <div className="font-mono text-2xl font-bold text-wr-green mb-1">{smsResult.sms}</div>
-                {smsResult.full_sms && <div className="text-xs text-wr-dim">{smsResult.full_sms}</div>}
+                {smsResult.fullSms && <div className="text-xs text-wr-dim">{smsResult.fullSms}</div>}
               </div>
               {copied ? <Check size={18} className="text-green-500 shrink-0" /> : <Copy size={18} className="text-wr-dim shrink-0" />}
             </button>
@@ -315,7 +363,7 @@ export function SMSWall() {
   // SELECT state — main config page (Ghost Mail structure)
   return (
     <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
-      <SEO title="SMS Wall — Anonymous phone verification" description="Get temporary phone numbers for anonymous SMS verification. 150+ countries, 1700+ services. Pay with XMR." path="/sms" />
+      <SEO title="SMS Wall — Anonymous phone verification" description="Get temporary phone numbers for anonymous SMS verification. 150+ countries, 1700+ services. Pay with XMR." path="/sms" image="/og-sms.jpg" />
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />
       <Header />
@@ -383,12 +431,12 @@ export function SMSWall() {
                 {/* Popular countries */}
                 <div className="flex flex-wrap gap-1.5">
                   {POPULAR_COUNTRIES.map(code => {
-                    const country = countries.find(c => c.short_name === code);
+                    const country = countries.find(c => c.shortName === code);
                     if (!country) return null;
                     return (
-                      <button key={country.ID} onClick={() => setSelectedCountry(String(country.ID))} title={country.name}
-                        className={`text-xs px-3 py-1.5 rounded-full border font-bold transition-all ${selectedCountry === String(country.ID) ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/30 hover:text-wr-accent'}`}>
-                        {country.short_name}
+                      <button key={country.id} onClick={() => setSelectedCountry(country.id)} title={country.name}
+                        className={`text-xs px-3 py-1.5 rounded-full border font-bold transition-all ${selectedCountry === country.id ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/30 hover:text-wr-accent'}`}>
+                        {country.shortName}
                       </button>
                     );
                   })}
@@ -398,9 +446,9 @@ export function SMSWall() {
                 {/* All countries */}
                 <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto content-start p-1">
                   {filteredCountries.map(c => (
-                    <button key={c.ID} onClick={() => setSelectedCountry(String(c.ID))} title={c.name}
-                      className={`text-xs px-3 py-1.5 rounded border font-mono transition-all ${selectedCountry === String(c.ID) ? 'border-wr-accent text-wr-accent bg-wr-accent/20 font-bold shadow-[0_0_12px_rgba(34,211,238,0.25)]' : 'border-wr-border text-current hover:border-wr-accent/40 hover:text-wr-accent'}`}>
-                      {c.short_name}
+                    <button key={c.id} onClick={() => setSelectedCountry(c.id)} title={`${c.name}${suggestedCountryIds.has(c.id) ? ' (recommended)' : ''}`}
+                      className={`text-xs px-3 py-1.5 rounded border font-mono transition-all ${selectedCountry === c.id ? 'border-wr-accent text-wr-accent bg-wr-accent/20 font-bold shadow-[0_0_12px_rgba(34,211,238,0.25)]' : suggestedCountryIds.has(c.id) ? 'border-green-400/40 text-green-400 hover:border-green-400 hover:text-green-300' : 'border-wr-border text-current hover:border-wr-accent/40 hover:text-wr-accent'}`}>
+                      {c.shortName}{suggestedCountryIds.has(c.id) ? ' ★' : ''}
                     </button>
                   ))}
                 </div>
@@ -427,8 +475,8 @@ export function SMSWall() {
                     const svc = services.find(s => s.name.toLowerCase() === name.toLowerCase());
                     if (!svc) return null;
                     return (
-                      <button key={svc.ID} onClick={() => { setSelectedService(String(svc.ID)); setServiceSearch(''); }}
-                        className={`text-xs px-3 py-1.5 rounded-full border font-bold transition-all ${selectedService === String(svc.ID) ? 'border-green-400 text-green-400 bg-green-400/10' : 'border-wr-border text-wr-dim hover:border-green-400/30 hover:text-green-400'}`}>
+                      <button key={svc.id} onClick={() => { setSelectedService(svc.id); setServiceSearch(''); }}
+                        className={`text-xs px-3 py-1.5 rounded-full border font-bold transition-all ${selectedService === svc.id ? 'border-green-400 text-green-400 bg-green-400/10' : 'border-wr-border text-wr-dim hover:border-green-400/30 hover:text-green-400'}`}>
                         {svc.name}
                       </button>
                     );
@@ -439,8 +487,8 @@ export function SMSWall() {
                 {/* All services */}
                 <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto content-start p-1">
                   {(serviceSearch ? filteredServices : services).slice(0, 80).map(s => (
-                    <button key={s.ID} onClick={() => { setSelectedService(String(s.ID)); setServiceSearch(''); }}
-                      className={`text-xs px-3 py-1.5 rounded border font-mono transition-all ${selectedService === String(s.ID) ? 'border-green-400 text-green-400 bg-green-400/20 font-bold shadow-[0_0_12px_rgba(74,222,128,0.25)]' : 'border-wr-border text-current hover:border-green-400/40 hover:text-green-400'}`}>
+                    <button key={s.id} onClick={() => { setSelectedService(s.id); setServiceSearch(''); }}
+                      className={`text-xs px-3 py-1.5 rounded border font-mono transition-all ${selectedService === s.id ? 'border-green-400 text-green-400 bg-green-400/20 font-bold shadow-[0_0_12px_rgba(74,222,128,0.25)]' : 'border-wr-border text-current hover:border-green-400/40 hover:text-green-400'}`}>
                       {s.name}
                     </button>
                   ))}
@@ -479,6 +527,9 @@ export function SMSWall() {
                   <span>
                     <span className="text-wr-green animate-pulse">●</span>{' '}
                     {selectedServiceName} / {selectedCountryName} — {priceInfo.success_rate}% success
+                    {stockInfo && stockInfo.count !== undefined && (
+                      <span className={stockInfo.available ? 'text-wr-green' : 'text-red-400'}> — {stockInfo.count} available</span>
+                    )}
                   </span>
                 ) : (
                   <span><span className="text-wr-dim">●</span> Select country & service</span>
@@ -514,6 +565,12 @@ export function SMSWall() {
               )}
             </div>
 
+            {stockInfo && !stockInfo.available && (
+              <div className="mt-4 flex items-start gap-2 text-xs text-red-400 p-3 rounded bg-red-400/10 border border-red-400/20">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>No numbers available for this country + service combination. Try a different country.</span>
+              </div>
+            )}
             {priceInfo && priceInfo.success_rate < 50 && (
               <div className="mt-4 flex items-start gap-2 text-xs text-wr-warning p-3 rounded bg-wr-warning/10 border border-wr-warning/20">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />

@@ -29,6 +29,7 @@ export function Footer() {
               <li><Link to="/mail" className="hover:text-wr-accent transition-colors">Ghost Mail</Link></li>
               <li><Link to="/drop" className="hover:text-wr-accent transition-colors">Dead Drop</Link></li>
               <li><Link to="/sms" className="hover:text-wr-accent transition-colors">SMS Wall</Link></li>
+              <li><Link to="/esim" className="hover:text-wr-accent transition-colors">eSIM</Link></li>
             </ul>
           </div>
 
