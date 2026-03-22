@@ -95,7 +95,7 @@ export function SMSWall() {
   const [loading, setLoading] = useState(true);
 
   // Push notifications
-  const [notifEnabled, setNotifEnabled] = useState(() => Notification.permission === 'granted');
+  const [notifEnabled, setNotifEnabled] = useState(() => typeof Notification !== 'undefined' && Notification.permission === 'granted');
 
   // Wallet management
   const [showRestoreInput, setShowRestoreInput] = useState(false);
