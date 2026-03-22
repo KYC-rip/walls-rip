@@ -392,6 +392,28 @@ export function ProxyWall() {
         description="Get anonymous residential, datacenter, and mobile proxies. Global coverage, SOCKS5/HTTP. Pay with XMR or Lightning."
         path="/proxy"
         image="/og-proxy.jpg"
+        schemas={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebApplication',
+            name: 'Proxy Wall',
+            url: 'https://walls.rip/proxy',
+            applicationCategory: 'UtilitiesApplication',
+            operatingSystem: 'Web',
+            description: 'Anonymous residential, datacenter, and mobile proxies. SOCKS5 & HTTP. Global coverage.',
+            offers: { '@type': 'Offer', price: '3.00', priceCurrency: 'USD', description: 'Starting price for proxy access' },
+            provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Service',
+            name: 'Proxy Wall — Anonymous Proxy Access',
+            serviceType: 'Anonymous Proxy Access',
+            areaServed: 'Worldwide',
+            description: 'Residential, datacenter, and mobile proxies with SOCKS5/HTTP support. Pay with Monero or Lightning.',
+            provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
+          },
+        ]}
       />
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />

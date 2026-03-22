@@ -84,6 +84,18 @@ export function DeadDrop() {
         title="Dead Drop — Self-destructing encrypted messages"
         description="Create encrypted, self-destructing messages. AES-256-GCM client-side encryption. Server never sees your plaintext."
         path="/drop"
+        image="/og-deaddrop.jpg"
+        schema={{
+          '@context': 'https://schema.org',
+          '@type': 'WebApplication',
+          name: 'Dead Drop',
+          url: 'https://walls.rip/drop',
+          applicationCategory: 'SecurityApplication',
+          operatingSystem: 'Web',
+          description: 'Self-destructing encrypted messages. AES-256-GCM client-side encryption. Server never sees your plaintext.',
+          featureList: 'AES-256-GCM encryption, Self-destructing messages, Client-side encryption, Zero knowledge server',
+          provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
+        }}
       />
 
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />

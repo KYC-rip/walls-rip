@@ -113,6 +113,32 @@ export function GhostMail() {
         title="Ghost Mail — Burner email that burns"
         description="Disposable encrypted email inboxes. No signup, no identity. PGP encryption, custom domains, auto-destruct timers. Pay with XMR."
         path="/mail"
+        image="/og-ghostmail.jpg"
+        schemas={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebApplication',
+            name: 'Ghost Mail',
+            url: 'https://walls.rip/mail',
+            applicationCategory: 'CommunicationApplication',
+            operatingSystem: 'Web',
+            description: 'Disposable encrypted email inboxes with PGP support, custom domains, and auto-destruct timers.',
+            offers: { '@type': 'Offer', price: '0.15', priceCurrency: 'USD', description: 'Starting price for burner email inbox' },
+            featureList: 'PGP encryption, Custom domains, Auto-destruct timers, No signup required',
+            provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'Ghost Mail',
+            url: 'https://walls.rip/mail',
+            applicationCategory: 'CommunicationApplication',
+            operatingSystem: 'Web',
+            applicationSubCategory: 'Burner Email',
+            description: 'Anonymous disposable email with PGP encryption. No identity required.',
+            featureList: 'PGP encryption, Multiple domains, Auto-destruct, XMR/Lightning payments',
+          },
+        ]}
       />
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
 

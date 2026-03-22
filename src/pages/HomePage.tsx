@@ -169,7 +169,70 @@ export default function HomePage() {
   return (
     <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
       <BrickBreaker />
-      <SEO path="/" />
+      <SEO
+        path="/"
+        schemas={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebApplication',
+            name: 'walls.rip',
+            url: 'https://walls.rip',
+            applicationCategory: 'UtilitiesApplication',
+            operatingSystem: 'Web',
+            description: 'Anonymous communication toolkit. Burner email, encrypted dead drops, anonymous SMS verification, PGP chat over Nostr.',
+            offers: { '@type': 'AggregateOffer', lowPrice: '0', highPrice: '5.00', priceCurrency: 'USD' },
+            provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'Ghost Mail',
+            url: 'https://walls.rip/mail',
+            applicationCategory: 'CommunicationApplication',
+            operatingSystem: 'Web',
+            description: 'Disposable encrypted email inboxes. No signup, no identity. PGP encryption, custom domains, auto-destruct timers.',
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'Dead Drop',
+            url: 'https://walls.rip/drop',
+            applicationCategory: 'SecurityApplication',
+            operatingSystem: 'Web',
+            description: 'Create encrypted, self-destructing messages. AES-256-GCM client-side encryption.',
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'SMS Wall',
+            url: 'https://walls.rip/sms',
+            applicationCategory: 'UtilitiesApplication',
+            operatingSystem: 'Web',
+            description: 'Get temporary phone numbers for SMS verification. 150+ countries, 300+ services.',
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'Ghost Chat',
+            url: 'https://walls.rip/comms',
+            applicationCategory: 'CommunicationApplication',
+            operatingSystem: 'Web',
+            description: 'End-to-end encrypted messaging via decentralized Nostr relays. Ephemeral identities, no server trust.',
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://walls.rip/' },
+              { '@type': 'ListItem', position: 2, name: 'Ghost Mail', item: 'https://walls.rip/mail' },
+              { '@type': 'ListItem', position: 3, name: 'Dead Drop', item: 'https://walls.rip/drop' },
+              { '@type': 'ListItem', position: 4, name: 'SMS Wall', item: 'https://walls.rip/sms' },
+              { '@type': 'ListItem', position: 5, name: 'Ghost Chat', item: 'https://walls.rip/comms' },
+              { '@type': 'ListItem', position: 6, name: 'API', item: 'https://walls.rip/api' },
+            ],
+          },
+        ]}
+      />
 
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />

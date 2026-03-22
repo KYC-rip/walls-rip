@@ -525,7 +525,35 @@ export function SMSWall() {
   // SELECT state — main config page (Ghost Mail structure)
   return (
     <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
-      <SEO title="SMS Wall — Anonymous phone verification" description="Get temporary phone numbers for anonymous SMS verification. 150+ countries, 1700+ services. Pay with XMR." path="/sms" image="/og-sms.jpg" />
+      <SEO
+        title="SMS Wall — Anonymous phone verification"
+        description="Get temporary phone numbers for anonymous SMS verification. 150+ countries, 1700+ services. Pay with XMR."
+        path="/sms"
+        image="/og-sms.jpg"
+        schemas={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebApplication',
+            name: 'SMS Wall',
+            url: 'https://walls.rip/sms',
+            applicationCategory: 'UtilitiesApplication',
+            operatingSystem: 'Web',
+            description: 'Get temporary phone numbers for anonymous SMS verification. 150+ countries, 1700+ services.',
+            offers: { '@type': 'Offer', price: '0.10', priceCurrency: 'USD', description: 'Starting price for SMS verification' },
+            provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Service',
+            name: 'SMS Wall — Anonymous SMS Verification',
+            serviceType: 'SMS Verification',
+            areaServed: 'Worldwide',
+            description: 'Temporary phone numbers for anonymous SMS verification across 150+ countries and 1700+ services.',
+            provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
+            offers: { '@type': 'Offer', price: '0.10', priceCurrency: 'USD' },
+          },
+        ]}
+      />
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />
       <Header />

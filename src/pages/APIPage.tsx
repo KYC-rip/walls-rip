@@ -655,6 +655,27 @@ export default function APIPage() {
         description="walls.rip public API documentation. Programmatic access to SMS Wall, eSIM, Proxy, and Dead Drop. No API keys needed."
         path="/api"
         image="/og-api.jpg"
+        schemas={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'TechArticle',
+            headline: 'walls.rip API Reference',
+            url: 'https://walls.rip/api',
+            description: 'Public API documentation for walls.rip anonymous communication tools. Programmatic access to SMS, eSIM, Proxy, and Dead Drop.',
+            author: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
+            publisher: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
+            proficiencyLevel: 'Beginner',
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebAPI',
+            name: 'walls.rip API',
+            url: 'https://api.kyc.rip/v1/tools',
+            description: 'REST API for anonymous communication tools — SMS verification, eSIM, proxy, encrypted dead drops. No API keys required.',
+            documentation: 'https://walls.rip/api',
+            provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
+          },
+        ]}
       />
 
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
