@@ -266,6 +266,189 @@ const DEAD_DROP_API: APIGroup = {
   ],
 };
 
+const ESIM_API: APIGroup = {
+  title: 'eSIM',
+  base: 'https://api.kyc.rip/v1/tools/esim',
+  description: 'Anonymous eSIM data plans. 120+ countries, 3G/4G/5G. Install via QR code.',
+  endpoints: [
+    {
+      method: 'GET',
+      path: '/countries',
+      description: 'List all countries with eSIM availability.',
+      response: `[
+  { "code": "US", "name": "United States", "engine": "smspool" },
+  { "code": "DE", "name": "Germany", "engine": "smspool" },
+  ...
+]`,
+    },
+    {
+      method: 'GET',
+      path: '/plans',
+      description: 'List eSIM data plans. Optionally filter by country.',
+      params: [
+        { name: 'country', type: 'string', description: 'ISO country code (e.g. US, DE)' },
+      ],
+      response: `[
+  {
+    "id": "smspool:975",
+    "name": "0.1GB / 7d",
+    "country": "US",
+    "dataGB": 0.1,
+    "durationDays": 7,
+    "price": "0.80",
+    "speed": "3G/4G/5G"
+  },
+  ...
+]`,
+    },
+    {
+      method: 'POST',
+      path: '/purchase',
+      description: 'Purchase an eSIM plan. Returns order ID for status tracking.',
+      body: [
+        { name: 'planId', type: 'string', required: true, description: 'Plan ID from /plans' },
+        { name: 'token', type: 'string', required: true, description: 'Wallet token' },
+      ],
+      response: `{
+  "orderId": "smspool:ABCDEF123",
+  "planId": "smspool:975",
+  "status": "PENDING",
+  "balanceUSD": 4.20,
+  "charged": 0.80
+}`,
+    },
+    {
+      method: 'GET',
+      path: '/profile',
+      description: 'Get eSIM activation QR code and install URL.',
+      params: [
+        { name: 'order_id', type: 'string', required: true, description: 'Order ID from purchase' },
+        { name: 'token', type: 'string', required: true, description: 'Wallet token' },
+      ],
+      response: `{
+  "qrCode": "LPA:1$sm-dp-plus.example.com$...",
+  "activationUrl": "https://esim.example.com/activate/..."
+}`,
+    },
+    {
+      method: 'GET',
+      path: '/status',
+      description: 'Check eSIM order status and data usage.',
+      params: [
+        { name: 'order_id', type: 'string', required: true, description: 'Order ID' },
+        { name: 'token', type: 'string', required: true, description: 'Wallet token' },
+      ],
+      response: `{
+  "orderId": "smspool:ABCDEF123",
+  "status": "ACTIVE",
+  "dataRemainingMB": 512,
+  "expiresAt": 1711929600000
+}`,
+    },
+    {
+      method: 'GET',
+      path: '/health',
+      description: 'Check eSIM engine health status.',
+      response: `[{ "name": "smspool", "status": "ONLINE", "latency": 120 }]`,
+    },
+  ],
+};
+
+const PROXY_API: APIGroup = {
+  title: 'Proxy Wall',
+  base: 'https://api.kyc.rip/v1/tools/proxy',
+  description: 'Anonymous proxy access. Residential, datacenter, and mobile proxies with SOCKS5/HTTP.',
+  endpoints: [
+    {
+      method: 'GET',
+      path: '/plans',
+      description: 'List available proxy plans by type.',
+      params: [
+        { name: 'type', type: 'string', description: 'Filter: residential, datacenter, mobile' },
+      ],
+      response: `[
+  {
+    "id": "placeholder:res-1gb-30d",
+    "name": "Residential 1GB / 30d",
+    "type": "residential",
+    "bandwidthGB": 1,
+    "durationDays": 30,
+    "price": "3.00"
+  },
+  ...
+]`,
+    },
+    {
+      method: 'GET',
+      path: '/locations',
+      description: 'List available proxy locations.',
+      response: `[
+  { "id": "placeholder:US", "country": "United States", "countryCode": "US" },
+  ...
+]`,
+    },
+    {
+      method: 'POST',
+      path: '/purchase',
+      description: 'Purchase proxy access. Returns order ID for credentials.',
+      body: [
+        { name: 'planId', type: 'string', required: true, description: 'Plan ID from /plans' },
+        { name: 'location', type: 'string', required: true, description: 'Location ID' },
+        { name: 'token', type: 'string', required: true, description: 'Wallet token' },
+      ],
+      response: `{
+  "orderId": "placeholder:ord_abc123",
+  "credentials": {
+    "host": "proxy.example.com",
+    "port": 1080,
+    "username": "user_abc",
+    "password": "pass_xyz",
+    "protocol": "socks5"
+  },
+  "balanceUSD": 7.00
+}`,
+    },
+    {
+      method: 'GET',
+      path: '/credentials',
+      description: 'Get proxy connection credentials.',
+      params: [
+        { name: 'order_id', type: 'string', required: true, description: 'Order ID' },
+        { name: 'token', type: 'string', required: true, description: 'Wallet token' },
+      ],
+      response: `{
+  "host": "proxy.example.com",
+  "port": 1080,
+  "username": "user_abc",
+  "password": "pass_xyz",
+  "protocol": "socks5"
+}`,
+    },
+    {
+      method: 'GET',
+      path: '/status',
+      description: 'Check proxy subscription status.',
+      params: [
+        { name: 'order_id', type: 'string', required: true, description: 'Order ID' },
+        { name: 'token', type: 'string', required: true, description: 'Wallet token' },
+      ],
+      response: `{
+  "orderId": "placeholder:ord_abc123",
+  "status": "ACTIVE",
+  "bandwidthUsedMB": 256,
+  "bandwidthRemainingMB": 768,
+  "expiresAt": 1714521600000
+}`,
+    },
+    {
+      method: 'GET',
+      path: '/health',
+      description: 'Check proxy engine health status.',
+      response: `[{ "name": "placeholder", "status": "MAINTENANCE", "latency": 0 }]`,
+    },
+  ],
+};
+
 const QUICK_START = `# ─── walls.rip SMS Wall — Full Flow ───
 
 # 1. Browse available services
@@ -561,6 +744,8 @@ export default function APIPage() {
         {/* ═══ API SECTIONS ═══ */}
         <div className="space-y-8">
           <APISection group={SMS_API} />
+          <APISection group={ESIM_API} />
+          <APISection group={PROXY_API} />
           <APISection group={DEAD_DROP_API} />
 
           {/* Ghost Mail note */}
