@@ -1,0 +1,36 @@
+{
+  "name": "walls.rip",
+  "description": "Anonymous communication toolkit — burner email, encrypted dead drops, anonymous SMS verification. No identity, no logs.",
+  "url": "https://walls.rip",
+  "tools": [
+    {
+      "name": "Ghost Mail",
+      "path": "/mail",
+      "description": "Disposable encrypted email inboxes with PGP support. No signup required.",
+      "features": ["burner-email", "pgp-encryption", "auto-destruct", "custom-domains"]
+    },
+    {
+      "name": "Dead Drop",
+      "path": "/drop",
+      "description": "Self-destructing encrypted messages using AES-256-GCM client-side encryption.",
+      "features": ["client-side-encryption", "self-destruct", "zero-knowledge"]
+    },
+    {
+      "name": "SMS Wall",
+      "path": "/sms",
+      "description": "Anonymous phone number verification across 150+ countries and 300+ services.",
+      "features": ["anonymous-sms", "phone-verification", "global-coverage"]
+    }
+  ],
+  "privacy": {
+    "logs": false,
+    "ip_tracking": false,
+    "analytics": false,
+    "encryption": "client-side AES-256-GCM",
+    "payment": "Monero (XMR)"
+  },
+  "contact": {
+    "twitter": "@XBToshi",
+    "website": "https://walls.rip"
+  }
+}

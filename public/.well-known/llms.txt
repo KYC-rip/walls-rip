@@ -1,0 +1,53 @@
+# walls.rip
+
+> walls.rip — Anonymous communication toolkit. Break walls for private, uncensored communication.
+
+## What is walls.rip?
+
+walls.rip is a suite of privacy-first communication tools that require no identity, accounts, or personal data. All tools are designed with zero-knowledge principles — the server never sees your plaintext.
+
+## Tools
+
+### Ghost Mail
+Disposable encrypted email inboxes. Create temporary email addresses with optional PGP encryption. Available in three tiers:
+- BASIC (free): Random address, standard domains, 30-minute session
+- PREMIUM (~$1 XMR): Custom name, premium domains, extended time, PGP
+- PRIVATE (~$3 XMR): Full control, all domains, max duration, PGP + extensions
+
+### Dead Drop
+Self-destructing encrypted messages using AES-256-GCM. Encryption happens entirely in the browser — the server stores only ciphertext. The decryption key lives in the URL fragment and never reaches the server. Configurable TTL: 10 minutes to 3 days.
+
+### SMS Wall
+Anonymous phone number verification. Get temporary numbers for SMS verification across 150+ countries and 300+ services. No identity required. Auto-refund if SMS not received.
+
+### Ghost Chat (Coming Soon)
+End-to-end encrypted messaging over decentralized Nostr relays. Ephemeral identities, no server trust.
+
+## Privacy Principles
+
+- Zero Identity: No accounts, emails, or phone numbers required
+- Client-Side Crypto: Encryption in the browser, server never sees plaintext
+- No Logs: No IP logging, no user-agent storage, no analytics
+- XMR Payments: Premium features paid with Monero for untraceable transactions
+
+## Pages
+
+- / — Home page with tool overview
+- /mail — Ghost Mail burner email
+- /drop — Dead Drop encrypted messages
+- /sms — SMS Wall anonymous verification
+- /faq — Frequently asked questions
+
+## rip.family
+
+- kyc.rip — No-KYC exchange aggregator
+- stables.rip — Stablecoin censorship tracker
+- walls.rip — Anonymous communication toolkit (this site)
+- xmrprice.live — Monero price tracker
+- ripley.run — Monero toolkit and wallet
+- xmr402.org — XMR payment protocol
+
+## Contact
+
+- Twitter: @XBToshi, @kyc_rip
+- Website: https://walls.rip

@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://walls.rip/sitemap.xml
+
+# AI/LLM context
+# See also: /llms.txt, /.well-known/llms.txt, /.well-known/agents.json
