@@ -391,6 +391,7 @@ export function ProxyWall() {
         title="Proxy Wall — Anonymous proxy access"
         description="Get anonymous residential, datacenter, and mobile proxies. Global coverage, SOCKS5/HTTP. Pay with XMR or Lightning."
         path="/proxy"
+        image="/og-proxy.jpg"
       />
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />

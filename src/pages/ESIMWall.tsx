@@ -251,7 +251,7 @@ export function ESIMWall() {
   if (step === 'PURCHASED' && purchase) {
     return (
       <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
-        <SEO title="eSIM Purchased — walls.rip" description="Your anonymous eSIM has been purchased. Scan the QR code to activate." path="/esim" />
+        <SEO title="eSIM Purchased — walls.rip" description="Your anonymous eSIM has been purchased. Scan the QR code to activate." path="/esim" image="/og-esim.jpg" />
         <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
         <div className="fixed inset-0 z-40 pointer-events-none vignette" />
         <Header />
@@ -335,6 +335,7 @@ export function ESIMWall() {
         title="eSIM — Anonymous mobile data worldwide"
         description="Buy anonymous eSIM data plans for 100+ countries. No KYC, no registration. Pay with Monero or Lightning."
         path="/esim"
+        image="/og-esim.jpg"
       />
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />

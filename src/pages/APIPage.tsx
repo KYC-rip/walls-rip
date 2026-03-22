@@ -652,8 +652,9 @@ export default function APIPage() {
     <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
       <SEO
         title="API Reference — walls.rip"
-        description="walls.rip public API documentation. Programmatic access to SMS Wall, Dead Drop, and Ghost Mail. No API keys needed."
+        description="walls.rip public API documentation. Programmatic access to SMS Wall, eSIM, Proxy, and Dead Drop. No API keys needed."
         path="/api"
+        image="/og-api.jpg"
       />
 
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
