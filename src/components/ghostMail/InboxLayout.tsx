@@ -196,12 +196,8 @@ export function InboxLayout({
             <Clock className="w-2.5 h-2.5 md:w-4 md:h-4 text-wr-error animate-pulse" />
           </div>
           <div className="h-6 md:h-8 w-px bg-wr-border/30"></div>
-          {!isMobile && (
-            <>
-              <button onClick={onExtendClick} className="text-[10px] font-bold bg-wr-green/10 hover:bg-wr-green/20 text-wr-green px-3 py-1.5 rounded-sm border border-wr-green/30 transition-all uppercase tracking-wider">EXTEND</button>
-              <button onClick={handleBurn} className="text-[10px] font-bold text-wr-dim hover:text-wr-error px-2 transition-colors uppercase tracking-wider flex items-center gap-1"><AlertOctagon size={10} />DESTROY</button>
-            </>
-          )}
+          <button onClick={onExtendClick} className="text-[10px] font-bold bg-wr-green/10 hover:bg-wr-green/20 text-wr-green px-2 md:px-3 py-1 md:py-1.5 rounded-sm border border-wr-green/30 transition-all uppercase tracking-wider">EXTEND</button>
+          <button onClick={handleBurn} className="text-[10px] font-bold text-wr-dim hover:text-wr-error px-1.5 md:px-2 transition-colors uppercase tracking-wider flex items-center gap-1"><AlertOctagon size={10} />{!isMobile && 'DESTROY'}</button>
           {toggleFullscreen && (
              <button onClick={toggleFullscreen} className="p-2 text-wr-dim hover:text-wr-green transition-colors ml-1" title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
                 {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
