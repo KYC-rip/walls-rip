@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus, Bell, BellOff } from 'lucide-react';
+import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Header } from '../components/Header';
@@ -40,6 +40,13 @@ interface SMSCheckResult {
   refunded?: number;
   balanceUSD?: number;
 }
+
+// Rental types
+interface RentalService { id: string; name: string; type: 'long' | 'extended'; engine: string }
+interface RentalPrice { serviceId: string; price: number; days: number; engine: string }
+interface RentalOrder { orderId: string; phoneNumber: string; service: string; expiresAt: string; engine: string; createdAt: number; balanceUSD?: number; charged?: number }
+interface RentalMessage { sender: string; message: string; timestamp: string }
+interface RentalStatus { orderId: string; phoneNumber: string; messages: RentalMessage[]; expiresAt: string; engine: string }
 
 const WALLET_KEY = 'walls_sms_wallet';
 const DEPOSIT_AMOUNTS = [0.50, 1, 3, 5];
@@ -90,6 +97,32 @@ export function SMSWall() {
   // Push notifications
   const [notifEnabled, setNotifEnabled] = useState(() => Notification.permission === 'granted');
 
+  // Wallet management
+  const [showRestoreInput, setShowRestoreInput] = useState(false);
+  const [restoreToken, setRestoreToken] = useState('');
+  const [restoringWallet, setRestoringWallet] = useState(false);
+  const [walletStats, setWalletStats] = useState<{ totalDeposited: number; totalSpent: number }>({ totalDeposited: 0, totalSpent: 0 });
+  const [walletTokenCopied, setWalletTokenCopied] = useState(false);
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState<'sms' | 'rentals'>('sms');
+
+  // Rentals
+  const [rentalServices, setRentalServices] = useState<RentalService[]>([]);
+  const [rentalServiceSearch, setRentalServiceSearch] = useState('');
+  const [selectedRentalService, setSelectedRentalService] = useState<string>('');
+  const [rentalPrices, setRentalPrices] = useState<RentalPrice[]>([]);
+  const [loadingRentalPrices, setLoadingRentalPrices] = useState(false);
+  const [loadingRentalServices, setLoadingRentalServices] = useState(false);
+  const [activeRentals, setActiveRentals] = useState<RentalStatus[]>([]);
+  const [loadingActiveRentals, setLoadingActiveRentals] = useState(false);
+  const [viewingRentalMessages, setViewingRentalMessages] = useState<string | null>(null); // orderId
+  const [rentalMessages, setRentalMessages] = useState<RentalMessage[]>([]);
+  const [pollingRentalMessages, setPollingRentalMessages] = useState(false);
+  const [purchasingRental, setPurchasingRental] = useState(false);
+  const [showExtendModal, setShowExtendModal] = useState<string | null>(null); // orderId
+  const [extendingRental, setExtendingRental] = useState(false);
+
   const requestNotifPermission = async () => {
     if (!('Notification' in window)) return;
     const perm = await Notification.requestPermission();
@@ -112,11 +145,14 @@ export function SMSWall() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Check wallet balance
+  // Check wallet balance + stats
   useEffect(() => {
     if (!walletToken) return;
-    apiClient<{ balanceUSD: number }>(`/v1/tools/sms/balance?token=${walletToken}`)
-      .then(data => setBalanceUSD(data.balanceUSD))
+    apiClient<{ balanceUSD: number; totalDeposited?: number; totalSpent?: number }>(`/v1/tools/sms/balance?token=${walletToken}`)
+      .then(data => {
+        setBalanceUSD(data.balanceUSD);
+        setWalletStats({ totalDeposited: data.totalDeposited || 0, totalSpent: data.totalSpent || 0 });
+      })
       .catch(() => { localStorage.removeItem(WALLET_KEY); setWalletToken(null); setBalanceUSD(0); });
   }, [walletToken]);
 
@@ -267,6 +303,132 @@ export function SMSWall() {
     setStep('SELECT'); setSelectedService(''); setPriceInfo(null);
   };
 
+  // ─── Rental: load services when tab switches ───
+  useEffect(() => {
+    if (activeTab !== 'rentals' || rentalServices.length > 0) return;
+    setLoadingRentalServices(true);
+    apiClient<RentalService[]>('/v1/tools/sms/rentals/services?type=long')
+      .then(setRentalServices)
+      .catch(() => toast.error('Failed to load rental services'))
+      .finally(() => setLoadingRentalServices(false));
+  }, [activeTab, rentalServices.length]);
+
+  // ─── Rental: load prices when service selected ───
+  useEffect(() => {
+    if (!selectedRentalService) { setRentalPrices([]); return; }
+    setLoadingRentalPrices(true);
+    apiClient<RentalPrice[]>(`/v1/tools/sms/rentals/prices?service=${selectedRentalService}`)
+      .then(setRentalPrices)
+      .catch(() => { setRentalPrices([]); toast.error('Failed to load rental prices'); })
+      .finally(() => setLoadingRentalPrices(false));
+  }, [selectedRentalService]);
+
+  // ─── Rental: load active rentals ───
+  useEffect(() => {
+    if (activeTab !== 'rentals' || !walletToken) return;
+    setLoadingActiveRentals(true);
+    apiClient<RentalStatus[]>(`/v1/tools/sms/rentals/active?token=${walletToken}`)
+      .then(setActiveRentals)
+      .catch(() => setActiveRentals([]))
+      .finally(() => setLoadingActiveRentals(false));
+  }, [activeTab, walletToken]);
+
+  // ─── Rental: poll messages ───
+  useEffect(() => {
+    if (!pollingRentalMessages || !viewingRentalMessages || !walletToken) return;
+    const fetchMessages = async () => {
+      try {
+        const data = await apiClient<{ messages: RentalMessage[] }>(`/v1/tools/sms/rentals/messages?rental_code=${viewingRentalMessages}&token=${walletToken}`);
+        setRentalMessages(data.messages || []);
+      } catch { /* keep polling */ }
+    };
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 10000);
+    return () => clearInterval(interval);
+  }, [pollingRentalMessages, viewingRentalMessages, walletToken]);
+
+  const handleRentalPurchase = async (serviceId: string, days: number) => {
+    if (!walletToken) { toast.error('Create a wallet first'); return; }
+    setPurchasingRental(true);
+    try {
+      const data = await apiClient<RentalOrder>('/v1/tools/sms/rentals/order', {
+        method: 'POST', body: { service: serviceId, days, token: walletToken },
+      });
+      if (data.orderId) {
+        toast.success(`Rental started: ${data.phoneNumber}`);
+        if (data.balanceUSD !== undefined) setBalanceUSD(data.balanceUSD);
+        // Refresh active rentals
+        apiClient<RentalStatus[]>(`/v1/tools/sms/rentals/active?token=${walletToken}`)
+          .then(setActiveRentals).catch(() => {});
+        setSelectedRentalService('');
+        setRentalPrices([]);
+      }
+    } catch { toast.error('Rental purchase failed'); }
+    finally { setPurchasingRental(false); }
+  };
+
+  const handleRentalCancel = async (rentalCode: string) => {
+    if (!walletToken) return;
+    try {
+      const data = await apiClient<{ balanceUSD?: number }>(`/v1/tools/sms/rentals/cancel?rental_code=${rentalCode}&token=${walletToken}`);
+      if (data.balanceUSD !== undefined) setBalanceUSD(data.balanceUSD);
+      setActiveRentals(prev => prev.filter(r => r.orderId !== rentalCode));
+      toast.success('Rental cancelled');
+    } catch { toast.error('Failed to cancel rental'); }
+  };
+
+  const handleRentalExtend = async (rentalCode: string, days: number) => {
+    if (!walletToken) return;
+    setExtendingRental(true);
+    try {
+      await apiClient('/v1/tools/sms/rentals/extend', {
+        method: 'POST', body: { rental_code: rentalCode, days, token: walletToken },
+      });
+      toast.success(`Extended by ${days} day${days > 1 ? 's' : ''}`);
+      setShowExtendModal(null);
+      // Refresh active rentals
+      apiClient<RentalStatus[]>(`/v1/tools/sms/rentals/active?token=${walletToken}`)
+        .then(setActiveRentals).catch(() => {});
+    } catch { toast.error('Failed to extend rental'); }
+    finally { setExtendingRental(false); }
+  };
+
+  const handleRestoreWallet = async () => {
+    if (!restoreToken.trim()) return;
+    setRestoringWallet(true);
+    try {
+      const data = await apiClient<{ balanceUSD: number; totalDeposited?: number; totalSpent?: number }>(`/v1/tools/sms/balance?token=${restoreToken.trim()}`);
+      setWalletToken(restoreToken.trim());
+      setBalanceUSD(data.balanceUSD);
+      setWalletStats({ totalDeposited: data.totalDeposited || 0, totalSpent: data.totalSpent || 0 });
+      localStorage.setItem(WALLET_KEY, restoreToken.trim());
+      setShowRestoreInput(false);
+      setRestoreToken('');
+      toast.success('Wallet restored!');
+    } catch {
+      toast.error('Invalid wallet token');
+    } finally { setRestoringWallet(false); }
+  };
+
+  const truncateToken = (token: string) => {
+    if (token.length <= 12) return token;
+    return `${token.slice(0, 8)}...${token.slice(-4)}`;
+  };
+
+  const getTimeRemaining = (expiresAt: string) => {
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    if (diff <= 0) return 'Expired';
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    if (days > 0) return `${days}d ${hours}h`;
+    const mins = Math.floor((diff % 3600000) / 60000);
+    return `${hours}h ${mins}m`;
+  };
+
+  const filteredRentalServices = rentalServices.filter(s =>
+    s.name.toLowerCase().includes(rentalServiceSearch.toLowerCase())
+  );
+
   const filteredServices = services.filter(s => s.name.toLowerCase().includes(serviceSearch.toLowerCase()));
   const filteredCountries = countries
     .filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()))
@@ -382,39 +544,133 @@ export function SMSWall() {
             <p className="text-wr-dim text-sm">Anonymous phone verification. 150+ countries. Pay per SMS.</p>
           </div>
 
-          {/* ═══ WALLET BANNER (like Telegram banner in Ghost Mail) ═══ */}
-          <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-border p-4 md:p-6 rounded-sm flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden group">
+          {/* ═══ WALLET BANNER ═══ */}
+          <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-border rounded-sm relative overflow-hidden group">
             <div className="absolute inset-0 bg-green-500/5 group-hover:bg-green-500/10 transition-colors pointer-events-none" />
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500" />
 
-            <div className="flex items-start gap-4 relative z-10">
-              <div className="p-3 bg-green-500/10 text-green-400 rounded-full shrink-0 border border-green-400/20">
-                <Wallet size={24} />
+            <div className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-start gap-4 relative z-10">
+                <div className="p-3 bg-green-500/10 text-green-400 rounded-full shrink-0 border border-green-400/20">
+                  <Wallet size={24} />
+                </div>
+                <div>
+                  <h3 className="text-green-400 font-bold tracking-widest text-sm mb-1 uppercase flex items-center gap-2">
+                    {walletToken ? (
+                      <>WALLET BALANCE <span className="text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
+                    ) : (
+                      <>ANONYMOUS WALLET <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">NEW</span></>
+                    )}
+                  </h3>
+                  <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg text-left">
+                    {walletToken
+                      ? 'Funds are stored anonymously. No account needed. Top up anytime with XMR or Lightning.'
+                      : 'Deposit XMR or Lightning to get started. One payment, multiple SMS verifications.'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-green-400 font-bold tracking-widest text-sm mb-1 uppercase flex items-center gap-2">
-                  {walletToken ? (
-                    <>WALLET BALANCE <span className="text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
-                  ) : (
-                    <>ANONYMOUS WALLET <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">NEW</span></>
-                  )}
-                </h3>
-                <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg text-left">
-                  {walletToken
-                    ? 'Funds are stored anonymously. No account needed. Top up anytime with XMR or Lightning.'
-                    : 'Deposit XMR or Lightning to get started. One payment, multiple SMS verifications.'}
-                </p>
-              </div>
+              <button
+                onClick={() => { setShowMethodInModal(true); setShowPaymentModal(true); }}
+                className="relative z-10 w-full md:w-auto px-6 py-3 bg-green-500 hover:bg-green-400 text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:-translate-y-0.5"
+              >
+                <Plus size={14} /> {walletToken ? 'TOP UP' : 'DEPOSIT'} <ChevronRight size={14} />
+              </button>
             </div>
+
+            {/* Wallet details panel */}
+            {walletToken && (
+              <div className="border-t border-wr-border/30 px-4 md:px-6 py-3 relative z-10">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                  {/* Token + Copy */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 text-[10px] text-wr-dim font-mono">
+                      <Key size={10} className="text-green-400/60" />
+                      <span className="select-none">TOKEN:</span>
+                      <span className="text-green-400/80">{truncateToken(walletToken)}</span>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(walletToken); setWalletTokenCopied(true); setTimeout(() => setWalletTokenCopied(false), 2000); }}
+                        className="p-1 hover:bg-green-500/10 rounded transition-colors"
+                        title="Copy full token"
+                      >
+                        {walletTokenCopied ? <Check size={10} className="text-green-400" /> : <Copy size={10} className="text-wr-dim hover:text-green-400" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 text-[10px] font-mono text-wr-dim">
+                    <span>Deposited: <span className="text-green-400">${walletStats.totalDeposited.toFixed(2)}</span></span>
+                    <span className="text-wr-border">|</span>
+                    <span>Spent: <span className="text-wr-accent">${walletStats.totalSpent.toFixed(2)}</span></span>
+                    <span className="text-wr-border">|</span>
+                    <span>Balance: <span className="text-green-400 font-bold">${balanceUSD.toFixed(2)}</span></span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Restore wallet */}
+            {!walletToken && (
+              <div className="border-t border-wr-border/30 px-4 md:px-6 py-3 relative z-10">
+                {showRestoreInput ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={restoreToken}
+                      onChange={e => setRestoreToken(e.target.value)}
+                      placeholder="Paste wallet token..."
+                      className="flex-1 bg-wr-base border border-wr-border px-3 py-2 text-xs font-mono outline-none focus:border-green-400 rounded-sm text-current placeholder-wr-dim/30"
+                      onKeyDown={e => e.key === 'Enter' && handleRestoreWallet()}
+                    />
+                    <button
+                      onClick={handleRestoreWallet}
+                      disabled={restoringWallet || !restoreToken.trim()}
+                      className="px-4 py-2 bg-green-500/20 border border-green-400/30 text-green-400 text-xs font-bold uppercase tracking-widest hover:bg-green-500/30 transition-colors rounded-sm disabled:opacity-30"
+                    >
+                      {restoringWallet ? <RefreshCw size={12} className="animate-spin" /> : 'Restore'}
+                    </button>
+                    <button onClick={() => { setShowRestoreInput(false); setRestoreToken(''); }} className="p-2 text-wr-dim hover:text-wr-accent">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowRestoreInput(true)}
+                    className="text-[10px] text-wr-dim hover:text-green-400 font-mono uppercase tracking-widest transition-colors flex items-center gap-2"
+                  >
+                    <Key size={10} /> Restore existing wallet
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ═══ TAB SELECTOR ═══ */}
+          <div className="mx-2 md:mx-0 flex border-b border-wr-border">
             <button
-              onClick={() => { setShowMethodInModal(true); setShowPaymentModal(true); }}
-              className="relative z-10 w-full md:w-auto px-6 py-3 bg-green-500 hover:bg-green-400 text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:-translate-y-0.5"
+              onClick={() => setActiveTab('sms')}
+              className={`flex-1 py-3 px-4 text-xs font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 border-b-2 ${
+                activeTab === 'sms'
+                  ? 'border-green-400 text-green-400 bg-green-400/5'
+                  : 'border-transparent text-wr-dim hover:text-green-400/60 hover:bg-wr-surface/50'
+              }`}
             >
-              <Plus size={14} /> {walletToken ? 'TOP UP' : 'DEPOSIT'} <ChevronRight size={14} />
+              <Phone size={14} /> One-Time SMS
+            </button>
+            <button
+              onClick={() => setActiveTab('rentals')}
+              className={`flex-1 py-3 px-4 text-xs font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 border-b-2 ${
+                activeTab === 'rentals'
+                  ? 'border-wr-accent text-wr-accent bg-wr-accent/5'
+                  : 'border-transparent text-wr-dim hover:text-wr-accent/60 hover:bg-wr-surface/50'
+              }`}
+            >
+              <Calendar size={14} /> Rentals
             </button>
           </div>
 
-          {/* ═══ COUNTRY + SERVICE SELECTORS ═══ */}
+          {/* ═══ ONE-TIME SMS TAB ═══ */}
+          {activeTab === 'sms' && (
           <div className="bg-wr-surface border border-wr-border p-4 md:p-10 relative overflow-hidden shadow-2xl mx-2 md:mx-0">
             <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-8">
 
@@ -578,8 +834,250 @@ export function SMSWall() {
               </div>
             )}
           </div>
+          )}
 
-          {/* ═══ INFO CARDS ═══ */}
+          {/* ═══ RENTALS TAB ═══ */}
+          {activeTab === 'rentals' && (
+          <div className="space-y-6 mx-2 md:mx-0 animate-in fade-in duration-500">
+
+            {/* ─── Active Rentals ─── */}
+            {walletToken && (
+            <div className="bg-wr-surface border border-wr-border rounded-sm overflow-hidden shadow-2xl">
+              <div className="p-4 md:p-6 border-b border-wr-border/30 flex items-center justify-between">
+                <h3 className="text-xs font-bold tracking-[0.2em] uppercase text-wr-accent flex items-center gap-2">
+                  <Timer size={14} /> Active Rentals
+                </h3>
+                <button
+                  onClick={() => {
+                    setLoadingActiveRentals(true);
+                    apiClient<RentalStatus[]>(`/v1/tools/sms/rentals/active?token=${walletToken}`)
+                      .then(setActiveRentals).catch(() => {}).finally(() => setLoadingActiveRentals(false));
+                  }}
+                  className="text-wr-dim hover:text-wr-accent transition-colors"
+                >
+                  <RefreshCw size={12} className={loadingActiveRentals ? 'animate-spin' : ''} />
+                </button>
+              </div>
+
+              {loadingActiveRentals ? (
+                <div className="p-8 text-center text-wr-dim text-xs animate-pulse">
+                  <RefreshCw size={16} className="animate-spin mx-auto mb-2" /> Loading rentals...
+                </div>
+              ) : activeRentals.length === 0 ? (
+                <div className="p-8 text-center text-wr-dim text-xs font-mono">
+                  No active rentals. Browse services below to get started.
+                </div>
+              ) : (
+                <div className="divide-y divide-wr-border/20">
+                  {activeRentals.map(rental => (
+                    <div key={rental.orderId} className="p-4 md:p-5 hover:bg-wr-surface/50 transition-colors">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-wr-accent/10 text-wr-accent rounded border border-wr-accent/20">
+                            <Phone size={16} />
+                          </div>
+                          <div>
+                            <div className="font-mono text-sm font-bold text-wr-accent">{rental.phoneNumber}</div>
+                            <div className="text-[10px] text-wr-dim flex items-center gap-2 mt-0.5">
+                              <Clock size={8} /> {getTimeRemaining(rental.expiresAt)} remaining
+                              {rental.messages.length > 0 && (
+                                <span className="text-green-400">
+                                  <MessageSquare size={8} className="inline" /> {rental.messages.length} msg{rental.messages.length !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (viewingRentalMessages === rental.orderId) {
+                                setViewingRentalMessages(null);
+                                setPollingRentalMessages(false);
+                                setRentalMessages([]);
+                              } else {
+                                setViewingRentalMessages(rental.orderId);
+                                setPollingRentalMessages(true);
+                              }
+                            }}
+                            className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border rounded-sm transition-all ${
+                              viewingRentalMessages === rental.orderId
+                                ? 'border-green-400 text-green-400 bg-green-400/10'
+                                : 'border-wr-border text-wr-dim hover:border-wr-accent hover:text-wr-accent'
+                            }`}
+                          >
+                            <MessageSquare size={10} className="inline mr-1" /> Messages
+                          </button>
+                          <button
+                            onClick={() => setShowExtendModal(rental.orderId)}
+                            className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-wr-border text-wr-dim hover:border-green-400 hover:text-green-400 rounded-sm transition-all"
+                          >
+                            <Expand size={10} className="inline mr-1" /> Extend
+                          </button>
+                          <button
+                            onClick={() => handleRentalCancel(rental.orderId)}
+                            className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-wr-border text-wr-dim hover:border-red-400 hover:text-red-400 rounded-sm transition-all"
+                          >
+                            <Trash2 size={10} className="inline mr-1" /> Cancel
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Messages timeline */}
+                      {viewingRentalMessages === rental.orderId && (
+                        <div className="mt-4 border-t border-wr-border/20 pt-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] text-wr-dim uppercase tracking-widest font-bold flex items-center gap-2">
+                              <RefreshCw size={8} className={pollingRentalMessages ? 'animate-spin text-green-400' : 'text-wr-dim'} />
+                              Live messages — polling every 10s
+                            </span>
+                          </div>
+                          {rentalMessages.length === 0 ? (
+                            <div className="p-4 text-center text-wr-dim text-[10px] font-mono bg-wr-base rounded border border-wr-border/30">
+                              No messages yet. Waiting for incoming SMS...
+                            </div>
+                          ) : (
+                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                              {rentalMessages.map((msg, i) => (
+                                <div key={i} className="p-3 bg-wr-base rounded border border-wr-border/30 group hover:border-green-400/30 transition-colors">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-[10px] text-wr-dim mb-1 flex items-center gap-2">
+                                        <span className="text-wr-accent font-bold">{msg.sender}</span>
+                                        <span className="text-wr-border">|</span>
+                                        <span>{new Date(msg.timestamp).toLocaleString()}</span>
+                                      </div>
+                                      <div className="text-xs text-current font-mono break-all">{msg.message}</div>
+                                    </div>
+                                    <button
+                                      onClick={() => copyText(msg.message)}
+                                      className="p-1 text-wr-dim hover:text-green-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <Copy size={10} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            )}
+
+            {/* ─── Browse Rental Services ─── */}
+            <div className="bg-wr-surface border border-wr-border p-4 md:p-10 relative overflow-hidden shadow-2xl rounded-sm">
+              <div className="relative z-10 space-y-6">
+                <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
+                  <Calendar size={12} className="text-wr-accent" /> Browse Rental Services
+                </label>
+
+                {/* Search */}
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
+                  <input
+                    type="text"
+                    value={rentalServiceSearch}
+                    onChange={e => setRentalServiceSearch(e.target.value)}
+                    placeholder="Search rental services..."
+                    className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-wr-accent text-current placeholder-wr-dim/30"
+                  />
+                </div>
+
+                {loadingRentalServices ? (
+                  <div className="py-8 text-center text-wr-dim text-xs animate-pulse">
+                    <RefreshCw size={16} className="animate-spin mx-auto mb-2" /> Loading services...
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto content-start p-1">
+                    {filteredRentalServices.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => setSelectedRentalService(s.id)}
+                        className={`text-xs px-3 py-1.5 rounded border font-mono transition-all ${
+                          selectedRentalService === s.id
+                            ? 'border-wr-accent text-wr-accent bg-wr-accent/20 font-bold shadow-[0_0_12px_rgba(34,211,238,0.25)]'
+                            : 'border-wr-border text-current hover:border-wr-accent/40 hover:text-wr-accent'
+                        }`}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                    {filteredRentalServices.length === 0 && !loadingRentalServices && (
+                      <div className="w-full text-center text-wr-dim text-xs py-4 font-mono">No services found</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Pricing tiers */}
+                {selectedRentalService && (
+                  <div className="space-y-4 pt-4 border-t border-wr-border/30">
+                    <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
+                      <Zap size={12} className="text-green-400" /> Select Duration
+                    </label>
+
+                    {loadingRentalPrices ? (
+                      <div className="py-6 text-center text-wr-dim text-xs animate-pulse">
+                        <RefreshCw size={14} className="animate-spin mx-auto mb-2" /> Loading prices...
+                      </div>
+                    ) : rentalPrices.length === 0 ? (
+                      <div className="py-6 text-center text-wr-dim text-xs font-mono">No pricing available for this service</div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {rentalPrices.map((tier, i) => (
+                          <button
+                            key={i}
+                            onClick={() => handleRentalPurchase(selectedRentalService, tier.days)}
+                            disabled={purchasingRental}
+                            className="relative p-4 md:p-5 border-2 border-wr-border bg-wr-surface/50 hover:border-wr-accent hover:bg-wr-accent/5 cursor-pointer transition-all duration-300 group overflow-hidden rounded-sm disabled:opacity-30 disabled:cursor-wait text-center"
+                          >
+                            <div className="text-2xl font-bold font-mono text-wr-accent mb-1">
+                              {tier.days}d
+                            </div>
+                            <div className="text-[10px] text-wr-dim uppercase tracking-widest mb-3">
+                              {tier.days === 1 ? '1 Day' : `${tier.days} Days`}
+                            </div>
+                            <div className="text-sm font-bold font-mono text-green-400">
+                              ${tier.price.toFixed(2)}
+                            </div>
+                            <div className="absolute inset-0 bg-wr-accent/5 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12 pointer-events-none" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {purchasingRental && (
+                      <div className="flex items-center justify-center gap-2 text-xs text-wr-accent">
+                        <RefreshCw size={12} className="animate-spin" /> Processing rental...
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Rental info cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+              {[
+                { title: 'Long-Term Numbers', desc: 'Rent a number for days or weeks' },
+                { title: 'Live Messages', desc: 'Real-time SMS inbox with polling' },
+                { title: 'Extend Anytime', desc: 'Add more days before expiry' },
+              ].map(item => (
+                <div key={item.title} className="p-4 rounded-sm border border-wr-border/50 bg-wr-surface/30">
+                  <h4 className="text-[10px] font-bold uppercase text-wr-accent mb-1">{item.title}</h4>
+                  <p className="text-[10px] text-wr-dim">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          )}
+
+          {/* ═══ INFO CARDS (One-Time SMS) ═══ */}
+          {activeTab === 'sms' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center mx-2 md:mx-0">
             {[
               { title: 'Pay with XMR/LN', desc: 'Monero or Lightning — both untraceable' },
@@ -592,9 +1090,48 @@ export function SMSWall() {
               </div>
             ))}
           </div>
+          )}
         </div>
       </main>
       <Footer />
+
+      {/* ═══ EXTEND RENTAL MODAL ═══ */}
+      {showExtendModal && (
+        <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="border border-wr-accent bg-wr-base p-0 max-w-sm w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm">
+            <button onClick={() => setShowExtendModal(null)} className="absolute top-4 right-4 text-wr-dim hover:text-wr-accent z-10"><X size={20} /></button>
+
+            <div className="p-3 md:p-4 border-b bg-wr-accent/10 border-wr-accent/30 text-wr-accent flex items-center gap-2">
+              <Calendar size={14} />
+              <span className="text-xs font-bold tracking-widest uppercase">Extend Rental</span>
+            </div>
+
+            <div className="p-4 md:p-6 space-y-4">
+              <p className="text-xs text-wr-dim font-mono text-center">Add more days to your rental</p>
+              <div className="grid grid-cols-3 gap-3">
+                {[1, 7, 30].map(days => (
+                  <button
+                    key={days}
+                    onClick={() => handleRentalExtend(showExtendModal, days)}
+                    disabled={extendingRental}
+                    className="py-4 border-2 border-wr-border hover:border-wr-accent bg-wr-surface/50 hover:bg-wr-accent/5 rounded-sm transition-all text-center disabled:opacity-30 disabled:cursor-wait"
+                  >
+                    <div className="text-xl font-bold font-mono text-wr-accent">{days}d</div>
+                    <div className="text-[9px] text-wr-dim uppercase tracking-widest mt-1">
+                      {days === 1 ? '1 Day' : `${days} Days`}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {extendingRental && (
+                <div className="flex items-center justify-center gap-2 text-xs text-wr-accent">
+                  <RefreshCw size={12} className="animate-spin" /> Extending...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══ PAYMENT MODAL ═══ */}
       {showPaymentModal && (
