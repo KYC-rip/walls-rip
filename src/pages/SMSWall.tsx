@@ -348,7 +348,12 @@ export function SMSWall() {
   }, [pollingRentalMessages, viewingRentalMessages, walletToken]);
 
   const handleRentalPurchase = async (serviceId: string, days: number) => {
-    if (!walletToken) { toast.error('Create a wallet first'); return; }
+    if (!walletToken || balanceUSD < (rentalPrices.find(p => p.days === days)?.price || 0)) {
+      const needed = rentalPrices.find(p => p.days === days)?.price || 5;
+      setDepositAmount(parseFloat(Math.max(needed - balanceUSD, 0.50).toFixed(2)));
+      setShowMethodInModal(true); setShowPaymentModal(true);
+      return;
+    }
     setPurchasingRental(true);
     try {
       const data = await apiClient<RentalOrder>('/v1/tools/sms/rentals/order', {
