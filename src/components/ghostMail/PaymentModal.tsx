@@ -127,14 +127,16 @@ export function PaymentModal({
     setTimeout(() => setXmr402Copied(false), 2000);
   };
 
-  const accentColor = isXMR402 ? 'wr-error' : isLN ? 'wr-accent' : 'wr-green';
+  const borderClass = isXMR402 ? 'border-wr-error' : isLN ? 'border-wr-accent' : 'border-wr-green';
+  const headerBgClass = isXMR402 ? 'bg-wr-error/10 border-wr-error/30 text-wr-error' : isLN ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : 'bg-wr-green/10 border-wr-green/30 text-wr-green';
+  const textAccentClass = isXMR402 ? 'text-wr-error' : isLN ? 'text-wr-accent' : 'text-wr-green';
 
   return (
     <div className="fixed inset-0 bg-wr-base/90 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-      <div className={`border bg-wr-base p-0 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm border-${accentColor}`}>
+      <div className={`border bg-wr-base p-0 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm ${borderClass}`}>
 
         {/* Header */}
-        <div className={`p-3 md:p-4 border-b flex items-center gap-2 ${isCompleted || data ? 'animate-pulse' : ''} bg-${accentColor}/10 border-${accentColor}/30 text-${accentColor}`}>
+        <div className={`p-3 md:p-4 border-b flex items-center gap-2 ${isCompleted || data ? 'animate-pulse' : ''} ${headerBgClass}`}>
           {isXMR402 ? <Shield size={14} /> : <Terminal size={14} />}
           <span className="text-[10px] md:text-xs font-bold tracking-widest uppercase">
             {isCompleted
@@ -170,7 +172,7 @@ export function PaymentModal({
                 <div className="text-wr-dim text-[10px] uppercase tracking-widest mb-1">
                   {t('ghostMail.payment.targetEndpoint', 'TARGET ENDPOINT')}
                 </div>
-                <div className={`text-lg md:text-xl font-mono border-b border-wr-border inline-block pb-1 text-${accentColor}`}>
+                <div className={`text-lg md:text-xl font-mono border-b border-wr-border inline-block pb-1 ${textAccentClass}`}>
                   {customName}@{selectedDomain}
                 </div>
               </div>
