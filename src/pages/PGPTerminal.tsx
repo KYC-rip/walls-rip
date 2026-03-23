@@ -1,17 +1,41 @@
-import { useState } from 'react';
-import { MessageSquare, Download, Globe, Shield, Zap, Lock, Monitor } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MessageSquare, Download, Globe, Shield, Zap, Lock, Monitor, Apple, Terminal as TerminalIcon } from 'lucide-react';
 import { GhostLayout } from '../components/ghostChat/GhostLayout';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 
 const GITHUB_RELEASES = 'https://github.com/KYC-rip/ghost-chat-desktop/releases/latest';
+const GITHUB_API = 'https://api.github.com/repos/KYC-rip/ghost-chat-desktop/releases/latest';
+
+interface ReleaseAsset {
+  name: string;
+  browser_download_url: string;
+  size: number;
+}
+
+interface ReleaseInfo {
+  tag_name: string;
+  assets: ReleaseAsset[];
+}
+
+function getAssetByExt(assets: ReleaseAsset[], ext: string): ReleaseAsset | undefined {
+  return assets.find(a => a.name.endsWith(ext));
+}
+
+function formatSize(bytes: number): string {
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+}
 
 export const PGPTerminal = () => {
   const [useOnline, setUseOnline] = useState(() => {
-    // Skip landing if user already has an identity
     return !!sessionStorage.getItem('ghost_identity');
   });
+  const [release, setRelease] = useState<ReleaseInfo | null>(null);
+
+  useEffect(() => {
+    fetch(GITHUB_API).then(r => r.json()).then(setRelease).catch(() => {});
+  }, []);
 
   if (useOnline) {
     return (
@@ -66,33 +90,62 @@ export const PGPTerminal = () => {
             </p>
           </div>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href={GITHUB_RELEASES}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-purple-500 text-white font-bold text-sm uppercase tracking-wider rounded-sm hover:bg-purple-400 transition-all shadow-lg shadow-purple-500/20 hover:-translate-y-0.5"
-            >
-              <Download size={18} />
-              Download Desktop App
-            </a>
-            <button
-              onClick={() => setUseOnline(true)}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 border-2 border-purple-400/40 text-current font-bold text-sm uppercase tracking-wider rounded-sm hover:border-purple-400 hover:text-purple-400 hover:bg-purple-400/5 transition-all"
-            >
-              <Globe size={18} />
-              Use Online
-            </button>
-          </div>
-
-          {/* Platform badges */}
-          <div className="flex items-center justify-center gap-6 text-[10px] text-wr-dim uppercase tracking-widest">
-            <span className="flex items-center gap-1"><Monitor size={10} /> macOS</span>
-            <span className="flex items-center gap-1"><Monitor size={10} /> Windows</span>
-            <span className="flex items-center gap-1"><Monitor size={10} /> Linux</span>
-            <span className="opacity-40">~5MB</span>
-          </div>
+          {/* Download buttons */}
+          {release ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl mx-auto">
+                {[
+                  { ext: '.dmg', label: 'macOS', icon: Apple, sub: 'Universal' },
+                  { ext: '.exe', label: 'Windows', icon: Monitor, sub: 'x64' },
+                  { ext: '.AppImage', label: 'Linux', icon: TerminalIcon, sub: 'x64' },
+                ].map(({ ext, label, icon: Icon, sub }) => {
+                  const asset = getAssetByExt(release.assets, ext);
+                  return asset ? (
+                    <a
+                      key={ext}
+                      href={asset.browser_download_url}
+                      className="flex flex-col items-center gap-1 px-4 py-3 bg-purple-500/10 border border-purple-400/30 rounded-sm hover:bg-purple-500/20 hover:border-purple-400 transition-all group"
+                    >
+                      <Icon size={20} className="text-purple-400 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-bold uppercase tracking-wider">{label}</span>
+                      <span className="text-[9px] text-wr-dim">{sub} • {formatSize(asset.size)}</span>
+                    </a>
+                  ) : null;
+                })}
+              </div>
+              <div className="flex items-center justify-center gap-4">
+                <a href={GITHUB_RELEASES} target="_blank" rel="noopener noreferrer" className="text-[10px] text-wr-dim hover:text-purple-400 transition-colors uppercase tracking-widest">
+                  {release.tag_name} • All downloads
+                </a>
+                <span className="text-wr-border">|</span>
+                <button
+                  onClick={() => setUseOnline(true)}
+                  className="text-[10px] text-wr-dim hover:text-purple-400 transition-colors uppercase tracking-widest flex items-center gap-1"
+                >
+                  <Globe size={10} /> Use Online
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <a
+                href={GITHUB_RELEASES}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 bg-purple-500 text-white font-bold text-sm uppercase tracking-wider rounded-sm hover:bg-purple-400 transition-all shadow-lg shadow-purple-500/20 hover:-translate-y-0.5"
+              >
+                <Download size={18} />
+                Download Desktop App
+              </a>
+              <button
+                onClick={() => setUseOnline(true)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 border-2 border-purple-400/40 text-current font-bold text-sm uppercase tracking-wider rounded-sm hover:border-purple-400 hover:text-purple-400 hover:bg-purple-400/5 transition-all"
+              >
+                <Globe size={18} />
+                Use Online
+              </button>
+            </div>
+          )}
 
           {/* Features */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
