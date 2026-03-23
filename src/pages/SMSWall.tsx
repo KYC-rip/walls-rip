@@ -65,6 +65,28 @@ function parseWwwAuthenticate(header: string): XMR402Challenge | null {
   return { address: match[1], amount: match[2], message: match[3], timestamp: match[4] };
 }
 
+function Xmr402Countdown({ timestamp, onExpired }: { timestamp: string; onExpired: () => void }) {
+  const [remaining, setRemaining] = useState(300);
+  useEffect(() => {
+    const expiresAt = parseInt(timestamp, 10) + 300000;
+    const tick = () => {
+      const left = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      setRemaining(left);
+      if (left <= 0) onExpired();
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [timestamp, onExpired]);
+
+  return (
+    <div className={`flex items-center justify-center gap-2 text-xs font-mono font-bold ${remaining <= 60 ? 'text-red-400 animate-pulse' : 'text-wr-dim'}`}>
+      <Clock size={12} />
+      {remaining > 0 ? `${Math.floor(remaining / 60)}:${(remaining % 60).toString().padStart(2, '0')} remaining` : 'EXPIRED'}
+    </div>
+  );
+}
+
 function piconeroToXMR(piconero: string): string {
   const val = BigInt(piconero);
   const whole = val / BigInt(1e12);
@@ -1491,8 +1513,10 @@ export function SMSWall() {
                 {t('sms.xmr402_open_wallet', 'OPEN IN MONERO WALLET')}
               </a>
 
+              <Xmr402Countdown timestamp={xmr402Challenge.timestamp} onExpired={() => { setXmr402Challenge(null); setShowXmr402Modal(false); toast.error('Challenge expired'); }} />
+
               <div className="text-[9px] text-wr-dim/60 leading-relaxed text-center">
-                {t('sms.xmr402_instructions', 'Send the exact amount with the nonce as tx_description. After sending, use the tx proof to verify payment. The challenge expires in ~5 minutes.')}
+                {t('sms.xmr402_instructions', 'Scan the QR with Ripley Terminal or click "Open in Ripley Terminal". Challenge expires when timer reaches zero.')}
               </div>
             </div>
           </div>

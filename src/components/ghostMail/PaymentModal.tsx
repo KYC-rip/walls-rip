@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from 'react';
-import { Terminal, CheckCircle, RefreshCw, X, Zap, ExternalLink, Shield, Copy, CheckCircle2 } from 'lucide-react';
+import { Terminal, CheckCircle, RefreshCw, X, Zap, ExternalLink, Shield, Copy, CheckCircle2, Clock } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { DepositAddress } from '../DepositAddress';
 import { toast } from 'react-hot-toast';
@@ -99,6 +99,22 @@ export function PaymentModal({
       selectedDuration,
     ).finally(() => setXmr402Verifying(false));
   }, [xmr402Proof, verifyXmr402Proof, customName, selectedDomain, selectedTier, selectedDuration]);
+
+  // XMR402 countdown (5-minute window)
+  const [xmr402Remaining, setXmr402Remaining] = useState<number | null>(null);
+  useEffect(() => {
+    if (!xmr402Challenge?.timestamp) { setXmr402Remaining(null); return; }
+    const challengeTime = parseInt(xmr402Challenge.timestamp, 10);
+    const expiresAt = challengeTime + 300000; // 5 minutes
+    const tick = () => {
+      const left = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      setXmr402Remaining(left);
+      if (left <= 0) setXmr402Challenge(null); // expired — clear challenge
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [xmr402Challenge?.timestamp]);
 
   if (paymentState.status === 'IDLE' && !xmr402Proof) return null;
   const data = paymentState.status === 'WAITING_PAYMENT' ? paymentState.data : null;
@@ -394,6 +410,16 @@ export function PaymentModal({
                         <ExternalLink size={12} />
                         {t('ghostMail.payment.openRipley', 'OPEN IN RIPLEY TERMINAL')}
                       </a>
+
+                      {/* Countdown timer */}
+                      {xmr402Remaining !== null && (
+                        <div className={`flex items-center justify-center gap-2 text-xs font-mono font-bold ${xmr402Remaining <= 60 ? 'text-red-400 animate-pulse' : 'text-wr-dim'}`}>
+                          <Clock size={12} />
+                          {xmr402Remaining > 0
+                            ? `${Math.floor(xmr402Remaining / 60)}:${(xmr402Remaining % 60).toString().padStart(2, '0')} remaining`
+                            : 'EXPIRED — request a new challenge'}
+                        </div>
+                      )}
 
                       <div className="text-[9px] text-wr-dim/60 leading-relaxed space-y-1">
                         <p>{t('ghostMail.payment.xmr402Instructions', 'Scan the QR code with Ripley Terminal or click "Open in Ripley Terminal". After payment, Ripley will redirect back with the proof automatically.')}</p>
