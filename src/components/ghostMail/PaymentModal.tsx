@@ -59,7 +59,7 @@ export function PaymentModal({
   const [xmr402Loading, setXmr402Loading] = useState(false);
 
   // Handle XMR402 return from Ripley Terminal (txid + proof in URL)
-  const [xmr402Proof, setXmr402Proof] = useState<{ txid: string; proof: string } | null>(() => {
+  const [xmr402Proof] = useState<{ txid: string; proof: string } | null>(() => {
     const params = new URLSearchParams(window.location.search);
     const txid = params.get('xmr402_txid');
     const proof = params.get('xmr402_proof');
