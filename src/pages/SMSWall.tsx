@@ -114,7 +114,14 @@ export function SMSWall() {
   // XMR402 state
   const [xmr402Loading, setXmr402Loading] = useState(false);
   const [xmr402Challenge, setXmr402Challenge] = useState<XMR402Challenge | null>(null);
+  const [xmr402Copied, setXmr402Copied] = useState(false);
   const [showXmr402Modal, setShowXmr402Modal] = useState(false);
+
+  const handleCopyXmr402 = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setXmr402Copied(true);
+    setTimeout(() => setXmr402Copied(false), 2000);
+  };
 
   // SMS flow
   const [purchase, setPurchase] = useState<PurchaseResult | null>(null);
