@@ -15,13 +15,13 @@ export type SupportedLang = (typeof SUPPORTED_LANGS)[number]
 
 const pathDetector = {
   name: 'path' as const,
-  lookup(): string | undefined {
+  lookup(): string {
     const segments = window.location.pathname.split('/')
     const first = segments[1]
     if (first && (SUPPORTED_LANGS as readonly string[]).includes(first)) {
       return first
     }
-    return undefined
+    return 'en'
   },
   cacheUserLanguage() {
     // no-op: path is the source of truth
@@ -48,10 +48,10 @@ i18n
     interpolation: {
       escapeValue: false,
     },
+    initImmediate: false,
     detection: {
-      order: ['path', 'localStorage', 'navigator'],
-      lookupLocalStorage: 'i18nextLng',
-      caches: ['localStorage'],
+      order: ['path'],
+      caches: [],
     },
   })
 
