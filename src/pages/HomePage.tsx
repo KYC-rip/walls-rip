@@ -239,7 +239,7 @@ export default function HomePage() {
               </Link>
               <Link
                 to={lp('/sms')}
-                className="inline-flex items-center gap-2 px-8 py-4 border border-wr-border text-wr-dim font-bold text-xs uppercase tracking-wider rounded-sm hover:border-wr-accent hover:text-wr-accent transition-all"
+                className="inline-flex items-center gap-2 px-8 py-4 border-2 border-wr-accent/40 text-current font-bold text-xs uppercase tracking-wider rounded-sm hover:border-wr-accent hover:text-wr-accent hover:bg-wr-accent/5 transition-all"
               >
                 <Phone size={14} />
                 {t('home.cta_sms')}
