@@ -23,7 +23,7 @@ export function PaymentModal({
   cancelPayment,
   customName,
   selectedDomain,
-  login
+  login: _,
 }: PaymentModalProps) {
   if (paymentState.status === 'IDLE') return null;
   const data = paymentState.status === 'WAITING_PAYMENT' ? paymentState.data : null;
