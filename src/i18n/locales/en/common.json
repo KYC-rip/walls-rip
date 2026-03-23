@@ -233,7 +233,14 @@
     "rental_info_live_desc": "Real-time SMS inbox with polling",
     "rental_info_extend_title": "Extend Anytime",
     "rental_info_extend_desc": "Add more days before expiry",
-    "number_rentals_tab": "Rentals"
+    "number_rentals_tab": "Rentals",
+    "xmr402_hint": "XMR402: Stateless payment — pay directly from your Monero wallet. No deposit wallet needed.",
+    "xmr402_pay": "PAY VIA XMR402",
+    "xmr402_challenge": "XMR402 PAYMENT REQUIRED",
+    "xmr402_address": "DESTINATION ADDRESS",
+    "xmr402_nonce": "CHALLENGE NONCE (tx_description)",
+    "xmr402_open_wallet": "OPEN IN MONERO WALLET",
+    "xmr402_instructions": "Send the exact amount with the nonce as tx_description. After sending, use the tx proof to verify payment. The challenge expires in ~5 minutes."
   },
   "mail": {
     "title": "Ghost Mail",
