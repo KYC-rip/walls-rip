@@ -222,26 +222,29 @@ export function PaymentModal({
                 </div>
               </div>
 
-              {/* Payment Method Tabs */}
+              {/* XMR402 toggle — separate flow from XMR/LN */}
               {!isCompleted && (
                 <div className="flex border border-wr-border rounded-sm overflow-hidden">
-                  {(['XMR', 'LN', 'XMR402'] as PaymentTab[]).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                        activeTab === tab
-                          ? tab === 'XMR402'
-                            ? 'bg-wr-error/20 text-wr-error border-b-2 border-wr-error'
-                            : tab === 'LN'
-                              ? 'bg-wr-accent/20 text-wr-accent border-b-2 border-wr-accent'
-                              : 'bg-wr-green/20 text-wr-green border-b-2 border-wr-green'
-                          : 'text-wr-dim hover:text-white/80'
-                      }`}
-                    >
-                      {tab === 'XMR402' ? 'XMR402' : tab}
-                    </button>
-                  ))}
+                  <button
+                    onClick={() => setActiveTab(isLN ? 'LN' : 'XMR')}
+                    className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                      !isXMR402
+                        ? isLN ? 'bg-wr-accent/20 text-wr-accent border-b-2 border-wr-accent' : 'bg-wr-green/20 text-wr-green border-b-2 border-wr-green'
+                        : 'text-wr-dim hover:text-white/80'
+                    }`}
+                  >
+                    {isLN ? 'Lightning' : 'Monero'}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('XMR402')}
+                    className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                      isXMR402
+                        ? 'bg-wr-error/20 text-wr-error border-b-2 border-wr-error'
+                        : 'text-wr-dim hover:text-white/80'
+                    }`}
+                  >
+                    XMR402 (Ripley)
+                  </button>
                 </div>
               )}
 
