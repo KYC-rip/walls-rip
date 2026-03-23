@@ -114,7 +114,6 @@ export function SMSWall() {
   // XMR402 state
   const [xmr402Loading, setXmr402Loading] = useState(false);
   const [xmr402Challenge, setXmr402Challenge] = useState<XMR402Challenge | null>(null);
-  const [xmr402Copied, setXmr402Copied] = useState(false);
   const [showXmr402Modal, setShowXmr402Modal] = useState(false);
 
   // SMS flow
@@ -317,7 +316,7 @@ export function SMSWall() {
     createPayment(depositAmount);
   };
 
-  const _handleXmr402Purchase = async () => {
+  const handleXmr402Purchase = async () => {
     if (!selectedCountry || !selectedService) return;
     setXmr402Loading(true);
     setXmr402Challenge(null);
@@ -353,11 +352,6 @@ export function SMSWall() {
     }
   };
 
-  const _handleCopyXmr402 = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setXmr402Copied(true);
-    setTimeout(() => setXmr402Copied(false), 2000);
-  };
 
   const handleCancel = async () => {
     if (!purchase || !walletToken) return;
@@ -1316,14 +1310,14 @@ export function SMSWall() {
                       <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.payment_method')}</label>
                       <div className="grid grid-cols-2 gap-2">
                         <button onClick={() => setPaymentMethod('XMR')}
-                          className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                          className={`py-3 px-4 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
                           <img src="/monero-xmr-logo.png" className="w-4 h-4" alt="XMR" />
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">Monero</span>
+                          <span className="text-xs font-bold tracking-widest font-mono uppercase">XMR</span>
                         </button>
                         <button onClick={() => setPaymentMethod('LN')}
-                          className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                          className={`py-3 px-4 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
                           <Zap size={16} className="fill-current" />
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">Lightning</span>
+                          <span className="text-xs font-bold tracking-widest font-mono uppercase">LN</span>
                         </button>
                       </div>
                     </div>
