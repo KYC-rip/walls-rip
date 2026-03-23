@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Terminal, CheckCircle, RefreshCw, X, Zap, ExternalLink, Shield, Copy, CheckCircle2 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { DepositAddress } from '../DepositAddress';
@@ -22,6 +22,9 @@ interface PaymentModalProps {
   customName: string;
   selectedDomain: string;
   login: (s: GhostMailSession) => void;
+  selectedTier?: string;
+  selectedDuration?: { label: string; value: number; addonPrice: number };
+  verifyXmr402Proof?: (txid: string, proof: string, customEmail: string, tier: string, duration?: { label: string; value: number; addonPrice: number }) => Promise<boolean>;
 }
 
 declare global {
@@ -51,6 +54,9 @@ export function PaymentModal({
   customName,
   selectedDomain,
   login: _,
+  selectedTier,
+  selectedDuration,
+  verifyXmr402Proof,
 }: PaymentModalProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<PaymentTab>('XMR');
@@ -75,8 +81,26 @@ export function PaymentModal({
   });
   const [xmr402Challenge, setXmr402Challenge] = useState<XMR402Challenge | null>(null);
   const [xmr402Copied, setXmr402Copied] = useState(false);
+  const [xmr402Verifying, setXmr402Verifying] = useState(false);
+  const xmr402VerifyAttempted = useRef(false);
 
-  if (paymentState.status === 'IDLE') return null;
+  // Auto-verify XMR402 proof when returned from Ripley Terminal
+  useEffect(() => {
+    if (!xmr402Proof || xmr402VerifyAttempted.current || !verifyXmr402Proof) return;
+    xmr402VerifyAttempted.current = true;
+    setXmr402Verifying(true);
+
+    const customEmail = `${customName}@${selectedDomain}`;
+    verifyXmr402Proof(
+      xmr402Proof.txid,
+      xmr402Proof.proof,
+      customEmail,
+      selectedTier || 'BASIC',
+      selectedDuration,
+    ).finally(() => setXmr402Verifying(false));
+  }, [xmr402Proof, verifyXmr402Proof, customName, selectedDomain, selectedTier, selectedDuration]);
+
+  if (paymentState.status === 'IDLE' && !xmr402Proof) return null;
   const data = paymentState.status === 'WAITING_PAYMENT' ? paymentState.data : null;
   const isCompleted = paymentState.status === 'COMPLETED';
   const isLN = data?.method === 'LN';
@@ -107,7 +131,11 @@ export function PaymentModal({
       const res = await fetch(`${apiBase}/api/payment/xmr402`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customEmail: `${customName}@${selectedDomain}` }),
+        body: JSON.stringify({
+          customEmail: `${customName}@${selectedDomain}`,
+          tier: selectedTier || 'BASIC',
+          duration: selectedDuration,
+        }),
       });
 
       if (res.status === 402) {
@@ -374,7 +402,11 @@ export function PaymentModal({
                   {xmr402Proof && (
                     <div className="space-y-3 p-4 border border-wr-green/30 bg-wr-green/5 rounded-sm animate-in slide-in-from-bottom-4">
                       <div className="flex items-center gap-2 text-wr-green text-xs font-bold uppercase tracking-widest">
-                        <CheckCircle size={14} /> Payment Proof Received
+                        {xmr402Verifying ? (
+                          <><RefreshCw size={14} className="animate-spin" /> {t('ghostMail.payment.verifyingProof', 'VERIFYING PAYMENT PROOF...')}</>
+                        ) : (
+                          <><CheckCircle size={14} /> {t('ghostMail.payment.proofReceived', 'Payment Proof Received')}</>
+                        )}
                       </div>
                       <div className="text-[9px] text-wr-dim font-mono break-all">
                         <div><span className="text-wr-green">txid:</span> {xmr402Proof.txid}</div>

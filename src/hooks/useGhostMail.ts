@@ -332,6 +332,53 @@ export function useGhostMail() {
     }
   }, [session]);
 
+  // XMR402: Verify proof from Ripley Terminal return and create session
+  const verifyXmr402Proof = useCallback(async (
+    txid: string,
+    proof: string,
+    customEmail: string,
+    tier: TierType,
+    duration?: { label: string; value: number; addonPrice: number }
+  ): Promise<boolean> => {
+    try {
+      const apiBase = import.meta.env.VITE_MAIL_API_URL || 'https://mail-api.kyc.rip';
+      const res = await fetch(`${apiBase}/api/payment/xmr402`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `XMR402 txid="${txid}", proof="${proof}"`,
+        },
+        body: JSON.stringify({ customEmail, tier, duration }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'VERIFICATION_FAILED' })) as { error?: string };
+        toast.error(errData.error || 'XMR402 verification failed');
+        return false;
+      }
+
+      const data = await res.json() as {
+        status: string;
+        account?: { email: string; token: string; expiresAt: number; tier: TierType };
+      };
+
+      if (data.status === 'COMPLETED' && data.account) {
+        setPaymentState({ status: 'COMPLETED' });
+        toast.success('UPLINK ESTABLISHED VIA XMR402');
+        const newSession = { email: data.account.email, token: data.account.token };
+        login(newSession);
+        return true;
+      }
+
+      toast.error('Unexpected response from XMR402 verification');
+      return false;
+    } catch (e: any) {
+      console.error('[XMR402 Verify]', e);
+      toast.error(e.message || 'XMR402 verification failed');
+      return false;
+    }
+  }, [login, setPaymentState]);
+
   const enablePgp = useCallback(async (publicKey: string, enabled: boolean): Promise<boolean> => {
     if (!session) return false;
     try {
@@ -372,6 +419,7 @@ export function useGhostMail() {
     burnSession,
     removeEmail,
     enablePgp,
+    verifyXmr402Proof,
     login,
     setSelectedTier,
     setSelectedDuration,

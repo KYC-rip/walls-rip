@@ -18,6 +18,7 @@ export function GhostMail() {
     startPurchase, startExtension, cancelPayment,
     burnSession, removeEmail,
     enablePgp,
+    verifyXmr402Proof,
     login,
     selectedDuration, setSelectedDuration, getFinalPrice,
     tiers, durations, domainOptions, configLoading,
@@ -220,6 +221,9 @@ export function GhostMail() {
         customName={session ? session.email.split('@')[0] : customName}
         selectedDomain={session ? session.email.split('@')[1] : selectedDomain}
         login={login}
+        selectedTier={selectedTier}
+        selectedDuration={selectedDuration}
+        verifyXmr402Proof={verifyXmr402Proof}
       />
 
       <ToSModal

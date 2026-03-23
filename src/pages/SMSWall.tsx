@@ -84,6 +84,33 @@ const POPULAR_SERVICES = [
 
 interface StockInfo { available: boolean; count?: number }
 
+// XMR402 return proof from URL
+interface Xmr402ReturnProof {
+  txid: string;
+  proof: string;
+  country: string;
+  service: string;
+}
+
+function extractXmr402ReturnParams(): Xmr402ReturnProof | null {
+  const params = new URLSearchParams(window.location.search);
+  const txid = params.get('xmr402_txid');
+  const proof = params.get('xmr402_proof');
+  const country = params.get('xmr402_country');
+  const service = params.get('xmr402_service');
+  if (txid && proof && country && service) {
+    // Clean URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete('xmr402_txid');
+    url.searchParams.delete('xmr402_proof');
+    url.searchParams.delete('xmr402_country');
+    url.searchParams.delete('xmr402_service');
+    window.history.replaceState({}, '', url.toString());
+    return { txid, proof, country, service };
+  }
+  return null;
+}
+
 export function SMSWall() {
   const { t } = useTranslation();
   const [countries, setCountries] = useState<Country[]>([]);
@@ -116,6 +143,11 @@ export function SMSWall() {
   const [xmr402Challenge, setXmr402Challenge] = useState<XMR402Challenge | null>(null);
   const [xmr402Copied, setXmr402Copied] = useState(false);
   const [showXmr402Modal, setShowXmr402Modal] = useState(false);
+
+  // XMR402 return flow: detect proof params from URL on mount
+  const [xmr402ReturnProof] = useState<Xmr402ReturnProof | null>(() => extractXmr402ReturnParams());
+  const [xmr402Verifying, setXmr402Verifying] = useState(false);
+  const [xmr402PurchaseResult, setXmr402PurchaseResult] = useState<PurchaseResult | null>(null);
 
   const handleCopyXmr402 = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -180,6 +212,47 @@ export function SMSWall() {
     ]).then(([c, s]) => { setCountries(c); setServices(s); })
       .catch(() => toast.error('Failed to load SMS data'))
       .finally(() => setLoading(false));
+  }, []);
+
+  // XMR402 return flow: auto-verify proof on mount
+  useEffect(() => {
+    if (!xmr402ReturnProof) return;
+    const { txid, proof, country, service } = xmr402ReturnProof;
+
+    setXmr402Verifying(true);
+    const apiBase = import.meta.env.VITE_API_URL || 'https://api.kyc.rip';
+    fetch(`${apiBase}/v1/tools/sms/purchase/xmr402`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `XMR402 txid="${txid}", proof="${proof}"`,
+      },
+      body: JSON.stringify({ country, service }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ error: 'VERIFICATION_FAILED' })) as { error?: string };
+          toast.error(errData.error || 'XMR402 payment verification failed');
+          return;
+        }
+        const data = await res.json() as PurchaseResult;
+        if (data.orderId && data.phoneNumber) {
+          setXmr402PurchaseResult(data);
+          setPurchase(data);
+          setPolling(true);
+          setStep('WAITING');
+          toast.success('XMR402 payment verified — number purchased!');
+          fireNotification('XMR402 Payment Verified', `Phone: ${data.phoneNumber}`);
+        } else {
+          toast.error('Unexpected response from XMR402 verification');
+        }
+      })
+      .catch((e: Error) => {
+        console.error('[XMR402 SMS Return]', e);
+        toast.error(e.message || 'XMR402 verification failed');
+      })
+      .finally(() => setXmr402Verifying(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Check wallet balance + stats
@@ -522,13 +595,15 @@ export function SMSWall() {
   const selectedCountryName = countries.find(c => c.id === selectedCountry)?.name || '';
   const selectedServiceName = services.find(s => s.id === selectedService)?.name || '';
 
-  if (loading) {
+  if (loading || xmr402Verifying) {
     return (
       <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
         <Header />
         <div className="flex flex-col items-center justify-center py-20 animate-pulse text-wr-dim">
           <RefreshCw size={32} className="animate-spin mb-4" />
-          <p className="text-xs tracking-widest uppercase">{t('sms.loading_services')}</p>
+          <p className="text-xs tracking-widest uppercase">
+            {xmr402Verifying ? t('sms.xmr402_verifying', 'VERIFYING XMR402 PAYMENT PROOF...') : t('sms.loading_services')}
+          </p>
         </div>
       </div>
     );
@@ -1364,7 +1439,7 @@ export function SMSWall() {
               <div className="flex justify-center">
                 <div className="bg-white p-3 rounded-sm shadow-sm border border-wr-border">
                   <QRCodeCanvas
-                    value={`xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(window.location.href)}`}
+                    value={(() => { const ru = new URL(window.location.href); ru.searchParams.set('xmr402_country', selectedCountry); ru.searchParams.set('xmr402_service', selectedService); return `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(ru.toString())}`; })()}
                     size={160}
                     level="M"
                     bgColor="#ffffff"
@@ -1409,7 +1484,7 @@ export function SMSWall() {
               </div>
 
               <a
-                href={`xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(window.location.href)}`}
+                href={(() => { const ru = new URL(window.location.href); ru.searchParams.set('xmr402_country', selectedCountry); ru.searchParams.set('xmr402_service', selectedService); return `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(ru.toString())}`; })()}
                 className="flex items-center justify-center gap-2 py-2.5 bg-wr-error/20 hover:bg-wr-error/30 text-wr-error border border-wr-error/30 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all"
               >
                 <ExternalLink size={12} />
