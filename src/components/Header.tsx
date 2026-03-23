@@ -129,7 +129,7 @@ export function Header() {
 
           {langOpen && (
             <div className="absolute right-0 top-full mt-1 bg-wr-surface border border-wr-border rounded-sm shadow-xl z-50 min-w-[100px] py-1">
-              {SUPPORTED_LANGS.map((lang) => (
+              {SUPPORTED_LANGS.filter(l => l !== 'zh').map((lang) => (
                 <button
                   key={lang}
                   onClick={() => handleLangChange(lang)}

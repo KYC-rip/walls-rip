@@ -28,7 +28,7 @@ const PAGES = [
 ];
 
 // Language prefixes (en has no prefix)
-const LANG_PREFIXES = ['zh-TW', 'ru', 'es', 'pt', 'ja'];
+const LANG_PREFIXES = ['zh-TW', 'zh', 'ru', 'es', 'pt', 'ja'];
 
 export default function App() {
   return (
