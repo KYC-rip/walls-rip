@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus, Wifi, Signal } from 'lucide-react';
+import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus, Wifi, Signal, ArrowUpDown, SlidersHorizontal, Shield, Tag } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -10,11 +10,16 @@ import { apiClient } from '../services/client';
 
 // ─── Types ───
 
-interface ESIMCountry { code: string; name: string; regions?: string[]; engine: string }
-interface ESIMPlan {
+interface MergedCountry { code: string; name: string; regions: string[]; engines: string[] }
+interface ComparePlan {
   id: string; name: string; country: string; dataGB: number;
-  durationDays: number; price: number; currency: string; engine: string;
-  speed?: string; extendable?: boolean;
+  durationDays: number; costPrice: number; price: number;
+  currency: string; engine: string;
+}
+interface CompareResponse {
+  plans: ComparePlan[];
+  engines: string[];
+  cheapest: string | null;
 }
 
 interface PaymentData {
@@ -45,14 +50,45 @@ interface ProfileResult {
 const WALLET_KEY = 'walls_sms_wallet'; // Shared with SMS wallet
 const DEPOSIT_AMOUNTS = [3, 5, 10, 20];
 
+// ─── Engine Colors ───
+
+const ENGINE_COLORS: Record<string, { bg: string; border: string; text: string; glow: string; label: string }> = {
+  pikasim:    { bg: 'bg-emerald-500/10', border: 'border-emerald-400/40', text: 'text-emerald-400', glow: 'shadow-emerald-500/20', label: 'PikaSim' },
+  esimaccess: { bg: 'bg-violet-500/10',  border: 'border-violet-400/40',  text: 'text-violet-400',  glow: 'shadow-violet-500/20',  label: 'eSIM Access' },
+  smspool:    { bg: 'bg-amber-500/10',   border: 'border-amber-400/40',   text: 'text-amber-400',   glow: 'shadow-amber-500/20',   label: 'SMSPool' },
+  silentlink: { bg: 'bg-rose-500/10',    border: 'border-rose-400/40',    text: 'text-rose-400',    glow: 'shadow-rose-500/20',     label: 'SilentLink' },
+};
+
+function getEngineStyle(engine: string) {
+  return ENGINE_COLORS[engine] || { bg: 'bg-cyan-500/10', border: 'border-cyan-400/40', text: 'text-cyan-400', glow: 'shadow-cyan-500/20', label: engine };
+}
+
+// ─── Data filter buckets ───
+const DATA_FILTERS = [
+  { label: 'All', min: 0, max: Infinity },
+  { label: '1GB', min: 0.5, max: 1.5 },
+  { label: '3GB', min: 2, max: 4 },
+  { label: '5GB', min: 4, max: 6 },
+  { label: '10GB+', min: 10, max: Infinity },
+] as const;
+
+type SortKey = 'price' | 'data' | 'duration';
+
 export function ESIMWall() {
   const { t } = useTranslation();
-  const [countries, setCountries] = useState<ESIMCountry[]>([]);
-  const [plans, setPlans] = useState<ESIMPlan[]>([]);
+  const [countries, setCountries] = useState<MergedCountry[]>([]);
+  const [comparePlans, setComparePlans] = useState<ComparePlan[]>([]);
+  const [activeEngines, setActiveEngines] = useState<string[]>([]);
+  const [cheapestId, setCheapestId] = useState<string | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [countrySearch, setCountrySearch] = useState('');
-  const [selectedPlan, setSelectedPlan] = useState<ESIMPlan | null>(null);
   const [loadingPlans, setLoadingPlans] = useState(false);
+
+  // Filters
+  const [dataFilter, setDataFilter] = useState(0); // index into DATA_FILTERS
+  const [engineFilter, setEngineFilter] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey>('price');
+  const [sortAsc, setSortAsc] = useState(true);
 
   // Wallet (shared with SMS)
   const [walletToken, setWalletToken] = useState<string | null>(() => localStorage.getItem(WALLET_KEY));
@@ -65,7 +101,7 @@ export function ESIMWall() {
   const [showMethodInModal, setShowMethodInModal] = useState(false);
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [paymentPolling, setPaymentPolling] = useState(false);
-  const [pendingPurchase, setPendingPurchase] = useState<{ planId: string } | null>(null);
+  const [pendingPurchase, setPendingPurchase] = useState<{ planId: string; engine: string } | null>(null);
 
   // Purchase flow
   const [purchase, setPurchase] = useState<PurchaseResult | null>(null);
@@ -75,9 +111,9 @@ export function ESIMWall() {
   const [loading, setLoading] = useState(true);
   const [notConfigured, setNotConfigured] = useState(false);
 
-  // ─── Load countries ───
+  // ─── Load countries (merged from all engines) ───
   useEffect(() => {
-    apiClient<ESIMCountry[]>('/v1/tools/esim/countries')
+    apiClient<MergedCountry[]>('/v1/tools/esim/countries/all')
       .then(c => { setCountries(c); })
       .catch((e) => {
         if (e?.data?.code === 'ESIM_NOT_CONFIGURED' || e?.message?.includes('ESIM_NOT_CONFIGURED')) {
@@ -95,13 +131,19 @@ export function ESIMWall() {
       .catch(() => { localStorage.removeItem(WALLET_KEY); setWalletToken(null); setBalanceUSD(0); });
   }, [walletToken]);
 
-  // ─── Fetch plans when country selected ───
+  // ─── Fetch compare plans when country selected ───
   useEffect(() => {
-    if (!selectedCountry) { setPlans([]); setSelectedPlan(null); return; }
+    if (!selectedCountry) { setComparePlans([]); setActiveEngines([]); setCheapestId(null); return; }
     setLoadingPlans(true);
-    apiClient<ESIMPlan[]>(`/v1/tools/esim/plans?country=${selectedCountry}`)
-      .then(p => { setPlans(p); setSelectedPlan(null); })
-      .catch(() => { setPlans([]); toast.error('Failed to load plans'); })
+    apiClient<CompareResponse>(`/v1/tools/esim/compare?country=${selectedCountry}`)
+      .then(data => {
+        setComparePlans(data.plans);
+        setActiveEngines(data.engines);
+        setCheapestId(data.cheapest);
+        // Reset engine filter to show all
+        setEngineFilter(new Set());
+      })
+      .catch(() => { setComparePlans([]); toast.error('Failed to load plans'); })
       .finally(() => setLoadingPlans(false));
   }, [selectedCountry]);
 
@@ -122,7 +164,7 @@ export function ESIMWall() {
           toast.success(`$${paymentData.usd.toFixed(2)} deposited!`);
 
           if (pendingPurchase) {
-            setTimeout(() => executePurchase(pendingPurchase.planId, result.walletToken!), 500);
+            setTimeout(() => executePurchase(pendingPurchase.planId, result.walletToken!, pendingPurchase.engine), 500);
             setPendingPurchase(null);
           }
         } else if (result.status === 'EXPIRED') {
@@ -139,7 +181,7 @@ export function ESIMWall() {
 
   const [creatingPayment, setCreatingPayment] = useState(false);
 
-  const createPayment = async (usdAmount: number, purchaseAfter?: { planId: string }) => {
+  const createPayment = async (usdAmount: number, purchaseAfter?: { planId: string; engine: string }) => {
     setCreatingPayment(true);
     try {
       const data = await apiClient<PaymentData>('/v1/tools/esim/payment/create', {
@@ -152,21 +194,19 @@ export function ESIMWall() {
     finally { setCreatingPayment(false); }
   };
 
-  const executePurchase = async (planId: string, token: string) => {
+  const executePurchase = async (planId: string, token: string, engine?: string) => {
     try {
       const data = await apiClient<PurchaseResult>('/v1/tools/esim/purchase', {
         method: 'POST',
-        body: { planId, token },
+        body: { planId, token, engine },
       });
       if (data.orderId) {
         setPurchase(data);
         setBalanceUSD(data.balanceUSD);
         setStep('PURCHASED');
-        // Set profile data from purchase response
         if (data.qrCode || data.activationUrl) {
           setProfileData({ qrCode: data.qrCode, activationUrl: data.activationUrl });
         } else {
-          // Poll for profile
           pollProfile(data.orderId, token);
         }
         toast.success('eSIM purchased!');
@@ -179,7 +219,6 @@ export function ESIMWall() {
   };
 
   const pollProfile = async (orderId: string, token: string) => {
-    // Try to get profile a few times with delay
     for (let i = 0; i < 5; i++) {
       await new Promise(r => setTimeout(r, 3000));
       try {
@@ -192,18 +231,16 @@ export function ESIMWall() {
     }
   };
 
-  const handleBuyPlan = async () => {
-    if (!selectedPlan) return;
-    const price = selectedPlan.price;
+  const handleBuyPlan = async (plan: ComparePlan) => {
+    const price = plan.price;
 
     if (walletToken && balanceUSD >= price) {
-      executePurchase(selectedPlan.id, walletToken);
+      executePurchase(plan.id, walletToken, plan.engine);
     } else {
       const needed = walletToken ? price - balanceUSD : price;
       const depositAmt = Math.max(needed, 3);
-      // Round up to nearest integer
       setDepositAmount(Math.ceil(depositAmt));
-      createPayment(Math.ceil(depositAmt), { planId: selectedPlan.id });
+      createPayment(Math.ceil(depositAmt), { planId: plan.id, engine: plan.engine });
     }
   };
 
@@ -218,7 +255,7 @@ export function ESIMWall() {
 
   const reset = () => {
     setPurchase(null); setProfileData(null);
-    setStep('SELECT'); setSelectedPlan(null);
+    setStep('SELECT');
   };
 
   // ─── Derived ───
@@ -231,10 +268,51 @@ export function ESIMWall() {
 
   const selectedCountryName = countries.find(c => c.code === selectedCountry)?.name || '';
 
-  // Group plans by data size for clean display
-  const sortedPlans = useMemo(() => {
-    return [...plans].sort((a, b) => a.dataGB - b.dataGB || a.durationDays - b.durationDays);
-  }, [plans]);
+  const filteredPlans = useMemo(() => {
+    let plans = [...comparePlans];
+
+    // Data filter
+    const df = DATA_FILTERS[dataFilter];
+    if (df.min > 0 || df.max < Infinity) {
+      plans = plans.filter(p => p.dataGB >= df.min && p.dataGB <= df.max);
+    }
+
+    // Engine filter
+    if (engineFilter.size > 0) {
+      plans = plans.filter(p => engineFilter.has(p.engine));
+    }
+
+    // Sort
+    plans.sort((a, b) => {
+      let diff = 0;
+      if (sortKey === 'price') diff = a.price - b.price;
+      else if (sortKey === 'data') diff = a.dataGB - b.dataGB;
+      else if (sortKey === 'duration') diff = a.durationDays - b.durationDays;
+      return sortAsc ? diff : -diff;
+    });
+
+    return plans;
+  }, [comparePlans, dataFilter, engineFilter, sortKey, sortAsc]);
+
+  // Highest price for savings calculation
+  const highestPrice = useMemo(() => {
+    if (filteredPlans.length === 0) return 0;
+    return Math.max(...filteredPlans.map(p => p.price));
+  }, [filteredPlans]);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else { setSortKey(key); setSortAsc(true); }
+  };
+
+  const toggleEngineFilter = (engine: string) => {
+    setEngineFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(engine)) next.delete(engine);
+      else next.add(engine);
+      return next;
+    });
+  };
 
   // ─── Loading state ───
   if (loading) {
@@ -333,6 +411,7 @@ export function ESIMWall() {
 
             <div className="border-t border-wr-border/30 pt-4 space-y-2">
               <div className="text-[10px] text-wr-dim">Order: {purchase.orderId}</div>
+              <div className="text-[10px] text-wr-dim">Engine: {purchase.engine}</div>
               <div className="text-[10px] text-wr-dim">Charged: ${purchase.charged.toFixed(2)} — Wallet: ${balanceUSD.toFixed(2)}</div>
             </div>
 
@@ -356,33 +435,33 @@ export function ESIMWall() {
     );
   }
 
-  // ─── SELECT state — main page ───
+  // ─── SELECT state — main page with comparison view ───
   return (
     <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
       <SEO
-        title="eSIM — Anonymous mobile data worldwide"
-        description="Buy anonymous eSIM data plans for 100+ countries. No KYC, no registration. Pay with Monero or Lightning."
+        title="eSIM — Compare anonymous data plans worldwide"
+        description="Compare eSIM data plans from multiple providers. Find the cheapest anonymous data for 100+ countries. No KYC, pay with Monero or Lightning."
         path="/esim"
         image="/og-esim.jpg"
         schemas={[
           {
             '@context': 'https://schema.org',
             '@type': 'WebApplication',
-            name: 'eSIM',
+            name: 'eSIM Plan Aggregator',
             url: 'https://walls.rip/esim',
             applicationCategory: 'UtilitiesApplication',
             operatingSystem: 'Web',
-            description: 'Anonymous eSIM data plans for 120+ countries. No KYC, no registration. 3G/4G/5G.',
+            description: 'Compare anonymous eSIM data plans from multiple providers. 120+ countries, 3G/4G/5G. No KYC.',
             offers: { '@type': 'Offer', price: '0.80', priceCurrency: 'USD', description: 'Starting price for eSIM data plan' },
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
           },
           {
             '@context': 'https://schema.org',
             '@type': 'Service',
-            name: 'eSIM — Anonymous Data Plans',
+            name: 'eSIM — Anonymous Data Plan Comparison',
             serviceType: 'eSIM Data Plans',
             areaServed: 'Worldwide',
-            description: 'Buy anonymous eSIM data plans for 120+ countries. Install via QR code, pay with Monero or Lightning.',
+            description: 'Compare and buy anonymous eSIM data plans from multiple providers. Best prices, instant activation.',
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
             offers: { '@type': 'Offer', price: '0.80', priceCurrency: 'USD' },
           },
@@ -392,21 +471,22 @@ export function ESIMWall() {
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />
       <Header />
 
-      <main className="w-full max-w-5xl px-4 md:px-6 relative z-10 pb-12">
-        <div className="max-w-5xl mx-auto space-y-6 md:space-y-10 pb-8 md:pb-12">
+      <main className="w-full max-w-6xl px-4 md:px-6 relative z-10 pb-12">
+        <div className="max-w-6xl mx-auto space-y-6 md:space-y-10 pb-8 md:pb-12">
 
-          {/* ═══ HERO ═══ */}
+          {/* HERO */}
           <div className="text-center py-8 scale-90 md:scale-100 origin-top">
             <div className="mx-auto w-16 h-16 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-400/20 mb-4">
               <Smartphone size={40} />
             </div>
             <h1 className="font-display text-3xl md:text-5xl font-black tracking-tight mb-2">
               <span className="text-cyan-400">{t('esim.title_e')}</span>{t('esim.title_sim')}
+              <span className="text-wr-dim text-lg md:text-2xl ml-3 font-normal">aggregator</span>
             </h1>
-            <p className="text-wr-dim text-sm">{t('esim.subtitle')}</p>
+            <p className="text-wr-dim text-sm">{t('esim.compare_subtitle')}</p>
           </div>
 
-          {/* ═══ COMING SOON / NOT CONFIGURED ═══ */}
+          {/* COMING SOON / NOT CONFIGURED */}
           {notConfigured && (
             <div className="mx-2 md:mx-0 bg-wr-surface border border-cyan-400/30 p-6 md:p-8 rounded-sm text-center space-y-4">
               <div className="mx-auto w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-400/20">
@@ -428,7 +508,7 @@ export function ESIMWall() {
 
           {!notConfigured && (
             <>
-              {/* ═══ WALLET BANNER ═══ */}
+              {/* WALLET BANNER */}
               <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-border p-4 md:p-6 rounded-sm flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-cyan-500/5 group-hover:bg-cyan-500/10 transition-colors pointer-events-none" />
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500" />
@@ -460,7 +540,7 @@ export function ESIMWall() {
                 </button>
               </div>
 
-              {/* ═══ COUNTRY SELECTOR + PLANS ═══ */}
+              {/* COUNTRY SELECTOR + COMPARISON TABLE */}
               <div className="bg-wr-surface border border-wr-border p-4 md:p-10 relative overflow-hidden shadow-2xl mx-2 md:mx-0">
                 <div className="relative z-10 space-y-6 md:space-y-8">
 
@@ -477,8 +557,11 @@ export function ESIMWall() {
                     <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto content-start p-1">
                       {filteredCountries.map(c => (
                         <button key={c.code} onClick={() => setSelectedCountry(c.code)}
-                          className={`text-xs px-3 py-1.5 rounded border font-mono transition-all ${selectedCountry === c.code ? 'border-cyan-400 text-cyan-400 bg-cyan-400/20 font-bold shadow-[0_0_12px_rgba(34,211,238,0.25)]' : 'border-wr-border text-current hover:border-cyan-400/40 hover:text-cyan-400'}`}>
+                          className={`text-xs px-3 py-1.5 rounded border font-mono transition-all flex items-center gap-1.5 ${selectedCountry === c.code ? 'border-cyan-400 text-cyan-400 bg-cyan-400/20 font-bold shadow-[0_0_12px_rgba(34,211,238,0.25)]' : 'border-wr-border text-current hover:border-cyan-400/40 hover:text-cyan-400'}`}>
                           {c.code} — {c.name}
+                          {c.engines.length > 1 && (
+                            <span className="text-[8px] bg-wr-green/20 text-wr-green px-1 rounded">{c.engines.length}</span>
+                          )}
                         </button>
                       ))}
                       {filteredCountries.length === 0 && !loading && (
@@ -492,55 +575,176 @@ export function ESIMWall() {
                     )}
                   </div>
 
-                  {/* Plans */}
+                  {/* Comparison Plans */}
                   {selectedCountry && (
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                        <Wifi size={12} className="text-cyan-400" /> {t('esim.available_plans')}
-                      </label>
+                    <div className="space-y-4">
+                      {/* Header with engine count */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
+                          <Wifi size={12} className="text-cyan-400" /> {t('esim.compare_title')}
+                          {activeEngines.length > 0 && (
+                            <span className="text-[9px] bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full normal-case tracking-normal">
+                              {t('esim.providers_found', { count: activeEngines.length })}
+                            </span>
+                          )}
+                        </label>
+                      </div>
 
                       {loadingPlans ? (
-                        <div className="flex items-center gap-2 text-wr-dim text-xs py-8 justify-center">
-                          <RefreshCw size={14} className="animate-spin" /> {t('esim.loading_plans')}
+                        <div className="flex flex-col items-center gap-3 text-wr-dim text-xs py-12 justify-center">
+                          <RefreshCw size={20} className="animate-spin text-cyan-400" />
+                          <span className="tracking-widest uppercase">{t('esim.loading_compare')}</span>
+                          <div className="flex gap-2">
+                            {['pikasim', 'esimaccess', 'smspool'].map(e => (
+                              <span key={e} className={`text-[9px] px-2 py-0.5 rounded border animate-pulse ${getEngineStyle(e).border} ${getEngineStyle(e).text}`}>
+                                {getEngineStyle(e).label}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      ) : sortedPlans.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {sortedPlans.map(plan => (
-                            <button
-                              key={plan.id}
-                              onClick={() => setSelectedPlan(plan)}
-                              className={`p-4 rounded-sm border text-left transition-all group/plan ${selectedPlan?.id === plan.id
-                                ? 'border-cyan-400 bg-cyan-400/10 shadow-[0_0_20px_rgba(34,211,238,0.15)]'
-                                : 'border-wr-border hover:border-cyan-400/40 bg-wr-base'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <span className={`text-lg font-black font-mono ${selectedPlan?.id === plan.id ? 'text-cyan-400' : 'text-current'}`}>
-                                  {plan.dataGB}GB
-                                </span>
-                                <span className={`text-sm font-bold font-mono ${selectedPlan?.id === plan.id ? 'text-cyan-400' : 'text-wr-green'}`}>
-                                  ${plan.price.toFixed(2)}
-                                </span>
+                      ) : comparePlans.length > 0 ? (
+                        <>
+                          {/* Filter toolbar */}
+                          <div className="flex flex-col md:flex-row gap-3 md:items-center">
+                            {/* Data size filter */}
+                            <div className="flex items-center gap-1.5">
+                              <SlidersHorizontal size={10} className="text-wr-dim shrink-0" />
+                              <div className="flex gap-1">
+                                {DATA_FILTERS.map((df, i) => (
+                                  <button key={df.label} onClick={() => setDataFilter(i)}
+                                    className={`text-[10px] px-2.5 py-1 rounded border font-mono transition-all ${dataFilter === i ? 'border-cyan-400 text-cyan-400 bg-cyan-400/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
+                                    {df.label}
+                                  </button>
+                                ))}
                               </div>
-                              <div className="flex items-center gap-2 text-[10px] text-wr-dim">
-                                <Clock size={10} /> {plan.durationDays} days
-                                {plan.speed && (
-                                  <><span className="opacity-30">|</span><Signal size={10} /> {plan.speed}</>
-                                )}
+                            </div>
+
+                            {/* Engine filter */}
+                            <div className="flex items-center gap-1.5 md:ml-auto">
+                              <Shield size={10} className="text-wr-dim shrink-0" />
+                              <div className="flex gap-1">
+                                {activeEngines.map(engine => {
+                                  const style = getEngineStyle(engine);
+                                  const active = engineFilter.size === 0 || engineFilter.has(engine);
+                                  return (
+                                    <button key={engine} onClick={() => toggleEngineFilter(engine)}
+                                      className={`text-[10px] px-2.5 py-1 rounded border font-mono transition-all ${active ? `${style.border} ${style.text} ${style.bg}` : 'border-wr-border/30 text-wr-dim/40 line-through'}`}>
+                                      {style.label}
+                                    </button>
+                                  );
+                                })}
                               </div>
+                            </div>
+                          </div>
+
+                          {/* Sort bar */}
+                          <div className="flex items-center gap-4 text-[10px] text-wr-dim uppercase tracking-widest border-b border-wr-border/30 pb-2">
+                            <span className="w-20 shrink-0">Provider</span>
+                            <button onClick={() => handleSort('data')} className="flex items-center gap-1 hover:text-cyan-400 transition-colors">
+                              Data <ArrowUpDown size={8} className={sortKey === 'data' ? 'text-cyan-400' : ''} />
                             </button>
-                          ))}
-                        </div>
+                            <button onClick={() => handleSort('duration')} className="flex items-center gap-1 hover:text-cyan-400 transition-colors">
+                              Duration <ArrowUpDown size={8} className={sortKey === 'duration' ? 'text-cyan-400' : ''} />
+                            </button>
+                            <button onClick={() => handleSort('price')} className="flex items-center gap-1 hover:text-cyan-400 transition-colors ml-auto">
+                              Price <ArrowUpDown size={8} className={sortKey === 'price' ? 'text-cyan-400' : ''} />
+                            </button>
+                            <span className="w-16 shrink-0 text-right">Action</span>
+                          </div>
+
+                          {/* Plan rows */}
+                          <div className="space-y-2">
+                            {filteredPlans.map((plan, idx) => {
+                              const style = getEngineStyle(plan.engine);
+                              const isCheapest = plan.id === cheapestId;
+                              const savings = highestPrice > plan.price ? +(highestPrice - plan.price).toFixed(2) : 0;
+                              const pricePerGB = plan.dataGB > 0 ? +(plan.price / plan.dataGB).toFixed(2) : plan.price;
+
+                              return (
+                                <div
+                                  key={plan.id}
+                                  className={`group relative flex flex-col md:flex-row md:items-center gap-3 md:gap-4 p-3 md:p-4 rounded-sm border transition-all hover:shadow-lg ${
+                                    isCheapest
+                                      ? 'border-wr-green/60 bg-wr-green/5 shadow-[0_0_20px_rgba(0,255,65,0.08)]'
+                                      : 'border-wr-border/50 bg-wr-base hover:border-cyan-400/30'
+                                  }`}
+                                >
+                                  {/* Best price badge */}
+                                  {isCheapest && (
+                                    <div className="absolute -top-2 left-3 md:left-4 px-2 py-0.5 bg-wr-green text-black text-[8px] font-black tracking-widest uppercase rounded-xs shadow-lg shadow-wr-green/30">
+                                      {t('esim.best_price')}
+                                    </div>
+                                  )}
+
+                                  {/* Engine badge */}
+                                  <div className={`w-20 shrink-0 flex items-center gap-1.5 ${style.text}`}>
+                                    <div className={`w-2 h-2 rounded-full ${style.bg} ${style.border} border`} />
+                                    <span className="text-[10px] font-bold tracking-wider uppercase truncate">{style.label}</span>
+                                  </div>
+
+                                  {/* Plan info */}
+                                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                                    <div className="flex items-baseline gap-1">
+                                      <span className={`text-lg font-black font-mono ${isCheapest ? 'text-wr-green' : 'text-current'}`}>
+                                        {plan.dataGB}GB
+                                      </span>
+                                      <span className="text-[9px] text-wr-dim">${pricePerGB}{t('esim.per_gb')}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 text-[10px] text-wr-dim">
+                                      <Clock size={10} /> {plan.durationDays}d
+                                    </div>
+
+                                    {/* Savings indicator */}
+                                    {savings > 0.5 && idx < 3 && (
+                                      <span className="hidden md:inline-flex items-center gap-1 text-[9px] text-wr-green bg-wr-green/10 border border-wr-green/20 px-1.5 py-0.5 rounded-full">
+                                        <Tag size={8} /> {t('esim.save_vs_highest', { amount: savings.toFixed(2) })}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Price + Buy */}
+                                  <div className="flex items-center gap-3 md:gap-4 shrink-0">
+                                    <div className="text-right">
+                                      <div className={`text-base font-black font-mono ${isCheapest ? 'text-wr-green' : 'text-current'}`}>
+                                        ${plan.price.toFixed(2)}
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => handleBuyPlan(plan)}
+                                      disabled={creatingPayment}
+                                      className={`w-16 py-2 text-[10px] font-bold tracking-widest uppercase rounded-sm border transition-all flex items-center justify-center ${
+                                        creatingPayment
+                                          ? 'border-wr-border text-wr-dim cursor-wait'
+                                          : isCheapest
+                                            ? 'border-wr-green text-wr-green hover:bg-wr-green hover:text-black shadow-[0_0_10px_rgba(0,255,65,0.15)]'
+                                            : 'border-cyan-400/40 text-cyan-400 hover:bg-cyan-400 hover:text-black'
+                                      }`}
+                                    >
+                                      {creatingPayment ? <RefreshCw size={10} className="animate-spin" /> : t('esim.buy')}
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {filteredPlans.length === 0 && comparePlans.length > 0 && (
+                            <div className="text-center py-6 text-xs text-wr-dim">
+                              No plans match the current filters. Try adjusting the data size or provider filters.
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <div className="flex items-start gap-2 text-xs text-wr-dim p-4 rounded bg-wr-base border border-wr-border/50 justify-center">
                           <AlertTriangle size={14} className="shrink-0 mt-0.5 text-wr-warning" />
-                          <span>{t('esim.no_plans')}</span>
+                          <span>{t('esim.no_compare_plans')}</span>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* ═══ PAYMENT METHOD ═══ */}
+                  {/* PAYMENT METHOD */}
                   <div className="mb-6">
                     <div className="text-xs text-wr-dim mb-4 uppercase tracking-widest font-bold flex items-center gap-2">
                       <Zap size={12} className="text-wr-accent" /> {t('esim.payment_protocol')}
@@ -559,49 +763,10 @@ export function ESIMWall() {
                     </div>
                   </div>
 
-                  {/* ═══ ACTION BAR ═══ */}
-                  <div className="pt-6 border-t border-wr-border/30 flex flex-col md:flex-row justify-between items-center gap-6 md:gap-4">
-                    <div className="text-xs text-wr-dim font-mono uppercase tracking-widest">
-                      {selectedPlan ? (
-                        <span>
-                          <span className="text-cyan-400 animate-pulse">●</span>{' '}
-                          {selectedCountryName} — {selectedPlan.dataGB}GB / {selectedPlan.durationDays}d
-                        </span>
-                      ) : (
-                        <span><span className="text-wr-dim">●</span> {t('sms.select_both')}</span>
-                      )}
-                    </div>
-
-                    {selectedPlan ? (
-                      <button
-                        onClick={handleBuyPlan}
-                        disabled={creatingPayment}
-                        className={`w-full md:w-auto group relative px-8 py-4 text-sm font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-3 overflow-hidden rounded-sm
-                          ${creatingPayment ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'XMR' ? 'bg-wr-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'bg-wr-accent text-black shadow-[0_0_20px_rgba(34,211,238,0.4)]'}
-                          disabled:opacity-30 disabled:cursor-not-allowed`}
-                      >
-                        {creatingPayment ? (
-                          <><RefreshCw size={16} className="animate-spin" /> {t('sms.generating')}</>
-                        ) : (
-                          <>
-                            <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12" />
-                            <span>{t('esim.buy_esim')}</span>
-                            <span className="opacity-40">|</span>
-                            <span>${selectedPlan.price.toFixed(2)}</span>
-                            <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <div className="px-8 py-4 bg-wr-surface border border-wr-border text-wr-dim text-sm rounded-sm cursor-not-allowed">
-                        {t('esim.select_plan_continue')}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
 
-              {/* ═══ INFO CARDS ═══ */}
+              {/* INFO CARDS */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center mx-2 md:mx-0">
                 {[
                   { title: t('esim.info_nokyc_title'), desc: t('esim.info_nokyc_desc') },
@@ -620,7 +785,7 @@ export function ESIMWall() {
       </main>
       <Footer />
 
-      {/* ═══ PAYMENT MODAL ═══ */}
+      {/* PAYMENT MODAL */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
           <div className={`border bg-wr-base p-0 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent' : 'border-wr-green'}`}>

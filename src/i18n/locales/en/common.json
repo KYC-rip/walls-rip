@@ -320,7 +320,22 @@
     "info_global_title": "Global Coverage",
     "info_global_desc": "100+ countries with 4G/5G data plans",
     "buy_esim": "Buy eSIM",
-    "loading_plans": "Loading plans..."
+    "loading_plans": "Loading plans...",
+    "compare_title": "Compare Plans",
+    "compare_subtitle": "All providers, one view. Best prices highlighted.",
+    "all_providers": "All Providers",
+    "filter_all": "All",
+    "best_price": "BEST PRICE",
+    "save_vs_highest": "Save ${{amount}}",
+    "per_gb": "/GB",
+    "buy": "Buy",
+    "no_compare_plans": "No plans found for this country across any provider.",
+    "loading_compare": "Querying all providers...",
+    "providers_found": "{{count}} provider(s) responding",
+    "sort_price": "Price",
+    "sort_data": "Data",
+    "sort_duration": "Duration",
+    "data_filter": "Data Size"
   },
   "proxy": {
     "title": "Proxy",
