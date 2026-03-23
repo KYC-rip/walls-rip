@@ -1364,7 +1364,7 @@ export function SMSWall() {
               <div className="flex justify-center">
                 <div className="bg-white p-3 rounded-sm shadow-sm border border-wr-border">
                   <QRCodeCanvas
-                    value={`xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}`}
+                    value={`xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(window.location.href)}`}
                     size={160}
                     level="M"
                     bgColor="#ffffff"
@@ -1409,7 +1409,7 @@ export function SMSWall() {
               </div>
 
               <a
-                href={`xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}`}
+                href={`xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(window.location.href)}`}
                 className="flex items-center justify-center gap-2 py-2.5 bg-wr-error/20 hover:bg-wr-error/30 text-wr-error border border-wr-error/30 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all"
               >
                 <ExternalLink size={12} />

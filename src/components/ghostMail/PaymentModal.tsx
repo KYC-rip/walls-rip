@@ -57,6 +57,22 @@ export function PaymentModal({
 
   // XMR402 state
   const [xmr402Loading, setXmr402Loading] = useState(false);
+
+  // Handle XMR402 return from Ripley Terminal (txid + proof in URL)
+  const [xmr402Proof, setXmr402Proof] = useState<{ txid: string; proof: string } | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const txid = params.get('xmr402_txid');
+    const proof = params.get('xmr402_proof');
+    if (txid && proof) {
+      // Clean URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('xmr402_txid');
+      url.searchParams.delete('xmr402_proof');
+      window.history.replaceState({}, '', url.toString());
+      return { txid, proof };
+    }
+    return null;
+  });
   const [xmr402Challenge, setXmr402Challenge] = useState<XMR402Challenge | null>(null);
   const [xmr402Copied, setXmr402Copied] = useState(false);
 
@@ -117,8 +133,9 @@ export function PaymentModal({
     }
   };
 
+  const xmr402ReturnUrl = encodeURIComponent(window.location.href);
   const xmr402Uri = xmr402Challenge
-    ? `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}`
+    ? `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${xmr402ReturnUrl}`
     : '';
 
   const handleCopyXmr402 = (text: string) => {
@@ -348,7 +365,20 @@ export function PaymentModal({
                       </a>
 
                       <div className="text-[9px] text-wr-dim/60 leading-relaxed space-y-1">
-                        <p>{t('ghostMail.payment.xmr402Instructions', 'Send the exact amount with the nonce as tx_description. After sending, use the tx proof to verify payment. The challenge expires in ~5 minutes.')}</p>
+                        <p>{t('ghostMail.payment.xmr402Instructions', 'Scan the QR code with Ripley Terminal or click "Open in Ripley Terminal". After payment, Ripley will redirect back with the proof automatically.')}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* XMR402 proof received from Ripley Terminal return */}
+                  {xmr402Proof && (
+                    <div className="space-y-3 p-4 border border-wr-green/30 bg-wr-green/5 rounded-sm animate-in slide-in-from-bottom-4">
+                      <div className="flex items-center gap-2 text-wr-green text-xs font-bold uppercase tracking-widest">
+                        <CheckCircle size={14} /> Payment Proof Received
+                      </div>
+                      <div className="text-[9px] text-wr-dim font-mono break-all">
+                        <div><span className="text-wr-green">txid:</span> {xmr402Proof.txid}</div>
+                        <div><span className="text-wr-green">proof:</span> {xmr402Proof.proof.slice(0, 32)}...</div>
                       </div>
                     </div>
                   )}
