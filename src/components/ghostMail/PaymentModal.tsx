@@ -127,12 +127,6 @@ export function PaymentModal({
                 )}
               </div>
 
-              <button
-                onClick={() => login({ email: `${customName}@${selectedDomain}`, token: 'dev-token-' + Date.now() })}
-                className="text-[9px] text-wr-dim/20 hover:text-wr-green mt-4 underline uppercase"
-              >
-                [DEBUG] Bypass Payment
-              </button>
             </div>
           )}
         </div>
