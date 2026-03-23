@@ -193,7 +193,7 @@ export const GhostLayout = () => {
   const [relayStatus, setRelayStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
   const wire = useGhostWire({
-    identity: identity!,
+    identity: identity,
     partner: activePartner,
     onNewContactRequest: handleNewContactRequest,
     onUpdatePartnerName: updateContactName

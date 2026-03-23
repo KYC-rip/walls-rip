@@ -10,7 +10,7 @@ import type { KeyPair, Contact, Message } from '../components/ghostChat/types';
 const INCOMING_SFX = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YWoGAABzf4CAg4SFhoeIiYuMjY6PkJGSk5WWl5iZmpycnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzREWrwvRFi8W8hX/FQYW2BUOFm8V2RQkFFQT5hLBE5ISdRKZEc0QzBAGEDYP4w6zDfgMoAxWC+YK1QoJCgUJ9wjbCHgI/AcQB8AGmAZABhAG4gXNBZsFMgXkBOQEiQSUBEwE5APkA5cDbgNCA+cCzQK0AmoCQAIDAuQBtgGQAWMBOQHqAO4AlQCLAHEAQADq/9D/sf+c/3b/O//0/t3+uv6Q/mf+KP7v/c79qf2L/V/9G/36/M78qvyF/FH8Gfz5+/H7r/uH+1L7Gvv6+sz6pfp+2kLZQtZCy0LGQsBCukK0Qq9CqkKlQqFCnkKZQpRCjkKFQoBCfUJ3QnRCb0JpQmVCYEJcQlRCUEJKQkZCQUJAPz87Pzo/NT8wPyw/KD8kPyA/HD8YPxQ/ED8MPwg/BD8AP/4+/D74Pvg+9D7wPuw+6D7kPtQ+0D7MPsg+xD7APrw+tj6yPq4+qD6kPqA+nD6YPZQ9jj2GPX49ej10PXA9aj1kPWAvWi9UL04vRy9CLz0vOi80LywvJy8hLxsvFy8RLwwvBy8CL/wu+C7zLvAu7C7oLuQu4C7cLtau0i7MLsguwi68LrguNS4wLiwuKC4kLiAuHC4YLiAuKC40LkAuSi5WLmIucC58LokuXC9sL3wvii+WL6Avqi+2L8AvyjDWMOQw8TD+MQsxEzEXMRsxHzEkMSozLzQ3OUA9SkRTS1lTY11tYXVlen2Cg4aJi46PkZWWmZucnqGio6WnqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/w==';
 
 interface UseGhostWireProps {
-  identity: KeyPair;
+  identity: KeyPair | null;
   partner: Contact | null;
   onNewContactRequest?: (contact: Contact) => void;
   onUpdatePartnerName?: (fp: string, newName: string) => void;
@@ -43,6 +43,7 @@ export const useGhostWire = ({
   const playSound = () => audioRef.current?.play().catch(() => { });
 
   const saveMessageToStorage = useCallback((targetFingerprint: string, newMsg: Message) => {
+    if (!identity) return [];
     const key = `ghost_msgs_${identity.fingerprint}_${targetFingerprint}`;
     
     const existingStr = sessionStorage.getItem(key);
@@ -58,20 +59,20 @@ export const useGhostWire = ({
     }
     
     return updated;
-  }, [identity.fingerprint]);
+  }, [identity?.fingerprint]);
 
   useEffect(() => {
-    if (partner) {
+    if (partner && identity) {
       const key = `ghost_msgs_${identity.fingerprint}_${partner.fingerprint}`;
       const saved = sessionStorage.getItem(key);
       setMessages(saved ? JSON.parse(saved) : []);
     } else {
       setMessages([]);
     }
-  }, [partner?.fingerprint, identity.fingerprint]);
+  }, [partner?.fingerprint, identity?.fingerprint]);
 
   useEffect(() => {
-    if (!identity.fingerprint || !identity.privateKey) return;
+    if (!identity?.fingerprint || !identity?.privateKey) return;
 
     console.log("[COMMS] Initializing Global Uplink...");
     setIsConnecting(true);
@@ -175,12 +176,12 @@ export const useGhostWire = ({
       relayRef.current = null;
       setRelayStatus('disconnected');
     };
-  }, [identity.fingerprint, identity.privateKey]);
+  }, [identity?.fingerprint, identity?.privateKey]);
 
   const sendMessage = async (text: string) => {
     const currentPartner = partner || activePartnerRef.current;
     
-    if (!currentPartner) {
+    if (!currentPartner || !identity) {
       toast('NO RECIPIENT', { icon: '🚫' });
       return;
     }
@@ -215,7 +216,7 @@ export const useGhostWire = ({
 
   const sendHandshake = async (silent = false) => {
     const currentPartner = partner || activePartnerRef.current;
-    if (!currentPartner || !relayRef.current) return;
+    if (!currentPartner || !relayRef.current || !identity) return;
 
     const handshake: GhostHandshake = {
       ver: 1,
@@ -239,7 +240,7 @@ export const useGhostWire = ({
   };
 
   const manualDecrypt = async (text: string) => {
-    if (!partner) return;
+    if (!partner || !identity) return;
     try {
       const decrypted = await PGP.decrypt(text, identity.privateKey);
       const newMessage: Message = {
@@ -259,7 +260,7 @@ export const useGhostWire = ({
 
   const getEncryptedPayload = async (text: string): Promise<string | null> => {
     const currentPartner = partner || activePartnerRef.current;
-    if (!currentPartner) return null;
+    if (!currentPartner || !identity) return null;
     const signedContent = `[FROM:${identity.fingerprint}] ${text}`;
     return await PGP.encrypt(signedContent, currentPartner.publicKey);
   };
