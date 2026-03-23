@@ -269,10 +269,12 @@ export function SMSWall() {
 
   const createPayment = async (usdAmount: number, purchaseAfter?: { country: string; service: string }) => {
     setCreatingPayment(true);
+    // XMR402 doesn't use wallet deposits — fallback to XMR for deposit flow
+    const depositMethod = paymentMethod === 'XMR402' ? 'XMR' : paymentMethod;
     try {
       const data = await apiClient<PaymentData>('/v1/tools/sms/payment/create', {
         method: 'POST',
-        body: { amount: usdAmount, method: paymentMethod, walletToken },
+        body: { amount: usdAmount, method: depositMethod, walletToken },
       });
       setPaymentData(data); setPaymentPolling(true); setShowPaymentModal(true); setShowMethodInModal(false);
       if (purchaseAfter) setPendingPurchase(purchaseAfter);
@@ -315,7 +317,7 @@ export function SMSWall() {
     createPayment(depositAmount);
   };
 
-  const handleXmr402Purchase = async () => {
+  const _handleXmr402Purchase = async () => {
     if (!selectedCountry || !selectedService) return;
     setXmr402Loading(true);
     setXmr402Challenge(null);
@@ -351,7 +353,7 @@ export function SMSWall() {
     }
   };
 
-  const handleCopyXmr402 = (text: string) => {
+  const _handleCopyXmr402 = (text: string) => {
     navigator.clipboard.writeText(text);
     setXmr402Copied(true);
     setTimeout(() => setXmr402Copied(false), 2000);
@@ -868,18 +870,28 @@ export function SMSWall() {
               <div className="text-xs text-wr-dim mb-4 uppercase tracking-widest font-bold flex items-center gap-2">
                 <Zap size={12} className="text-wr-accent" /> {t('sms.payment_protocol')}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <button onClick={() => setPaymentMethod('XMR')}
-                  className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                  className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
                   <img src="/monero-xmr-logo.png" className="w-4 h-4" alt="XMR" />
-                  <span className="text-xs font-bold tracking-widest font-mono uppercase">Monero</span>
+                  <span className="text-xs font-bold tracking-widest font-mono uppercase">XMR</span>
                 </button>
                 <button onClick={() => setPaymentMethod('LN')}
-                  className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                  className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
                   <Zap size={16} className="fill-current" />
-                  <span className="text-xs font-bold tracking-widest font-mono uppercase">Lightning</span>
+                  <span className="text-xs font-bold tracking-widest font-mono uppercase">LN</span>
+                </button>
+                <button onClick={() => setPaymentMethod('XMR402')}
+                  className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR402' ? 'border-wr-error bg-wr-error/10 text-wr-error shadow-[0_0_15px_rgba(248,113,113,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                  <Shield size={16} />
+                  <span className="text-xs font-bold tracking-widest font-mono uppercase">402</span>
                 </button>
               </div>
+              {paymentMethod === 'XMR402' && (
+                <div className="mt-2 text-[9px] text-wr-error/70 leading-relaxed">
+                  {t('sms.xmr402_hint', 'XMR402: Stateless payment — pay directly from your Monero wallet. No deposit wallet needed.')}
+                </div>
+              )}
             </div>
 
             {/* ═══ ACTION BAR ═══ */}
@@ -902,18 +914,19 @@ export function SMSWall() {
                 <div className="flex items-center gap-2 text-wr-dim text-xs"><RefreshCw size={14} className="animate-spin" /> {t('sms.checking_price')}</div>
               ) : priceInfo ? (
                 <button
-                  onClick={handleGetNumber}
-                  disabled={!selectedService || creatingPayment}
+                  onClick={paymentMethod === 'XMR402' ? handleXmr402Purchase : handleGetNumber}
+                  disabled={!selectedService || creatingPayment || xmr402Loading}
                   className={`w-full md:w-auto group relative px-8 py-4 text-sm font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-3 overflow-hidden rounded-sm
-                    ${creatingPayment ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'XMR' ? 'bg-wr-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'bg-wr-accent text-black shadow-[0_0_20px_rgba(34,211,238,0.4)]'}
+                    ${creatingPayment || xmr402Loading ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'XMR402' ? 'bg-wr-error text-white shadow-[0_0_20px_rgba(248,113,113,0.4)]' : paymentMethod === 'XMR' ? 'bg-wr-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'bg-wr-accent text-black shadow-[0_0_20px_rgba(34,211,238,0.4)]'}
                     disabled:opacity-30 disabled:cursor-not-allowed`}
                 >
-                  {creatingPayment ? (
+                  {creatingPayment || xmr402Loading ? (
                     <><RefreshCw size={16} className="animate-spin" /> {t('sms.generating')}</>
                   ) : (
                     <>
                       <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12" />
-                      <span>{t('sms.get_number')}</span>
+                      {paymentMethod === 'XMR402' && <Shield size={16} />}
+                      <span>{paymentMethod === 'XMR402' ? t('sms.xmr402_pay', 'PAY VIA XMR402') : t('sms.get_number')}</span>
                       <span className="opacity-40">|</span>
                       <span>${priceInfo.price}</span>
                       <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
