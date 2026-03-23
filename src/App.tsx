@@ -11,6 +11,7 @@ import FAQ from './pages/FAQ';
 import { PGPTerminal } from './pages/PGPTerminal';
 import { InvitePage } from './pages/InvitePage';
 import APIPage from './pages/APIPage';
+import { InstallPrompt } from './components/InstallPrompt';
 
 // Routes without the language prefix
 const PAGES = [
@@ -61,6 +62,7 @@ export default function App() {
             ))
           )}
         </Routes>
+        <InstallPrompt />
       </LangRouter>
     </BrowserRouter>
   );
