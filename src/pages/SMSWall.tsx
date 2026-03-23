@@ -147,7 +147,7 @@ export function SMSWall() {
   // XMR402 return flow: detect proof params from URL on mount
   const [xmr402ReturnProof] = useState<Xmr402ReturnProof | null>(() => extractXmr402ReturnParams());
   const [xmr402Verifying, setXmr402Verifying] = useState(false);
-  const [xmr402PurchaseResult, setXmr402PurchaseResult] = useState<PurchaseResult | null>(null);
+  const [, setXmr402PurchaseResult] = useState<PurchaseResult | null>(null);
 
   const handleCopyXmr402 = (text: string) => {
     navigator.clipboard.writeText(text);
