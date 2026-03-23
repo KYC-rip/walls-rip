@@ -134,6 +134,16 @@ export const PGPTerminal = () => {
             )}
           </div>
 
+          {/* App Screenshot */}
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/20 via-green-500/10 to-purple-500/20 rounded-sm blur-lg opacity-50 group-hover:opacity-80 transition-opacity" />
+            <img
+              src="/screenshot-ghostchat-desktop.jpg"
+              alt="Ghost Chat Desktop — Encrypted messaging interface"
+              className="relative w-full rounded-sm border border-purple-400/20 shadow-2xl shadow-purple-500/10"
+            />
+          </div>
+
           {/* Features */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
