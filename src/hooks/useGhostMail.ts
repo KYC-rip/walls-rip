@@ -197,11 +197,14 @@ export function useGhostMail() {
           setError(null);
         }
       } catch (err: any) {
-        if (err.message === 'INBOX_EXPIRED') {
+        if (err.message === 'INBOX_EXPIRED' || err.status === 410) {
           setError('SESSION_TERMINATED: TTL EXPIRED');
           logout();
-        } else if (err.message === 'INVALID_TOKEN') {
+        } else if (err.message === 'INVALID_TOKEN' || err.status === 401) {
           setError('ACCESS_DENIED: INVALID TOKEN');
+          logout();
+        } else if (err.status === 404) {
+          setError('SESSION_NOT_FOUND: INBOX DESTROYED');
           logout();
         } else {
           console.error("Inbox poll failed", err);
