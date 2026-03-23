@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand } from 'lucide-react';
+import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand, Shield, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -49,6 +49,29 @@ interface RentalOrder { orderId: string; phoneNumber: string; service: string; e
 interface RentalMessage { sender: string; message: string; timestamp: string }
 interface RentalStatus { orderId: string; phoneNumber: string; messages: RentalMessage[]; expiresAt: string; engine: string }
 
+// XMR402 types
+interface XMR402Challenge {
+  address: string;
+  amount: string; // piconero
+  message: string; // nonce
+  timestamp: string;
+}
+
+function parseWwwAuthenticate(header: string): XMR402Challenge | null {
+  const match = header.match(
+    /XMR402\s+address="([^"]+)",\s*amount="([^"]+)",\s*message="([^"]+)",\s*timestamp="([^"]+)"/
+  );
+  if (!match) return null;
+  return { address: match[1], amount: match[2], message: match[3], timestamp: match[4] };
+}
+
+function piconeroToXMR(piconero: string): string {
+  const val = BigInt(piconero);
+  const whole = val / BigInt(1e12);
+  const frac = val % BigInt(1e12);
+  return `${whole}.${frac.toString().padStart(12, '0').replace(/0+$/, '') || '0'}`;
+}
+
 const WALLET_KEY = 'walls_sms_wallet';
 const DEPOSIT_AMOUNTS = [0.50, 1, 3, 5];
 
@@ -79,7 +102,7 @@ export function SMSWall() {
   const [balanceUSD, setBalanceUSD] = useState<number>(0);
 
   // Payment
-  const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN'>('XMR');
+  const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN' | 'XMR402'>('XMR');
   const [depositAmount, setDepositAmount] = useState<number>(1);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showMethodInModal, setShowMethodInModal] = useState(false); // show XMR/LN picker in deposit modal
@@ -87,6 +110,12 @@ export function SMSWall() {
   const [paymentPolling, setPaymentPolling] = useState(false);
   // Track what to do after payment completes
   const [pendingPurchase, setPendingPurchase] = useState<{ country: string; service: string } | null>(null);
+
+  // XMR402 state
+  const [xmr402Loading, setXmr402Loading] = useState(false);
+  const [xmr402Challenge, setXmr402Challenge] = useState<XMR402Challenge | null>(null);
+  const [xmr402Copied, setXmr402Copied] = useState(false);
+  const [showXmr402Modal, setShowXmr402Modal] = useState(false);
 
   // SMS flow
   const [purchase, setPurchase] = useState<PurchaseResult | null>(null);
@@ -284,6 +313,48 @@ export function SMSWall() {
 
   const handleDeposit = () => {
     createPayment(depositAmount);
+  };
+
+  const handleXmr402Purchase = async () => {
+    if (!selectedCountry || !selectedService) return;
+    setXmr402Loading(true);
+    setXmr402Challenge(null);
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || 'https://api.kyc.rip';
+      const res = await fetch(`${apiBase}/v1/tools/sms/purchase/xmr402`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ country: selectedCountry, service: selectedService }),
+      });
+
+      if (res.status === 402) {
+        const wwwAuth = res.headers.get('WWW-Authenticate');
+        if (wwwAuth) {
+          const challenge = parseWwwAuthenticate(wwwAuth);
+          if (challenge) {
+            setXmr402Challenge(challenge);
+            setShowXmr402Modal(true);
+          } else {
+            toast.error('Failed to parse XMR402 challenge');
+          }
+        } else {
+          toast.error('No WWW-Authenticate header in 402 response');
+        }
+      } else {
+        toast.error(`Unexpected response: ${res.status}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || 'XMR402 request failed');
+    } finally {
+      setXmr402Loading(false);
+    }
+  };
+
+  const handleCopyXmr402 = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setXmr402Copied(true);
+    setTimeout(() => setXmr402Copied(false), 2000);
   };
 
   const handleCancel = async () => {

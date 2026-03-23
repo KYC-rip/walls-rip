@@ -1,23 +1,30 @@
 import { useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Copy, CheckCircle2, Wallet, AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface DepositAddressProps {
   currency: { ticker: string; name: string; network: string; image?: string };
   address: string;
-  amount: number;
+  amount?: number | string;
+  memo?: string;
   label?: string;
   actualNetwork?: string;
+  className?: string;
 }
 
 export function DepositAddress({
   currency,
   address,
   amount,
+  memo,
   label = "Deposit Address",
   actualNetwork,
+  className = "",
 }: DepositAddressProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const [includeAmount, setIncludeAmount] = useState(true);
 
   const ticker = currency.ticker;
   const network = actualNetwork || currency.network;
@@ -36,6 +43,13 @@ export function DepositAddress({
 
     if (n === 'lightning' || n === 'bitcoin lightning') {
       return `lightning:${a}`;
+    }
+
+    if (!includeAmount || !amount) {
+      if (tk === 'btc') return `bitcoin:${a}`;
+      if (tk === 'xmr') return `monero:${a}`;
+      if (tk === 'eth' || n.includes('erc20')) return `ethereum:${a}`;
+      return a;
     }
 
     if (tk === 'btc') return `bitcoin:${a}?amount=${amount}`;
@@ -57,7 +71,7 @@ export function DepositAddress({
   };
 
   return (
-    <div className="bg-wr-surface border border-wr-border rounded-sm p-4 md:p-6 shadow-sm transition-all duration-300">
+    <div className={`bg-wr-surface border border-wr-border rounded-sm p-4 md:p-6 shadow-sm transition-all duration-300 ${className}`}>
       <div className="flex flex-col space-y-5">
         {/* Header Info */}
         <div className="text-center space-y-1">
@@ -76,11 +90,11 @@ export function DepositAddress({
         </div>
 
         {/* QR Code */}
-        <div className="flex justify-center">
-          <div className="bg-white p-3 rounded-sm">
+        <div className="flex flex-col items-center gap-3">
+          <div className="bg-white p-3 rounded-sm shadow-sm border border-wr-border">
             <QRCodeCanvas
               value={getQrValue()}
-              size={180}
+              size={160}
               level="M"
               bgColor="#ffffff"
               fgColor="#000000"
@@ -95,15 +109,34 @@ export function DepositAddress({
               } : undefined}
             />
           </div>
+
+          {/* Amount Toggle */}
+          {amount && !isLN && (
+            <div
+              onClick={() => setIncludeAmount(!includeAmount)}
+              className="flex items-center gap-2 cursor-pointer group select-none"
+            >
+              <div className={`w-7 h-3.5 rounded-full relative transition-colors duration-300 ${includeAmount ? 'bg-wr-green' : 'bg-wr-dim/20'}`}>
+                <div className={`absolute top-0.5 w-2.5 h-2.5 bg-white rounded-full shadow-sm transition-transform duration-300 ${includeAmount ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+              </div>
+              <span className={`text-[9px] font-bold uppercase tracking-wider ${includeAmount ? 'text-wr-green' : 'text-wr-dim'}`}>
+                {t('deposit.includeAmount', 'Include amount')}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Amount */}
-        <div className="text-center">
-          <div className="text-[10px] uppercase tracking-widest text-wr-dim mb-1">Send exactly</div>
-          <div className="text-lg font-bold font-mono text-wr-accent">
-            {isLN ? `${amount} sats` : `${amount} ${ticker.toUpperCase()}`}
+        {amount && (
+          <div className="text-center">
+            <div className="text-[10px] uppercase tracking-widest text-wr-dim mb-1">
+              {t('deposit.sendExactly', 'Send exactly')}
+            </div>
+            <div className="text-lg font-bold font-mono text-wr-accent">
+              {isLN ? `${amount} sats` : `${amount} ${ticker.toUpperCase()}`}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Address */}
         <div className="space-y-2">
@@ -119,9 +152,21 @@ export function DepositAddress({
             </div>
 
             <div className={`absolute -top-8 left-1/2 -translate-x-1/2 bg-wr-surface border border-wr-border text-wr-green text-[10px] px-2 py-1 rounded transition-opacity pointer-events-none ${copied ? 'opacity-100' : 'opacity-0'}`}>
-              COPIED
+              {t('common.copied', 'COPIED')}
             </div>
           </div>
+
+          {(memo && memo !== "0") && (
+            <div className="mt-2 p-3 bg-wr-warning/10 border border-wr-warning/30 rounded flex flex-col items-center gap-1">
+              <span className="text-[9px] font-bold text-wr-warning uppercase tracking-widest">
+                MEMO REQUIRED
+              </span>
+              <div className="flex items-center gap-2 font-mono font-bold text-wr-warning">
+                {memo}
+                <Copy size={12} className="cursor-pointer hover:text-white" onClick={() => navigator.clipboard.writeText(memo)} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -131,21 +176,23 @@ export function DepositAddress({
             className="flex items-center justify-center gap-2 py-2 rounded bg-wr-dim/10 text-wr-dim text-[10px] font-bold hover:bg-wr-dim/20 transition-colors border border-transparent"
           >
             <Wallet size={12} />
-            OPEN IN APP
+            {t('deposit.openApp', 'OPEN IN APP')}
           </a>
           <button
             onClick={handleCopy}
             className="flex items-center justify-center gap-2 py-2 rounded border border-wr-border text-wr-dim text-[10px] font-bold hover:bg-wr-dim/10 transition-colors"
           >
             <Copy size={12} />
-            COPY
+            {t('deposit.copy', 'COPY')}
           </button>
         </div>
       </div>
 
-      <div className="text-[9px] text-wr-dim/50 mt-4 text-center">
-        Send the exact amount for automatic confirmation
-      </div>
+      {includeAmount && amount && !isLN && (
+        <div className="text-[9px] text-wr-dim/50 mt-4 text-center">
+          {t('deposit.tipExactAmount', 'Send the exact amount for automatic confirmation')}
+        </div>
+      )}
     </div>
   );
 }
