@@ -460,5 +460,12 @@
     "and": "and",
     "yes": "Yes",
     "no": "No"
+  },
+  "deposit": {
+    "includeAmount": "Include amount",
+    "sendExactly": "Send exactly",
+    "openApp": "OPEN IN APP",
+    "copy": "COPY",
+    "tipExactAmount": "Send the exact amount for automatic confirmation"
   }
 }

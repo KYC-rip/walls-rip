@@ -113,8 +113,8 @@ export function SMSWall() {
 
   // XMR402 state
   const [xmr402Loading, setXmr402Loading] = useState(false);
-  const [, setXmr402Challenge] = useState<XMR402Challenge | null>(null);
-  const [, setShowXmr402Modal] = useState(false);
+  const [xmr402Challenge, setXmr402Challenge] = useState<XMR402Challenge | null>(null);
+  const [showXmr402Modal, setShowXmr402Modal] = useState(false);
 
   // SMS flow
   const [purchase, setPurchase] = useState<PurchaseResult | null>(null);
