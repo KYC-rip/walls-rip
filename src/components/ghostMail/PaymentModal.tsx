@@ -22,9 +22,9 @@ interface PaymentModalProps {
   customName: string;
   selectedDomain: string;
   login: (s: GhostMailSession) => void;
-  selectedTier?: string;
+  selectedTier?: 'BASIC' | 'PREMIUM' | 'PRIVATE';
   selectedDuration?: { label: string; value: number; addonPrice: number };
-  verifyXmr402Proof?: (txid: string, proof: string, customEmail: string, tier: string, duration?: { label: string; value: number; addonPrice: number }) => Promise<boolean>;
+  verifyXmr402Proof?: (txid: string, proof: string, customEmail: string, tier: 'BASIC' | 'PREMIUM' | 'PRIVATE', duration?: { label: string; value: number; addonPrice: number }) => Promise<boolean>;
 }
 
 declare global {
