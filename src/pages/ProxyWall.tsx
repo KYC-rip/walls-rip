@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
+import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
@@ -105,6 +106,7 @@ const PROXY_TYPE_CONFIG: Record<ProxyType, { label: string; icon: typeof Wifi; c
 const POPULAR_LOCATIONS = ['US', 'GB', 'DE', 'NL', 'FR', 'JP', 'SG', 'CA', 'SE'];
 
 export function ProxyWall() {
+  const { t } = useTranslation();
   // Data
   const [plans, setPlans] = useState<ProxyPlan[]>([]);
   const [locations, setLocations] = useState<ProxyLocation[]>([]);
@@ -284,7 +286,7 @@ export function ProxyWall() {
         <Header />
         <div className="flex flex-col items-center justify-center py-20 animate-pulse text-wr-dim">
           <RefreshCw size={32} className="animate-spin mb-4" />
-          <p className="text-xs tracking-widest uppercase">Loading proxy services...</p>
+          <p className="text-xs tracking-widest uppercase">{t('proxy.loading')}</p>
         </div>
       </div>
     );
@@ -308,8 +310,8 @@ export function ProxyWall() {
             <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-400 border border-green-400/20">
               <Shield size={32} />
             </div>
-            <h2 className="text-lg font-bold tracking-wider text-wr-green">PROXY ACTIVE</h2>
-            <p className="text-xs text-wr-dim">Your proxy credentials are ready. Use them in your browser, CLI, or any application.</p>
+            <h2 className="text-lg font-bold tracking-wider text-wr-green">{t('proxy.proxy_active')}</h2>
+            <p className="text-xs text-wr-dim">{t('proxy.proxy_active_desc')}</p>
 
             {/* Protocol toggle */}
             <div className="flex items-center justify-center gap-2">
@@ -374,8 +376,8 @@ export function ProxyWall() {
               <span>Test: <code className="text-wr-accent">curl --proxy {selectedProtocol === 'socks5' ? '--socks5' : ''} {cred.host}:{cred.port} -U {cred.username}:{cred.password} https://api.ipify.org</code></span>
             </div>
 
-            <div className="text-[10px] text-wr-dim">Wallet: ${balanceUSD.toFixed(2)}</div>
-            <button onClick={reset} className="text-xs font-bold uppercase text-wr-accent hover:underline">Buy Another Proxy</button>
+            <div className="text-[10px] text-wr-dim">{t('sms.wallet')}: ${balanceUSD.toFixed(2)}</div>
+            <button onClick={reset} className="text-xs font-bold uppercase text-wr-accent hover:underline">{t('proxy.buy_another')}</button>
           </div>
         </main>
         <Footer />
@@ -428,9 +430,9 @@ export function ProxyWall() {
               <Shield size={40} />
             </div>
             <h1 className="font-display text-3xl md:text-5xl font-black tracking-tight mb-2">
-              PROXY <span className="text-cyan-400">WALL</span>
+              {t('proxy.title')} <span className="text-cyan-400">{t('proxy.title_accent')}</span>
             </h1>
-            <p className="text-wr-dim text-sm">Anonymous proxies. Residential, datacenter, mobile. Global coverage.</p>
+            <p className="text-wr-dim text-sm">{t('proxy.subtitle')}</p>
           </div>
 
           {/* ═══ COMING SOON BANNER (when engine not configured) ═══ */}
@@ -442,10 +444,9 @@ export function ProxyWall() {
                   <AlertTriangle size={24} />
                 </div>
                 <div>
-                  <h3 className="text-wr-warning font-bold tracking-widest text-sm mb-1 uppercase">Coming Soon</h3>
+                  <h3 className="text-wr-warning font-bold tracking-widest text-sm mb-1 uppercase">{t('proxy.coming_soon')}</h3>
                   <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg">
-                    Proxy service is currently being configured. The plans and locations shown below are previews.
-                    Deposits and purchases will be enabled once a provider is live.
+                    {t('proxy.coming_soon_config')}
                   </p>
                   {healthData.length > 0 && healthData[0].message && (
                     <p className="text-[10px] text-wr-dim/60 mt-2 font-mono">{healthData[0].message}</p>
@@ -467,15 +468,15 @@ export function ProxyWall() {
               <div>
                 <h3 className="text-cyan-400 font-bold tracking-widest text-sm mb-1 uppercase flex items-center gap-2">
                   {walletToken ? (
-                    <>WALLET BALANCE <span className="text-[9px] bg-cyan-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
+                    <>{t('sms.wallet_balance')} <span className="text-[9px] bg-cyan-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
                   ) : (
-                    <>ANONYMOUS WALLET <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">NEW</span></>
+                    <>{t('sms.anonymous_wallet')} <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">{t('sms.new')}</span></>
                   )}
                 </h3>
                 <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg text-left">
                   {walletToken
-                    ? 'Funds are stored anonymously. No account needed. Top up anytime with XMR or Lightning.'
-                    : 'Deposit XMR or Lightning to purchase proxies. One wallet, multiple proxy subscriptions.'}
+                    ? t('proxy.wallet_has_funds')
+                    : t('proxy.wallet_no_funds')}
                 </p>
               </div>
             </div>
@@ -484,7 +485,7 @@ export function ProxyWall() {
               disabled={engineError}
               className="relative z-10 w-full md:w-auto px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 hover:-translate-y-0.5 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
-              <Plus size={14} /> {walletToken ? 'TOP UP' : 'DEPOSIT'} <ChevronRight size={14} />
+              <Plus size={14} /> {walletToken ? t('sms.top_up') : t('sms.deposit')} <ChevronRight size={14} />
             </button>
           </div>
 
@@ -515,11 +516,11 @@ export function ProxyWall() {
               {/* ─── Location Selector ─── */}
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                  <Globe size={12} className="text-wr-accent" /> Location
+                  <Globe size={12} className="text-wr-accent" /> {t('proxy.location')}
                 </label>
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
-                  <input type="text" value={locationSearch} onChange={e => setLocationSearch(e.target.value)} placeholder="Search locations..."
+                  <input type="text" value={locationSearch} onChange={e => setLocationSearch(e.target.value)} placeholder={t('proxy.search_locations')}
                     className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-wr-accent text-current placeholder-wr-dim/30" />
                 </div>
                 {/* Popular locations */}
@@ -562,7 +563,7 @@ export function ProxyWall() {
                 </label>
                 <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
                   {filteredPlans.length === 0 ? (
-                    <div className="text-center py-8 text-wr-dim text-xs">No {typeConfig.label.toLowerCase()} plans available</div>
+                    <div className="text-center py-8 text-wr-dim text-xs">{t('proxy.no_plans_type', { type: typeConfig.label.toLowerCase() })}</div>
                   ) : filteredPlans.map(plan => (
                     <button key={plan.id} onClick={() => setSelectedPlan(plan.id)}
                       className={`w-full text-left p-4 rounded-sm border transition-all group ${selectedPlan === plan.id
@@ -590,7 +591,7 @@ export function ProxyWall() {
             {/* ═══ PAYMENT METHOD ═══ */}
             <div className="mb-6">
               <div className="text-xs text-wr-dim mb-4 uppercase tracking-widest font-bold flex items-center gap-2">
-                <Zap size={12} className="text-wr-accent" /> Payment Protocol
+                <Zap size={12} className="text-wr-accent" /> {t('proxy.select_plan')}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => setPaymentMethod('XMR')}
@@ -615,7 +616,7 @@ export function ProxyWall() {
                     {selectedPlanObj.name} / {selectedLocationObj.country} — {selectedPlanObj.bandwidthGB === -1 ? 'Unlimited' : `${selectedPlanObj.bandwidthGB} GB`}
                   </span>
                 ) : (
-                  <span><span className="text-wr-dim">●</span> Select location & plan</span>
+                  <span><span className="text-wr-dim">●</span> {t('proxy.select_location_plan')}</span>
                 )}
               </div>
 
@@ -628,13 +629,13 @@ export function ProxyWall() {
                     disabled:opacity-30 disabled:cursor-not-allowed`}
                 >
                   {creatingPayment ? (
-                    <><RefreshCw size={16} className="animate-spin" /> Generating...</>
+                    <><RefreshCw size={16} className="animate-spin" /> {t('sms.generating')}</>
                   ) : engineError ? (
-                    <>Coming Soon</>
+                    <>{t('proxy.coming_soon')}</>
                   ) : (
                     <>
                       <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12" />
-                      <span>Purchase</span>
+                      <span>{t('proxy.purchase')}</span>
                       <span className="opacity-40">|</span>
                       <span>${selectedPlanObj.price.toFixed(2)}</span>
                       <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
@@ -643,7 +644,7 @@ export function ProxyWall() {
                 </button>
               ) : (
                 <div className="px-8 py-4 bg-wr-surface border border-wr-border text-wr-dim text-sm rounded-sm cursor-not-allowed">
-                  Select plan to see price
+                  {t('proxy.select_plan_price')}
                 </div>
               )}
             </div>
@@ -652,9 +653,9 @@ export function ProxyWall() {
           {/* ═══ INFO CARDS ═══ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center mx-2 md:mx-0">
             {[
-              { title: 'SOCKS5 & HTTP', desc: 'Both protocols supported. Switch anytime.' },
-              { title: 'Global IPs', desc: '15+ countries, residential and datacenter pools' },
-              { title: 'XMR / Lightning', desc: 'Anonymous payments. No KYC. No trails.' },
+              { title: t('proxy.info_protocols_title'), desc: t('proxy.info_protocols_desc') },
+              { title: t('proxy.info_global_title'), desc: t('proxy.info_global_desc') },
+              { title: t('proxy.info_pay_title'), desc: t('proxy.info_pay_desc') },
             ].map(item => (
               <div key={item.title} className="p-4 rounded-sm border border-wr-border/50 bg-wr-surface/30">
                 <h4 className="text-[10px] font-bold uppercase text-wr-accent mb-1">{item.title}</h4>
@@ -666,14 +667,14 @@ export function ProxyWall() {
           {/* ═══ USE CASES ═══ */}
           <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-border p-6 md:p-8 rounded-sm">
             <h3 className="text-xs font-bold uppercase tracking-widest text-wr-accent mb-6 flex items-center gap-2">
-              <Shield size={14} /> Use Cases
+              <Shield size={14} /> {t('proxy.use_cases')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
-                { title: 'Web Scraping', desc: 'Rotate residential IPs to avoid blocks and CAPTCHAs.' },
-                { title: 'Privacy Browsing', desc: 'Hide your real IP. No DNS leaks with SOCKS5.' },
-                { title: 'Geo-Unblocking', desc: 'Access region-locked content from any country.' },
-                { title: 'Ad Verification', desc: 'Verify ads from different locations and ISPs.' },
+                { title: t('proxy.uc_scraping_title'), desc: t('proxy.uc_scraping_desc') },
+                { title: t('proxy.uc_privacy_title'), desc: t('proxy.uc_privacy_desc') },
+                { title: t('proxy.uc_geo_title'), desc: t('proxy.uc_geo_desc') },
+                { title: t('proxy.uc_ads_title'), desc: t('proxy.uc_ads_desc') },
               ].map(uc => (
                 <div key={uc.title} className="flex items-start gap-3 p-3 rounded bg-wr-base border border-wr-border/30">
                   <ExternalLink size={14} className="text-wr-accent shrink-0 mt-0.5" />
@@ -699,7 +700,7 @@ export function ProxyWall() {
             <div className={`p-3 md:p-4 border-b flex items-center gap-2 ${paymentData ? 'animate-pulse' : ''} ${paymentMethod === 'LN' ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : 'bg-wr-green/10 border-wr-green/30 text-wr-green'}`}>
               <Wallet size={14} />
               <span className="text-xs font-bold tracking-widest uppercase">
-                {paymentData ? 'AWAITING PAYMENT' : 'DEPOSIT TO WALLET'}
+                {paymentData ? t('sms.awaiting_payment') : t('sms.deposit_to_wallet')}
               </span>
             </div>
 
@@ -716,7 +717,7 @@ export function ProxyWall() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-wr-dim uppercase mb-1">Send exactly</div>
+                    <div className="text-[10px] text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
                     <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>
                       {paymentData.method === 'LN' ? `${paymentData.amount} sats` : `${paymentData.amount} XMR`}
                     </div>
@@ -726,7 +727,7 @@ export function ProxyWall() {
                     {paymentData.address}
                   </button>
                   <div className="flex items-center justify-center gap-2 text-[10px] text-wr-dim uppercase tracking-widest">
-                    <RefreshCw size={10} className="animate-spin" /> Awaiting confirmation...
+                    <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation')}
                   </div>
                   {pendingPurchase && selectedPlanObj && selectedLocationObj && (
                     <div className="text-[10px] text-wr-green/60">
@@ -737,7 +738,7 @@ export function ProxyWall() {
               ) : (
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">Deposit Amount</label>
+                    <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.deposit_amount')}</label>
                     <div className="grid grid-cols-4 gap-2">
                       {DEPOSIT_AMOUNTS.map(amt => (
                         <button key={amt} onClick={() => setDepositAmount(amt)}
@@ -750,7 +751,7 @@ export function ProxyWall() {
 
                   {showMethodInModal && (
                     <div className="space-y-2">
-                      <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">Payment Method</label>
+                      <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.payment_method')}</label>
                       <div className="grid grid-cols-2 gap-2">
                         <button onClick={() => setPaymentMethod('XMR')}
                           className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
@@ -768,12 +769,12 @@ export function ProxyWall() {
 
                   <div className="border-t border-wr-border pt-5 flex items-center justify-between">
                     <div className="flex flex-col">
-                      <span className="text-[9px] text-wr-dim uppercase tracking-widest font-bold">Total Deposit</span>
+                      <span className="text-[9px] text-wr-dim uppercase tracking-widest font-bold">{t('sms.total_deposit')}</span>
                       <span className={`text-2xl font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>${depositAmount.toFixed(2)}</span>
                     </div>
                     <button onClick={handleDeposit} disabled={creatingPayment}
                       className={`px-8 py-3 text-xs font-black hover:opacity-90 shadow-lg uppercase tracking-widest rounded-sm flex items-center gap-2 disabled:opacity-50 ${creatingPayment ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'LN' ? 'bg-wr-accent text-black shadow-wr-accent/20' : 'bg-wr-green text-black shadow-wr-green/20'}`}>
-                      {creatingPayment ? <><RefreshCw size={12} className="animate-spin" /> Generating...</> : 'Deposit'}
+                      {creatingPayment ? <><RefreshCw size={12} className="animate-spin" /> {t('sms.generating')}</> : t('sms.deposit')}
                     </button>
                   </div>
                 </div>

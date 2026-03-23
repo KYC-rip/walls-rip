@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
+import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
@@ -61,6 +62,7 @@ const POPULAR_SERVICES = [
 interface StockInfo { available: boolean; count?: number }
 
 export function SMSWall() {
+  const { t } = useTranslation();
   const [countries, setCountries] = useState<Country[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('1');
@@ -452,7 +454,7 @@ export function SMSWall() {
         <Header />
         <div className="flex flex-col items-center justify-center py-20 animate-pulse text-wr-dim">
           <RefreshCw size={32} className="animate-spin mb-4" />
-          <p className="text-xs tracking-widest uppercase">Loading services...</p>
+          <p className="text-xs tracking-widest uppercase">{t('sms.loading_services')}</p>
         </div>
       </div>
     );
@@ -471,8 +473,8 @@ export function SMSWall() {
               <Clock size={32} className="animate-pulse" />
             </div>
             <div>
-              <h2 className="text-lg font-bold tracking-wider text-wr-green mb-2">WAITING FOR SMS</h2>
-              <p className="text-wr-dim text-xs">Use this number on the target service.</p>
+              <h2 className="text-lg font-bold tracking-wider text-wr-green mb-2">{t('sms.waiting_for_sms')}</h2>
+              <p className="text-wr-dim text-xs">{t('sms.use_number')}</p>
             </div>
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-cyan-400 rounded-sm blur opacity-30 group-hover:opacity-50 transition duration-300" />
@@ -482,15 +484,15 @@ export function SMSWall() {
               </button>
             </div>
             <div className="flex items-center justify-center gap-2 text-xs text-wr-dim">
-              <RefreshCw size={12} className="animate-spin" /> Polling every 5 seconds...
+              <RefreshCw size={12} className="animate-spin" /> {t('sms.polling')}
             </div>
             <button onClick={notifEnabled ? () => setNotifEnabled(false) : requestNotifPermission}
               className={`flex items-center justify-center gap-2 text-xs transition-colors ${notifEnabled ? 'text-green-400 hover:text-wr-dim' : 'text-wr-dim hover:text-wr-accent'}`}>
-              {notifEnabled ? <><Bell size={12} /> Push notification ON</> : <><BellOff size={12} /> Enable push notification</>}
+              {notifEnabled ? <><Bell size={12} /> {t('sms.push_on')}</> : <><BellOff size={12} /> {t('sms.push_enable')}</>}
             </button>
-            <div className="text-[10px] text-wr-dim">Charged: ${purchase.charged.toFixed(2)} — Wallet: ${balanceUSD.toFixed(2)}</div>
+            <div className="text-[10px] text-wr-dim">{t('sms.charged')}: ${purchase.charged.toFixed(2)} — {t('sms.wallet')}: ${balanceUSD.toFixed(2)}</div>
             <button onClick={handleCancel} className="text-xs font-bold uppercase text-wr-dim hover:text-red-400 transition-colors">
-              Cancel (refund to wallet)
+              {t('sms.cancel_refund')}
             </button>
           </div>
         </main>
@@ -510,7 +512,7 @@ export function SMSWall() {
             <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-400 border border-green-400/20">
               <Check size={32} />
             </div>
-            <h2 className="text-lg font-bold tracking-wider text-wr-green">SMS RECEIVED</h2>
+            <h2 className="text-lg font-bold tracking-wider text-wr-green">{t('sms.sms_received')}</h2>
             <button onClick={() => copyText(smsResult.sms || '')} className="w-full p-5 rounded bg-wr-base border border-wr-green flex items-center justify-between gap-4 hover:bg-wr-green/5 transition-colors text-left">
               <div>
                 <div className="font-mono text-2xl font-bold text-wr-green mb-1">{smsResult.sms}</div>
@@ -518,8 +520,8 @@ export function SMSWall() {
               </div>
               {copied ? <Check size={18} className="text-green-500 shrink-0" /> : <Copy size={18} className="text-wr-dim shrink-0" />}
             </button>
-            <div className="text-xs text-wr-dim">Wallet: ${balanceUSD.toFixed(2)}</div>
-            <button onClick={reset} className="text-xs font-bold uppercase text-wr-accent hover:underline">Get Another Number</button>
+            <div className="text-xs text-wr-dim">{t('sms.wallet')}: ${balanceUSD.toFixed(2)}</div>
+            <button onClick={reset} className="text-xs font-bold uppercase text-wr-accent hover:underline">{t('sms.get_another')}</button>
           </div>
         </main>
         <Footer />
@@ -572,9 +574,9 @@ export function SMSWall() {
               <Phone size={40} />
             </div>
             <h1 className="font-display text-3xl md:text-5xl font-black tracking-tight mb-2">
-              SMS <span className="text-green-400">WALL</span>
+              {t('sms.title')} <span className="text-green-400">{t('sms.title_accent')}</span>
             </h1>
-            <p className="text-wr-dim text-sm">Anonymous phone verification. 150+ countries. Pay per SMS.</p>
+            <p className="text-wr-dim text-sm">{t('sms.subtitle')}</p>
           </div>
 
           {/* ═══ WALLET BANNER ═══ */}
@@ -590,15 +592,15 @@ export function SMSWall() {
                 <div>
                   <h3 className="text-green-400 font-bold tracking-widest text-sm mb-1 uppercase flex items-center gap-2">
                     {walletToken ? (
-                      <>WALLET BALANCE <span className="text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
+                      <>{t('sms.wallet_balance')} <span className="text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
                     ) : (
-                      <>ANONYMOUS WALLET <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">NEW</span></>
+                      <>{t('sms.anonymous_wallet')} <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">{t('sms.new')}</span></>
                     )}
                   </h3>
                   <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg text-left">
                     {walletToken
-                      ? 'Funds are stored anonymously. No account needed. Top up anytime with XMR or Lightning.'
-                      : 'Deposit XMR or Lightning to get started. One payment, multiple SMS verifications.'}
+                      ? t('sms.wallet_has_funds')
+                      : t('sms.wallet_no_funds')}
                   </p>
                 </div>
               </div>
@@ -606,7 +608,7 @@ export function SMSWall() {
                 onClick={() => { setShowMethodInModal(true); setShowPaymentModal(true); }}
                 className="relative z-10 w-full md:w-auto px-6 py-3 bg-green-500 hover:bg-green-400 text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:-translate-y-0.5"
               >
-                <Plus size={14} /> {walletToken ? 'TOP UP' : 'DEPOSIT'} <ChevronRight size={14} />
+                <Plus size={14} /> {walletToken ? t('sms.top_up') : t('sms.deposit')} <ChevronRight size={14} />
               </button>
             </div>
 
@@ -632,11 +634,11 @@ export function SMSWall() {
 
                   {/* Stats */}
                   <div className="flex items-center gap-4 text-[10px] font-mono text-wr-dim">
-                    <span>Deposited: <span className="text-green-400">${walletStats.totalDeposited.toFixed(2)}</span></span>
+                    <span>{t('sms.deposited')}: <span className="text-green-400">${walletStats.totalDeposited.toFixed(2)}</span></span>
                     <span className="text-wr-border">|</span>
-                    <span>Spent: <span className="text-wr-accent">${walletStats.totalSpent.toFixed(2)}</span></span>
+                    <span>{t('sms.spent')}: <span className="text-wr-accent">${walletStats.totalSpent.toFixed(2)}</span></span>
                     <span className="text-wr-border">|</span>
-                    <span>Balance: <span className="text-green-400 font-bold">${balanceUSD.toFixed(2)}</span></span>
+                    <span>{t('sms.balance')}: <span className="text-green-400 font-bold">${balanceUSD.toFixed(2)}</span></span>
                   </div>
                 </div>
               </div>
@@ -651,7 +653,7 @@ export function SMSWall() {
                       type="text"
                       value={restoreToken}
                       onChange={e => setRestoreToken(e.target.value)}
-                      placeholder="Paste wallet token..."
+                      placeholder={t('sms.paste_token')}
                       className="flex-1 bg-wr-base border border-wr-border px-3 py-2 text-xs font-mono outline-none focus:border-green-400 rounded-sm text-current placeholder-wr-dim/30"
                       onKeyDown={e => e.key === 'Enter' && handleRestoreWallet()}
                     />
@@ -660,7 +662,7 @@ export function SMSWall() {
                       disabled={restoringWallet || !restoreToken.trim()}
                       className="px-4 py-2 bg-green-500/20 border border-green-400/30 text-green-400 text-xs font-bold uppercase tracking-widest hover:bg-green-500/30 transition-colors rounded-sm disabled:opacity-30"
                     >
-                      {restoringWallet ? <RefreshCw size={12} className="animate-spin" /> : 'Restore'}
+                      {restoringWallet ? <RefreshCw size={12} className="animate-spin" /> : t('sms.restore')}
                     </button>
                     <button onClick={() => { setShowRestoreInput(false); setRestoreToken(''); }} className="p-2 text-wr-dim hover:text-wr-accent">
                       <X size={14} />
@@ -671,7 +673,7 @@ export function SMSWall() {
                     onClick={() => setShowRestoreInput(true)}
                     className="text-[10px] text-wr-dim hover:text-green-400 font-mono uppercase tracking-widest transition-colors flex items-center gap-2"
                   >
-                    <Key size={10} /> Restore existing wallet
+                    <Key size={10} /> {t('sms.restore_wallet')}
                   </button>
                 )}
               </div>
@@ -688,7 +690,7 @@ export function SMSWall() {
                   : 'border-transparent text-wr-dim hover:text-green-400/60 hover:bg-wr-surface/50'
               }`}
             >
-              <Phone size={14} /> One-Time SMS
+              <Phone size={14} /> {t('sms.one_time_sms')}
             </button>
             <button
               onClick={() => setActiveTab('rentals')}
@@ -698,7 +700,7 @@ export function SMSWall() {
                   : 'border-transparent text-wr-dim hover:text-wr-accent/60 hover:bg-wr-surface/50'
               }`}
             >
-              <Calendar size={14} /> Rentals
+              <Calendar size={14} /> {t('sms.number_rentals_tab')}
             </button>
           </div>
 
@@ -710,11 +712,11 @@ export function SMSWall() {
               {/* Country */}
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                  <Globe size={12} className="text-wr-accent" /> Country
+                  <Globe size={12} className="text-wr-accent" /> {t('sms.country')}
                 </label>
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
-                  <input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder="Search countries..."
+                  <input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder={t('sms.search_countries')}
                     className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-wr-accent text-current placeholder-wr-dim/30" />
                 </div>
                 {/* Popular countries */}
@@ -751,11 +753,11 @@ export function SMSWall() {
               {/* Service */}
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                  <Phone size={12} className="text-green-400" /> Service
+                  <Phone size={12} className="text-green-400" /> {t('sms.service')}
                 </label>
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
-                  <input type="text" value={serviceSearch} onChange={e => setServiceSearch(e.target.value)} placeholder="Search all services..."
+                  <input type="text" value={serviceSearch} onChange={e => setServiceSearch(e.target.value)} placeholder={t('sms.search_services')}
                     className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-green-400 text-current placeholder-wr-dim/30" />
                 </div>
                 {/* Popular services */}
@@ -793,7 +795,7 @@ export function SMSWall() {
             {/* ═══ PAYMENT METHOD ═══ */}
             <div className="mb-6">
               <div className="text-xs text-wr-dim mb-4 uppercase tracking-widest font-bold flex items-center gap-2">
-                <Zap size={12} className="text-wr-accent" /> Payment Protocol
+                <Zap size={12} className="text-wr-accent" /> {t('sms.payment_protocol')}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => setPaymentMethod('XMR')}
@@ -815,18 +817,18 @@ export function SMSWall() {
                 {priceInfo ? (
                   <span>
                     <span className="text-wr-green animate-pulse">●</span>{' '}
-                    {selectedServiceName} / {selectedCountryName} — {priceInfo.success_rate}% success
+                    {selectedServiceName} / {selectedCountryName} — {priceInfo.success_rate}% {t('sms.success_rate')}
                     {stockInfo && stockInfo.count !== undefined && (
-                      <span className={stockInfo.available ? 'text-wr-green' : 'text-red-400'}> — {stockInfo.count} available</span>
+                      <span className={stockInfo.available ? 'text-wr-green' : 'text-red-400'}> — {stockInfo.count} {t('sms.in_stock').toLowerCase()}</span>
                     )}
                   </span>
                 ) : (
-                  <span><span className="text-wr-dim">●</span> Select country & service</span>
+                  <span><span className="text-wr-dim">●</span> {t('sms.select_both')}</span>
                 )}
               </div>
 
               {loadingPrice ? (
-                <div className="flex items-center gap-2 text-wr-dim text-xs"><RefreshCw size={14} className="animate-spin" /> Checking price...</div>
+                <div className="flex items-center gap-2 text-wr-dim text-xs"><RefreshCw size={14} className="animate-spin" /> {t('sms.checking_price')}</div>
               ) : priceInfo ? (
                 <button
                   onClick={handleGetNumber}
@@ -836,11 +838,11 @@ export function SMSWall() {
                     disabled:opacity-30 disabled:cursor-not-allowed`}
                 >
                   {creatingPayment ? (
-                    <><RefreshCw size={16} className="animate-spin" /> Generating...</>
+                    <><RefreshCw size={16} className="animate-spin" /> {t('sms.generating')}</>
                   ) : (
                     <>
                       <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12" />
-                      <span>Get Number</span>
+                      <span>{t('sms.get_number')}</span>
                       <span className="opacity-40">|</span>
                       <span>${priceInfo.price}</span>
                       <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
@@ -849,7 +851,7 @@ export function SMSWall() {
                 </button>
               ) : (
                 <div className="px-8 py-4 bg-wr-surface border border-wr-border text-wr-dim text-sm rounded-sm cursor-not-allowed">
-                  Select service to see price
+                  {t('sms.select_service_price')}
                 </div>
               )}
             </div>
@@ -857,13 +859,13 @@ export function SMSWall() {
             {stockInfo && !stockInfo.available && (
               <div className="mt-4 flex items-start gap-2 text-xs text-red-400 p-3 rounded bg-red-400/10 border border-red-400/20">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                <span>No numbers available for this country + service combination. Try a different country.</span>
+                <span>{t('sms.no_numbers_available')}</span>
               </div>
             )}
             {priceInfo && priceInfo.success_rate < 50 && (
               <div className="mt-4 flex items-start gap-2 text-xs text-wr-warning p-3 rounded bg-wr-warning/10 border border-wr-warning/20">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                <span>Low success rate. If SMS not received, the charge is refunded to your wallet automatically.</span>
+                <span>{t('sms.low_success_rate')}</span>
               </div>
             )}
           </div>
@@ -878,7 +880,7 @@ export function SMSWall() {
             <div className="bg-wr-surface border border-wr-border rounded-sm overflow-hidden shadow-2xl">
               <div className="p-4 md:p-6 border-b border-wr-border/30 flex items-center justify-between">
                 <h3 className="text-xs font-bold tracking-[0.2em] uppercase text-wr-accent flex items-center gap-2">
-                  <Timer size={14} /> Active Rentals
+                  <Timer size={14} /> {t('sms.active_rentals')}
                 </h3>
                 <button
                   onClick={() => {
@@ -894,11 +896,11 @@ export function SMSWall() {
 
               {loadingActiveRentals ? (
                 <div className="p-8 text-center text-wr-dim text-xs animate-pulse">
-                  <RefreshCw size={16} className="animate-spin mx-auto mb-2" /> Loading rentals...
+                  <RefreshCw size={16} className="animate-spin mx-auto mb-2" /> {t('sms.loading_rental_services')}
                 </div>
               ) : activeRentals.length === 0 ? (
                 <div className="p-8 text-center text-wr-dim text-xs font-mono">
-                  No active rentals. Browse services below to get started.
+                  {t('sms.no_active_rentals')}.
                 </div>
               ) : (
                 <div className="divide-y divide-wr-border/20">
@@ -939,19 +941,19 @@ export function SMSWall() {
                                 : 'border-wr-border text-wr-dim hover:border-wr-accent hover:text-wr-accent'
                             }`}
                           >
-                            <MessageSquare size={10} className="inline mr-1" /> Messages
+                            <MessageSquare size={10} className="inline mr-1" /> {t('sms.messages')}
                           </button>
                           <button
                             onClick={() => setShowExtendModal(rental.orderId)}
                             className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-wr-border text-wr-dim hover:border-green-400 hover:text-green-400 rounded-sm transition-all"
                           >
-                            <Expand size={10} className="inline mr-1" /> Extend
+                            <Expand size={10} className="inline mr-1" /> {t('sms.extend')}
                           </button>
                           <button
                             onClick={() => handleRentalCancel(rental.orderId)}
                             className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-wr-border text-wr-dim hover:border-red-400 hover:text-red-400 rounded-sm transition-all"
                           >
-                            <Trash2 size={10} className="inline mr-1" /> Cancel
+                            <Trash2 size={10} className="inline mr-1" /> {t('sms.cancel_rental')}
                           </button>
                         </div>
                       </div>
@@ -962,12 +964,12 @@ export function SMSWall() {
                           <div className="flex items-center justify-between mb-3">
                             <span className="text-[10px] text-wr-dim uppercase tracking-widest font-bold flex items-center gap-2">
                               <RefreshCw size={8} className={pollingRentalMessages ? 'animate-spin text-green-400' : 'text-wr-dim'} />
-                              Live messages — polling every 10s
+                              {t('sms.live_messages')}
                             </span>
                           </div>
                           {rentalMessages.length === 0 ? (
                             <div className="p-4 text-center text-wr-dim text-[10px] font-mono bg-wr-base rounded border border-wr-border/30">
-                              No messages yet. Waiting for incoming SMS...
+                              {t('sms.waiting_incoming')}
                             </div>
                           ) : (
                             <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -1006,7 +1008,7 @@ export function SMSWall() {
             <div className="bg-wr-surface border border-wr-border p-4 md:p-10 relative overflow-hidden shadow-2xl rounded-sm">
               <div className="relative z-10 space-y-6">
                 <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                  <Calendar size={12} className="text-wr-accent" /> Browse Rental Services
+                  <Calendar size={12} className="text-wr-accent" /> {t('sms.browse_rental_services')}
                 </label>
 
                 {/* Search */}
@@ -1016,14 +1018,14 @@ export function SMSWall() {
                     type="text"
                     value={rentalServiceSearch}
                     onChange={e => setRentalServiceSearch(e.target.value)}
-                    placeholder="Search rental services..."
+                    placeholder={t('sms.search_rental')}
                     className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-wr-accent text-current placeholder-wr-dim/30"
                   />
                 </div>
 
                 {loadingRentalServices ? (
                   <div className="py-8 text-center text-wr-dim text-xs animate-pulse">
-                    <RefreshCw size={16} className="animate-spin mx-auto mb-2" /> Loading services...
+                    <RefreshCw size={16} className="animate-spin mx-auto mb-2" /> {t('sms.loading_services')}
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto content-start p-1">
@@ -1041,7 +1043,7 @@ export function SMSWall() {
                       </button>
                     ))}
                     {filteredRentalServices.length === 0 && !loadingRentalServices && (
-                      <div className="w-full text-center text-wr-dim text-xs py-4 font-mono">No services found</div>
+                      <div className="w-full text-center text-wr-dim text-xs py-4 font-mono">{t('sms.no_services_found')}</div>
                     )}
                   </div>
                 )}
@@ -1050,15 +1052,15 @@ export function SMSWall() {
                 {selectedRentalService && (
                   <div className="space-y-4 pt-4 border-t border-wr-border/30">
                     <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                      <Zap size={12} className="text-green-400" /> Select Duration
+                      <Zap size={12} className="text-green-400" /> {t('sms.select_duration')}
                     </label>
 
                     {loadingRentalPrices ? (
                       <div className="py-6 text-center text-wr-dim text-xs animate-pulse">
-                        <RefreshCw size={14} className="animate-spin mx-auto mb-2" /> Loading prices...
+                        <RefreshCw size={14} className="animate-spin mx-auto mb-2" /> {t('sms.loading_prices')}
                       </div>
                     ) : rentalPrices.length === 0 ? (
-                      <div className="py-6 text-center text-wr-dim text-xs font-mono">No pricing available for this service</div>
+                      <div className="py-6 text-center text-wr-dim text-xs font-mono">{t('sms.no_pricing')}</div>
                     ) : (
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {rentalPrices.map((tier, i) => (
@@ -1085,7 +1087,7 @@ export function SMSWall() {
 
                     {purchasingRental && (
                       <div className="flex items-center justify-center gap-2 text-xs text-wr-accent">
-                        <RefreshCw size={12} className="animate-spin" /> Processing rental...
+                        <RefreshCw size={12} className="animate-spin" /> {t('sms.processing_rental')}
                       </div>
                     )}
                   </div>
@@ -1096,9 +1098,9 @@ export function SMSWall() {
             {/* Rental info cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
               {[
-                { title: 'Long-Term Numbers', desc: 'Rent a number for days or weeks' },
-                { title: 'Live Messages', desc: 'Real-time SMS inbox with polling' },
-                { title: 'Extend Anytime', desc: 'Add more days before expiry' },
+                { title: t('sms.rental_info_longterm_title'), desc: t('sms.rental_info_longterm_desc') },
+                { title: t('sms.rental_info_live_title'), desc: t('sms.rental_info_live_desc') },
+                { title: t('sms.rental_info_extend_title'), desc: t('sms.rental_info_extend_desc') },
               ].map(item => (
                 <div key={item.title} className="p-4 rounded-sm border border-wr-border/50 bg-wr-surface/30">
                   <h4 className="text-[10px] font-bold uppercase text-wr-accent mb-1">{item.title}</h4>
@@ -1113,9 +1115,9 @@ export function SMSWall() {
           {activeTab === 'sms' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center mx-2 md:mx-0">
             {[
-              { title: 'Pay with XMR/LN', desc: 'Monero or Lightning — both untraceable' },
-              { title: 'Auto-Refund', desc: 'Wallet refunded if SMS not received' },
-              { title: '1,700+ Services', desc: 'Discord, Telegram, Google, and more' },
+              { title: t('sms.info_pay_title'), desc: t('sms.info_pay_desc') },
+              { title: t('sms.info_refund_title'), desc: t('sms.info_refund_desc') },
+              { title: t('sms.info_services_title'), desc: t('sms.info_services_desc') },
             ].map(item => (
               <div key={item.title} className="p-4 rounded-sm border border-wr-border/50 bg-wr-surface/30">
                 <h4 className="text-[10px] font-bold uppercase text-wr-accent mb-1">{item.title}</h4>
@@ -1136,11 +1138,11 @@ export function SMSWall() {
 
             <div className="p-3 md:p-4 border-b bg-wr-accent/10 border-wr-accent/30 text-wr-accent flex items-center gap-2">
               <Calendar size={14} />
-              <span className="text-xs font-bold tracking-widest uppercase">Extend Rental</span>
+              <span className="text-xs font-bold tracking-widest uppercase">{t('sms.extend_rental')}</span>
             </div>
 
             <div className="p-4 md:p-6 space-y-4">
-              <p className="text-xs text-wr-dim font-mono text-center">Add more days to your rental</p>
+              <p className="text-xs text-wr-dim font-mono text-center">{t('sms.add_more_days')}</p>
               <div className="grid grid-cols-3 gap-3">
                 {[1, 7, 30].map(days => (
                   <button
@@ -1158,7 +1160,7 @@ export function SMSWall() {
               </div>
               {extendingRental && (
                 <div className="flex items-center justify-center gap-2 text-xs text-wr-accent">
-                  <RefreshCw size={12} className="animate-spin" /> Extending...
+                  <RefreshCw size={12} className="animate-spin" /> {t('sms.extending')}
                 </div>
               )}
             </div>
@@ -1175,7 +1177,7 @@ export function SMSWall() {
             <div className={`p-3 md:p-4 border-b flex items-center gap-2 ${paymentData ? 'animate-pulse' : ''} ${paymentMethod === 'LN' ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : 'bg-wr-green/10 border-wr-green/30 text-wr-green'}`}>
               <Wallet size={14} />
               <span className="text-xs font-bold tracking-widest uppercase">
-                {paymentData ? 'AWAITING PAYMENT' : 'DEPOSIT TO WALLET'}
+                {paymentData ? t('sms.awaiting_payment') : t('sms.deposit_to_wallet')}
               </span>
             </div>
 
@@ -1192,7 +1194,7 @@ export function SMSWall() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-wr-dim uppercase mb-1">Send exactly</div>
+                    <div className="text-[10px] text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
                     <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>
                       {paymentData.method === 'LN' ? `${paymentData.amount} sats` : `${paymentData.amount} XMR`}
                     </div>
@@ -1202,18 +1204,18 @@ export function SMSWall() {
                     {paymentData.address}
                   </button>
                   <div className="flex items-center justify-center gap-2 text-[10px] text-wr-dim uppercase tracking-widest">
-                    <RefreshCw size={10} className="animate-spin" /> Awaiting confirmation...
+                    <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation')}
                   </div>
                   {pendingPurchase && (
                     <div className="text-[10px] text-wr-green/60">
-                      Will auto-purchase {selectedServiceName} / {selectedCountryName} on confirmation
+                      {t('sms.auto_purchase', { service: selectedServiceName, country: selectedCountryName })}
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">Deposit Amount</label>
+                    <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.deposit_amount')}</label>
                     <div className="grid grid-cols-4 gap-2">
                       {DEPOSIT_AMOUNTS.map(amt => (
                         <button key={amt} onClick={() => setDepositAmount(amt)}
@@ -1227,7 +1229,7 @@ export function SMSWall() {
                   {/* Payment method — only shown when opened from banner */}
                   {showMethodInModal && (
                     <div className="space-y-2">
-                      <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">Payment Method</label>
+                      <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.payment_method')}</label>
                       <div className="grid grid-cols-2 gap-2">
                         <button onClick={() => setPaymentMethod('XMR')}
                           className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
@@ -1245,12 +1247,12 @@ export function SMSWall() {
 
                   <div className="border-t border-wr-border pt-5 flex items-center justify-between">
                     <div className="flex flex-col">
-                      <span className="text-[9px] text-wr-dim uppercase tracking-widest font-bold">Total Deposit</span>
+                      <span className="text-[9px] text-wr-dim uppercase tracking-widest font-bold">{t('sms.total_deposit')}</span>
                       <span className={`text-2xl font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>${depositAmount.toFixed(2)}</span>
                     </div>
                     <button onClick={handleDeposit} disabled={creatingPayment}
                       className={`px-8 py-3 text-xs font-black hover:opacity-90 shadow-lg uppercase tracking-widest rounded-sm flex items-center gap-2 disabled:opacity-50 ${creatingPayment ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'LN' ? 'bg-wr-accent text-black shadow-wr-accent/20' : 'bg-wr-green text-black shadow-wr-green/20'}`}>
-                      {creatingPayment ? <><RefreshCw size={12} className="animate-spin" /> Generating...</> : 'Deposit'}
+                      {creatingPayment ? <><RefreshCw size={12} className="animate-spin" /> {t('sms.generating')}</> : t('sms.deposit')}
                     </button>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, Terminal, Copy, Check, Zap, Code2, ArrowRight, ExternalLink } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
@@ -646,6 +647,7 @@ function APISection({ group }: { group: APIGroup }) {
 // ─── Page ───
 
 export default function APIPage() {
+  const { t } = useTranslation();
   const [quickStartOpen, setQuickStartOpen] = useState(false);
 
   return (
@@ -690,11 +692,10 @@ export default function APIPage() {
             <Terminal size={32} />
           </div>
           <h1 className="font-display text-3xl md:text-4xl font-black tracking-tight mb-2">
-            API <span className="text-wr-accent">Reference</span>
+            {t('api.title_1')} <span className="text-wr-accent">{t('api.title_2')}</span>
           </h1>
           <p className="text-wr-dim text-xs max-w-lg mx-auto leading-relaxed">
-            Programmatic access to walls.rip services. Build bots, integrate verification flows,
-            automate anonymous communication. No API keys required.
+            {t('api.subtitle')}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
@@ -703,15 +704,15 @@ export default function APIPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-400" />
               </span>
-              REST API
+              {t('api.rest_api')}
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-wr-border text-wr-dim text-[10px] font-bold">
               <Code2 size={10} />
-              JSON responses
+              {t('api.json_responses')}
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-wr-border text-wr-dim text-[10px] font-bold">
               <Zap size={10} />
-              No rate limits
+              {t('api.no_rate_limits')}
             </div>
           </div>
         </div>
@@ -721,12 +722,9 @@ export default function APIPage() {
           <div className="flex items-start gap-3">
             <Terminal size={16} className="text-wr-accent shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-xs font-bold text-wr-accent mb-1">Authentication</h3>
+              <h3 className="text-xs font-bold text-wr-accent mb-1">{t('api.auth_title')}</h3>
               <p className="text-[11px] text-wr-dim leading-relaxed">
-                No API keys needed. No signup. No OAuth. Wallet tokens are your auth.
-                Create a payment, receive a <code className="text-wr-green bg-wr-base px-1 py-0.5 rounded text-[10px]">walletToken</code>,
-                and use it to authenticate purchase and management requests. Tokens are ephemeral
-                and expire after 7 days of inactivity.
+                {t('api.auth_desc')}
               </p>
             </div>
           </div>
@@ -741,9 +739,9 @@ export default function APIPage() {
             <div className="flex items-center gap-3">
               <ArrowRight size={16} className={`text-wr-green transition-transform duration-200 ${quickStartOpen ? 'rotate-90' : ''}`} />
               <div>
-                <h3 className="text-sm font-bold text-wr-green">Quick Start: Complete SMS Flow</h3>
+                <h3 className="text-sm font-bold text-wr-green">{t('api.quick_start_title')}</h3>
                 <p className="text-[10px] text-wr-dim mt-0.5">
-                  Payment &rarr; Purchase &rarr; Poll &rarr; Code. Full curl walkthrough.
+                  {t('api.quick_start_curl_desc')}
                 </p>
               </div>
             </div>
@@ -775,14 +773,12 @@ export default function APIPage() {
             <div className="flex items-start gap-3">
               <ExternalLink size={16} className="text-cyan-400 shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-sm font-bold text-cyan-400 mb-1">Ghost Mail API</h3>
+                <h3 className="text-sm font-bold text-cyan-400 mb-1">{t('api.ghost_mail_api')}</h3>
                 <p className="text-[11px] text-wr-dim leading-relaxed mb-2">
-                  Ghost Mail uses a separate API host at{' '}
+                  {t('api.ghost_mail_api_desc')}{' '}
                   <code className="text-cyan-400 bg-wr-base px-1.5 py-0.5 rounded text-[10px] border border-wr-border/50">
                     https://mail-api.kyc.rip
                   </code>
-                  {' '}and is documented separately. The mail API handles inbox creation,
-                  email polling, PGP key management, and premium tier upgrades.
                 </p>
                 <a
                   href="https://mail-api.kyc.rip"
@@ -790,7 +786,7 @@ export default function APIPage() {
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 text-[10px] font-bold text-cyan-400 hover:underline"
                 >
-                  View Ghost Mail API <ExternalLink size={10} />
+                  {t('api.view_ghost_mail_api')} <ExternalLink size={10} />
                 </a>
               </div>
             </div>
@@ -800,26 +796,26 @@ export default function APIPage() {
         {/* ═══ NOTES ═══ */}
         <div className="mt-12 space-y-4">
           <h2 className="text-lg font-black tracking-tight">
-            Integration <span className="text-wr-accent">Notes</span>
+            {t('api.integration_notes')} <span className="text-wr-accent">{t('api.integration_notes_accent')}</span>
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
               {
-                title: 'Polling Strategy',
-                text: 'Poll /payment/check every 10s for XMR (wait for confirmation), every 3s for Lightning. Poll /check every 5s for SMS codes. Max wait ~20 minutes.',
+                title: t('api.note_polling_title'),
+                text: t('api.note_polling_desc'),
               },
               {
-                title: 'Error Handling',
-                text: 'All errors return { "error": "message" } with appropriate HTTP status codes. 502 = upstream provider issue. 503 = engine unavailable. 402 = insufficient balance.',
+                title: t('api.note_errors_title'),
+                text: t('api.note_errors_desc'),
               },
               {
-                title: 'Wallet Lifecycle',
-                text: 'Wallets expire after 7 days of inactivity. Top up existing wallets by passing walletToken in /payment/create. No minimum purchase amount per number.',
+                title: t('api.note_wallet_title'),
+                text: t('api.note_wallet_desc'),
               },
               {
-                title: 'Automatic Refunds',
-                text: 'If an SMS order expires without receiving a code, the charge is automatically refunded to your wallet. Cancel active orders manually for immediate refund.',
+                title: t('api.note_refunds_title'),
+                text: t('api.note_refunds_desc'),
               },
             ].map((note) => (
               <div key={note.title} className="p-4 rounded-sm border border-wr-border/50 bg-wr-surface/30">
@@ -832,10 +828,9 @@ export default function APIPage() {
 
         {/* ═══ AGENT PROMPT ═══ */}
         <div className="mt-8 p-5 rounded-sm border border-wr-border bg-wr-surface/50">
-          <h3 className="text-xs font-bold text-wr-accent mb-2 uppercase tracking-wider">For AI Agents</h3>
+          <h3 className="text-xs font-bold text-wr-accent mb-2 uppercase tracking-wider">{t('api.for_ai_agents')}</h3>
           <p className="text-[11px] text-wr-dim leading-relaxed">
-            This API is designed to be agent-friendly. All endpoints return structured JSON.
-            The typical agent flow is:{' '}
+            {t('api.ai_agents_desc')}{' '}
             <code className="text-wr-green bg-wr-base px-1 py-0.5 rounded text-[10px]">
               /services</code> &rarr;{' '}
             <code className="text-wr-green bg-wr-base px-1 py-0.5 rounded text-[10px]">

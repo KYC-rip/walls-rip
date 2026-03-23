@@ -8,6 +8,7 @@ import { SUPPORTED_LANGS, type SupportedLang } from '../i18n/config';
 const LANG_LABELS: Record<SupportedLang, string> = {
   en: 'EN',
   'zh-TW': '中文',
+  zh: '中文',
   ru: 'RU',
   es: 'ES',
   pt: 'PT',

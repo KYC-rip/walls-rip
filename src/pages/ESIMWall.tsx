@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus, Wifi, Signal } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
+import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
@@ -45,6 +46,7 @@ const WALLET_KEY = 'walls_sms_wallet'; // Shared with SMS wallet
 const DEPOSIT_AMOUNTS = [3, 5, 10, 20];
 
 export function ESIMWall() {
+  const { t } = useTranslation();
   const [countries, setCountries] = useState<ESIMCountry[]>([]);
   const [plans, setPlans] = useState<ESIMPlan[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>('');
@@ -241,7 +243,7 @@ export function ESIMWall() {
         <Header />
         <div className="flex flex-col items-center justify-center py-20 animate-pulse text-wr-dim">
           <RefreshCw size={32} className="animate-spin mb-4" />
-          <p className="text-xs tracking-widest uppercase">Loading eSIM data...</p>
+          <p className="text-xs tracking-widest uppercase">{t('esim.loading')}</p>
         </div>
       </div>
     );
@@ -286,8 +288,8 @@ export function ESIMWall() {
             <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-400 border border-green-400/20">
               <Check size={32} />
             </div>
-            <h2 className="text-lg font-bold tracking-wider text-wr-green">eSIM PURCHASED</h2>
-            <p className="text-xs text-wr-dim">Scan the QR code with your device to install the eSIM profile.</p>
+            <h2 className="text-lg font-bold tracking-wider text-wr-green">{t('esim.esim_purchased')}</h2>
+            <p className="text-xs text-wr-dim">{t('esim.scan_qr')}</p>
 
             {profileData?.qrCode ? (
               <div className="space-y-4">
@@ -317,15 +319,15 @@ export function ESIMWall() {
                 </div>
                 <a href={profileData.activationUrl} target="_blank" rel="noreferrer"
                   className="w-full p-3 rounded bg-wr-base border border-wr-green text-xs font-mono text-wr-green break-all hover:bg-wr-green/5 transition-colors block text-center">
-                  Open Activation URL
+                  {t('esim.open_activation')}
                 </a>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-center gap-2 text-xs text-wr-dim">
-                  <RefreshCw size={12} className="animate-spin" /> Loading activation data...
+                  <RefreshCw size={12} className="animate-spin" /> {t('esim.loading_activation')}
                 </div>
-                <p className="text-[10px] text-wr-dim">The eSIM profile is being provisioned. This may take a few moments.</p>
+                <p className="text-[10px] text-wr-dim">{t('esim.provisioning')}</p>
               </div>
             )}
 
@@ -335,17 +337,17 @@ export function ESIMWall() {
             </div>
 
             <div className="bg-wr-base border border-wr-border/50 rounded p-4 text-left space-y-2">
-              <h4 className="text-[10px] font-bold uppercase text-wr-accent tracking-widest">Installation Guide</h4>
+              <h4 className="text-[10px] font-bold uppercase text-wr-accent tracking-widest">{t('esim.installation_guide')}</h4>
               <ol className="text-[11px] text-wr-dim space-y-1 list-decimal list-inside">
-                <li>Open your device's camera or Settings {'>'} Cellular</li>
-                <li>Scan the QR code above</li>
-                <li>Follow the prompts to install the eSIM profile</li>
-                <li>Enable the new eSIM line for data</li>
+                <li>{t('esim.install_step_1')}</li>
+                <li>{t('esim.install_step_2')}</li>
+                <li>{t('esim.install_step_3')}</li>
+                <li>{t('esim.install_step_4')}</li>
               </ol>
             </div>
 
             <button onClick={reset} className="text-xs font-bold uppercase text-wr-accent hover:underline">
-              Buy Another eSIM
+              {t('esim.buy_another')}
             </button>
           </div>
         </main>
@@ -399,9 +401,9 @@ export function ESIMWall() {
               <Smartphone size={40} />
             </div>
             <h1 className="font-display text-3xl md:text-5xl font-black tracking-tight mb-2">
-              <span className="text-cyan-400">e</span>SIM
+              <span className="text-cyan-400">{t('esim.title_e')}</span>{t('esim.title_sim')}
             </h1>
-            <p className="text-wr-dim text-sm">Anonymous mobile data. 100+ countries. No KYC.</p>
+            <p className="text-wr-dim text-sm">{t('esim.subtitle')}</p>
           </div>
 
           {/* ═══ COMING SOON / NOT CONFIGURED ═══ */}
@@ -410,12 +412,12 @@ export function ESIMWall() {
               <div className="mx-auto w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-400/20">
                 <Signal size={24} />
               </div>
-              <h2 className="text-cyan-400 font-bold tracking-widest text-sm uppercase">Coming Soon</h2>
+              <h2 className="text-cyan-400 font-bold tracking-widest text-sm uppercase">{t('esim.coming_soon')}</h2>
               <p className="text-xs text-wr-dim max-w-md mx-auto leading-relaxed">
-                Anonymous eSIM data plans are being integrated. Buy prepaid mobile data for 100+ countries with Monero or Lightning — no identity required.
+                {t('esim.coming_soon_desc')}
               </p>
               <div className="flex flex-wrap justify-center gap-2 pt-2">
-                {['No KYC', 'No Registration', 'Global Coverage', 'Instant Activation', 'Pay with XMR/LN'].map(tag => (
+                {[t('esim.tag_no_kyc'), t('esim.tag_no_reg'), t('esim.tag_global'), t('esim.tag_instant'), t('esim.tag_pay')].map(tag => (
                   <span key={tag} className="text-[10px] px-3 py-1.5 rounded-full border border-cyan-400/20 text-cyan-400/70">
                     {tag}
                   </span>
@@ -438,15 +440,15 @@ export function ESIMWall() {
                   <div>
                     <h3 className="text-cyan-400 font-bold tracking-widest text-sm mb-1 uppercase flex items-center gap-2">
                       {walletToken ? (
-                        <>WALLET BALANCE <span className="text-[9px] bg-cyan-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
+                        <>{t('sms.wallet_balance')} <span className="text-[9px] bg-cyan-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
                       ) : (
-                        <>ANONYMOUS WALLET <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">NEW</span></>
+                        <>{t('sms.anonymous_wallet')} <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">{t('sms.new')}</span></>
                       )}
                     </h3>
                     <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg text-left">
                       {walletToken
-                        ? 'Shared wallet — funds work across SMS and eSIM. Top up anytime.'
-                        : 'Deposit XMR or Lightning to get started. Wallet is shared with SMS Wall.'}
+                        ? t('esim.wallet_shared')
+                        : t('esim.wallet_shared_new')}
                     </p>
                   </div>
                 </div>
@@ -454,7 +456,7 @@ export function ESIMWall() {
                   onClick={() => { setShowMethodInModal(true); setShowPaymentModal(true); }}
                   className="relative z-10 w-full md:w-auto px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 hover:-translate-y-0.5"
                 >
-                  <Plus size={14} /> {walletToken ? 'TOP UP' : 'DEPOSIT'} <ChevronRight size={14} />
+                  <Plus size={14} /> {walletToken ? t('sms.top_up') : t('sms.deposit')} <ChevronRight size={14} />
                 </button>
               </div>
 
@@ -465,11 +467,11 @@ export function ESIMWall() {
                   {/* Country */}
                   <div className="space-y-3">
                     <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                      <Globe size={12} className="text-cyan-400" /> Select Country
+                      <Globe size={12} className="text-cyan-400" /> {t('esim.select_country')}
                     </label>
                     <div className="relative">
                       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
-                      <input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder="Search countries..."
+                      <input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder={t('esim.search_countries')}
                         className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-cyan-400 text-current placeholder-wr-dim/30" />
                     </div>
                     <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto content-start p-1">
@@ -480,7 +482,7 @@ export function ESIMWall() {
                         </button>
                       ))}
                       {filteredCountries.length === 0 && !loading && (
-                        <div className="text-xs text-wr-dim py-4 w-full text-center">No countries found</div>
+                        <div className="text-xs text-wr-dim py-4 w-full text-center">{t('esim.no_countries')}</div>
                       )}
                     </div>
                     {selectedCountryName && (
@@ -494,12 +496,12 @@ export function ESIMWall() {
                   {selectedCountry && (
                     <div className="space-y-3">
                       <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                        <Wifi size={12} className="text-cyan-400" /> Available Plans
+                        <Wifi size={12} className="text-cyan-400" /> {t('esim.available_plans')}
                       </label>
 
                       {loadingPlans ? (
                         <div className="flex items-center gap-2 text-wr-dim text-xs py-8 justify-center">
-                          <RefreshCw size={14} className="animate-spin" /> Loading plans...
+                          <RefreshCw size={14} className="animate-spin" /> {t('esim.loading_plans')}
                         </div>
                       ) : sortedPlans.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -532,7 +534,7 @@ export function ESIMWall() {
                       ) : (
                         <div className="flex items-start gap-2 text-xs text-wr-dim p-4 rounded bg-wr-base border border-wr-border/50 justify-center">
                           <AlertTriangle size={14} className="shrink-0 mt-0.5 text-wr-warning" />
-                          <span>No plans available for this country.</span>
+                          <span>{t('esim.no_plans')}</span>
                         </div>
                       )}
                     </div>
@@ -541,7 +543,7 @@ export function ESIMWall() {
                   {/* ═══ PAYMENT METHOD ═══ */}
                   <div className="mb-6">
                     <div className="text-xs text-wr-dim mb-4 uppercase tracking-widest font-bold flex items-center gap-2">
-                      <Zap size={12} className="text-wr-accent" /> Payment Protocol
+                      <Zap size={12} className="text-wr-accent" /> {t('esim.payment_protocol')}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <button onClick={() => setPaymentMethod('XMR')}
@@ -566,7 +568,7 @@ export function ESIMWall() {
                           {selectedCountryName} — {selectedPlan.dataGB}GB / {selectedPlan.durationDays}d
                         </span>
                       ) : (
-                        <span><span className="text-wr-dim">●</span> Select a country & plan</span>
+                        <span><span className="text-wr-dim">●</span> {t('sms.select_both')}</span>
                       )}
                     </div>
 
@@ -579,11 +581,11 @@ export function ESIMWall() {
                           disabled:opacity-30 disabled:cursor-not-allowed`}
                       >
                         {creatingPayment ? (
-                          <><RefreshCw size={16} className="animate-spin" /> Generating...</>
+                          <><RefreshCw size={16} className="animate-spin" /> {t('sms.generating')}</>
                         ) : (
                           <>
                             <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12" />
-                            <span>Buy eSIM</span>
+                            <span>{t('esim.buy_esim')}</span>
                             <span className="opacity-40">|</span>
                             <span>${selectedPlan.price.toFixed(2)}</span>
                             <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
@@ -592,7 +594,7 @@ export function ESIMWall() {
                       </button>
                     ) : (
                       <div className="px-8 py-4 bg-wr-surface border border-wr-border text-wr-dim text-sm rounded-sm cursor-not-allowed">
-                        Select a plan to continue
+                        {t('esim.select_plan_continue')}
                       </div>
                     )}
                   </div>
@@ -602,9 +604,9 @@ export function ESIMWall() {
               {/* ═══ INFO CARDS ═══ */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center mx-2 md:mx-0">
                 {[
-                  { title: 'No KYC Required', desc: 'Buy eSIM data without identity verification' },
-                  { title: 'Instant Activation', desc: 'Scan QR code and connect in seconds' },
-                  { title: 'Global Coverage', desc: '100+ countries with 4G/5G data plans' },
+                  { title: t('esim.info_nokyc_title'), desc: t('esim.info_nokyc_desc') },
+                  { title: t('esim.info_instant_title'), desc: t('esim.info_instant_desc') },
+                  { title: t('esim.info_global_title'), desc: t('esim.info_global_desc') },
                 ].map(item => (
                   <div key={item.title} className="p-4 rounded-sm border border-wr-border/50 bg-wr-surface/30">
                     <h4 className="text-[10px] font-bold uppercase text-cyan-400 mb-1">{item.title}</h4>
@@ -627,7 +629,7 @@ export function ESIMWall() {
             <div className={`p-3 md:p-4 border-b flex items-center gap-2 ${paymentData ? 'animate-pulse' : ''} ${paymentMethod === 'LN' ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : 'bg-wr-green/10 border-wr-green/30 text-wr-green'}`}>
               <Wallet size={14} />
               <span className="text-xs font-bold tracking-widest uppercase">
-                {paymentData ? 'AWAITING PAYMENT' : 'DEPOSIT TO WALLET'}
+                {paymentData ? t('sms.awaiting_payment') : t('sms.deposit_to_wallet')}
               </span>
             </div>
 
@@ -644,7 +646,7 @@ export function ESIMWall() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-wr-dim uppercase mb-1">Send exactly</div>
+                    <div className="text-[10px] text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
                     <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>
                       {paymentData.method === 'LN' ? `${paymentData.amount} sats` : `${paymentData.amount} XMR`}
                     </div>
@@ -654,18 +656,18 @@ export function ESIMWall() {
                     {paymentData.address}
                   </button>
                   <div className="flex items-center justify-center gap-2 text-[10px] text-wr-dim uppercase tracking-widest">
-                    <RefreshCw size={10} className="animate-spin" /> Awaiting confirmation...
+                    <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation')}
                   </div>
                   {pendingPurchase && (
                     <div className="text-[10px] text-cyan-400/60">
-                      Will auto-purchase eSIM plan on confirmation
+                      {t('esim.auto_purchase_esim')}
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">Deposit Amount</label>
+                    <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.deposit_amount')}</label>
                     <div className="grid grid-cols-4 gap-2">
                       {DEPOSIT_AMOUNTS.map(amt => (
                         <button key={amt} onClick={() => setDepositAmount(amt)}
@@ -678,7 +680,7 @@ export function ESIMWall() {
 
                   {showMethodInModal && (
                     <div className="space-y-2">
-                      <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">Payment Method</label>
+                      <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.payment_method')}</label>
                       <div className="grid grid-cols-2 gap-2">
                         <button onClick={() => setPaymentMethod('XMR')}
                           className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
@@ -696,12 +698,12 @@ export function ESIMWall() {
 
                   <div className="border-t border-wr-border pt-5 flex items-center justify-between">
                     <div className="flex flex-col">
-                      <span className="text-[9px] text-wr-dim uppercase tracking-widest font-bold">Total Deposit</span>
+                      <span className="text-[9px] text-wr-dim uppercase tracking-widest font-bold">{t('sms.total_deposit')}</span>
                       <span className={`text-2xl font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>${depositAmount.toFixed(2)}</span>
                     </div>
                     <button onClick={handleDeposit} disabled={creatingPayment}
                       className={`px-8 py-3 text-xs font-black hover:opacity-90 shadow-lg uppercase tracking-widest rounded-sm flex items-center gap-2 disabled:opacity-50 ${creatingPayment ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'LN' ? 'bg-wr-accent text-black shadow-wr-accent/20' : 'bg-wr-green text-black shadow-wr-green/20'}`}>
-                      {creatingPayment ? <><RefreshCw size={12} className="animate-spin" /> Generating...</> : 'Deposit'}
+                      {creatingPayment ? <><RefreshCw size={12} className="animate-spin" /> {t('sms.generating')}</> : t('sms.deposit')}
                     </button>
                   </div>
                 </div>
