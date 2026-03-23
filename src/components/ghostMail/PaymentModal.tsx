@@ -117,8 +117,8 @@ export function PaymentModal({
     }
   };
 
-  const xmr402MoneroUri = xmr402Challenge
-    ? `monero:${xmr402Challenge.address}?tx_amount=${piconeroToXMR(xmr402Challenge.amount)}&tx_description=${xmr402Challenge.message}`
+  const xmr402Uri = xmr402Challenge
+    ? `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}`
     : '';
 
   const handleCopyXmr402 = (text: string) => {
@@ -278,11 +278,11 @@ export function PaymentModal({
                     </div>
                   ) : (
                     <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
-                      {/* QR Code with monero: URI */}
+                      {/* QR Code with xmr402:// URI */}
                       <div className="flex justify-center">
                         <div className="bg-white p-3 rounded-sm shadow-sm border border-wr-border">
                           <QRCodeCanvas
-                            value={xmr402MoneroUri}
+                            value={xmr402Uri}
                             size={160}
                             level="M"
                             bgColor="#ffffff"
@@ -340,11 +340,11 @@ export function PaymentModal({
 
                       {/* Open in wallet */}
                       <a
-                        href={xmr402MoneroUri}
+                        href={xmr402Uri}
                         className="flex items-center justify-center gap-2 py-2.5 bg-wr-error/20 hover:bg-wr-error/30 text-wr-error border border-wr-error/30 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all"
                       >
                         <ExternalLink size={12} />
-                        {t('ghostMail.payment.openMoneroWallet', 'OPEN IN MONERO WALLET')}
+                        {t('ghostMail.payment.openRipley', 'OPEN IN RIPLEY TERMINAL')}
                       </a>
 
                       <div className="text-[9px] text-wr-dim/60 leading-relaxed space-y-1">
