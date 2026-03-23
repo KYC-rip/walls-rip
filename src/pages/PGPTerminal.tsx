@@ -140,7 +140,7 @@ export const PGPTerminal = () => {
             <img
               src="/screenshot-ghostchat-desktop.png"
               alt="Ghost Chat Desktop — Encrypted messaging interface"
-              className="relative w-full rounded-sm border border-purple-400/20 shadow-2xl shadow-purple-500/10"
+              className="relative w-full shadow-2xl shadow-purple-500/10"
             />
           </div>
 
