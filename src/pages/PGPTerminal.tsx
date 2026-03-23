@@ -113,17 +113,17 @@ export const PGPTerminal = () => {
                   ) : null;
                 })}
               </div>
-              <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => setUseOnline(true)}
+                className="w-full sm:w-auto mx-auto inline-flex items-center justify-center gap-3 px-8 py-4 border-2 border-purple-400/40 text-current font-bold text-sm uppercase tracking-wider rounded-sm hover:border-purple-400 hover:text-purple-400 hover:bg-purple-400/5 transition-all"
+              >
+                <Globe size={18} />
+                Use Online (No Download)
+              </button>
+              <div className="text-center">
                 <a href={GITHUB_RELEASES} target="_blank" rel="noopener noreferrer" className="text-[10px] text-wr-dim hover:text-purple-400 transition-colors uppercase tracking-widest">
-                  {release.tag_name} • All downloads
+                  {release.tag_name} • All downloads on GitHub
                 </a>
-                <span className="text-wr-border">|</span>
-                <button
-                  onClick={() => setUseOnline(true)}
-                  className="text-[10px] text-wr-dim hover:text-purple-400 transition-colors uppercase tracking-widest flex items-center gap-1"
-                >
-                  <Globe size={10} /> Use Online
-                </button>
               </div>
             </div>
           ) : (
