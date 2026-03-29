@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Wifi, Signal, SlidersHorizontal, Shield, MapPin, Database, DollarSign, ArrowUpDown, ExternalLink } from 'lucide-react';
+import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Wifi, Signal, SlidersHorizontal, Shield, MapPin, Database, DollarSign, ArrowUpDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
+import { PaymentGate } from '../components/PaymentGate';
 
 // ─── Types ───
 
@@ -20,16 +21,6 @@ interface CompareResponse {
   plans: ComparePlan[];
   engines: string[];
   cheapest: string | null;
-}
-
-interface PaymentData {
-  method: 'XMR' | 'LN' | 'USDT';
-  address: string;
-  paymentId: string;
-  amount: number;
-  usd: number;
-  chain?: 'tron' | 'eth';
-  paymentUrl?: string;
 }
 
 interface PurchaseResult {
@@ -50,7 +41,6 @@ interface ProfileResult {
 }
 
 const WALLET_KEY = 'walls_sms_wallet'; // Shared with SMS wallet
-const DEPOSIT_AMOUNTS = [3, 5, 10, 20];
 
 
 // ─── Data filter buckets ───
@@ -242,20 +232,10 @@ export function ESIMWall() {
   const [balanceUSD, setBalanceUSD] = useState<number>(0);
 
   // Payment
-  const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN' | 'USDT' | 'XMR402'>('XMR');
-  const [usdtChain, setUsdtChain] = useState<'tron' | 'eth'>('tron');
-  const [depositAmount, setDepositAmount] = useState<number>(5);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showMethodInModal, setShowMethodInModal] = useState(false);
-  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
-  const [paymentPolling, setPaymentPolling] = useState(false);
-  const [pendingPurchase, setPendingPurchase] = useState<{ planId: string; engine: string } | null>(null);
-
-  // XMR402 state
-  const [, setXmr402Loading] = useState(false);
 
   // Modal step state machine for unified purchase flow
-  const [modalStep, setModalStep] = useState<'details' | 'paying' | 'confirming' | 'purchasing' | 'success' | 'error'>('details');
+  const [modalStep, setModalStep] = useState<'details' | 'purchasing' | 'success' | 'error'>('details');
   const [modalError, setModalError] = useState<string>('');
 
   // Purchase flow
@@ -273,9 +253,6 @@ export function ESIMWall() {
     if (plan) {
       setModalStep('details');
       setModalError('');
-      setPaymentData(null);
-      setPaymentPolling(false);
-      setPendingPurchase(null);
     }
   };
 
@@ -353,123 +330,7 @@ export function ESIMWall() {
     }
   }, [activeTab, allPlansLoaded, loadingAllPlans]);
 
-  // ─── Poll for payment ───
-  useEffect(() => {
-    if (!paymentPolling || !paymentData) return;
-    const interval = setInterval(async () => {
-      try {
-        const result = await apiClient<{ status: string; walletToken?: string; balanceUSD?: number }>(
-          `/v1/tools/esim/payment/check?paymentId=${paymentData.paymentId}`
-        );
-        if (result.status === 'COMPLETED' && result.walletToken) {
-          setPaymentPolling(false);
-          setWalletToken(result.walletToken);
-          setBalanceUSD(result.balanceUSD || 0);
-          localStorage.setItem(WALLET_KEY, result.walletToken);
-
-          // If this was a plan purchase flow (modal), handle in-modal
-          if (pendingPurchase && selectedPlanDetail) {
-            setModalStep('purchasing');
-            try {
-              await executePurchase(pendingPurchase.planId, result.walletToken!, pendingPurchase.engine);
-              setModalStep('success');
-            } catch {
-              setModalStep('error');
-              setModalError('Purchase failed after payment');
-            }
-            setPendingPurchase(null);
-            setPaymentData(null);
-          } else {
-            // Standalone deposit flow
-            setPaymentData(null); setShowPaymentModal(false);
-            toast.success(`$${paymentData.usd.toFixed(2)} deposited!`);
-            if (pendingPurchase) {
-              const pp = pendingPurchase;
-              setPendingPurchase(null);
-              setTimeout(async () => {
-                try {
-                  await executePurchase(pp.planId, result.walletToken!, pp.engine);
-                  toast.success('eSIM purchased!');
-                } catch (e: any) {
-                  toast.error(e?.message || 'Purchase failed');
-                }
-              }, 500);
-            }
-          }
-        } else if (result.status === 'EXPIRED') {
-          setPaymentPolling(false); setPaymentData(null);
-          setPendingPurchase(null);
-          if (selectedPlanDetail) {
-            setModalStep('error');
-            setModalError('Payment expired. Please try again.');
-          } else {
-            toast.error('Payment expired');
-          }
-        }
-      } catch { /* keep polling */ }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [paymentPolling, paymentData, pendingPurchase, selectedPlanDetail]);
-
   // ─── Actions ───
-
-  const [creatingPayment, setCreatingPayment] = useState(false);
-
-  const createPayment = async (usdAmount: number, purchaseAfter?: { planId: string; engine: string }) => {
-    // XMR402: use the shared SMS XMR402 deposit endpoint to get a 402 challenge
-    if (paymentMethod === 'XMR402') {
-      setXmr402Loading(true);
-      setCreatingPayment(true);
-      try {
-        const apiBase = import.meta.env.VITE_API_URL || 'https://api.kyc.rip';
-        // Request 402 challenge via SMS deposit endpoint (shared wallet system)
-        const res = await fetch(`${apiBase}/v1/tools/sms/deposit/xmr402`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: usdAmount }),
-        });
-        if (res.status === 402) {
-          const wwwAuth = res.headers.get('WWW-Authenticate');
-          const body402 = await res.json().catch(() => ({})) as { callback_sig?: string };
-          if (wwwAuth) {
-            const match = wwwAuth.match(/XMR402\s+address="([^"]+)",\s*amount="([^"]+)",\s*message="([^"]+)",\s*timestamp="([^"]+)"/);
-            if (match) {
-              let wref = '';
-              if (walletToken) {
-                try {
-                  const wr = await fetch(`${apiBase}/v1/tools/xmr402/wref`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: walletToken }) });
-                  wref = ((await wr.json()) as { wref: string }).wref || '';
-                } catch {}
-              }
-              // Build XMR402 URI and open Ripley directly
-              const cbParams = new URLSearchParams({ nonce: match[3], amount: match[2], sig: body402.callback_sig || '', svc: 'esim', wref, return: window.location.pathname });
-              const xmr402Uri = `xmr402://${match[1]}?amount=${match[2]}&message=${match[3]}&return_url=${encodeURIComponent(`${apiBase}/v1/tools/xmr402/callback?${cbParams}`)}`;
-              window.location.href = xmr402Uri;
-            }
-          }
-        }
-      } catch { toast.error('Failed to create XMR402 challenge'); }
-      finally { setXmr402Loading(false); setCreatingPayment(false); }
-      return;
-    }
-
-    setCreatingPayment(true);
-    try {
-      const body: Record<string, unknown> = { amount: usdAmount, method: paymentMethod, walletToken };
-      if (paymentMethod === 'USDT') body.chain = usdtChain;
-      const data = await apiClient<PaymentData>('/v1/tools/esim/payment/create', {
-        method: 'POST',
-        body,
-      });
-      setPaymentData(data); setPaymentPolling(true); setShowPaymentModal(true); setShowMethodInModal(false);
-      if (purchaseAfter) setPendingPurchase(purchaseAfter);
-      // Open uPay payment page in new tab for USDT
-      if (data.paymentUrl && data.method === 'USDT') {
-        window.open(data.paymentUrl, '_blank');
-      }
-    } catch { toast.error('Failed to create payment'); }
-    finally { setCreatingPayment(false); }
-  };
 
   const executePurchase = async (planId: string, token: string, engine?: string) => {
     const data = await apiClient<PurchaseResult>('/v1/tools/esim/purchase', {
@@ -503,12 +364,9 @@ export function ESIMWall() {
     }
   };
 
-  /** In-modal purchase: called from the unified plan detail modal */
+  /** In-modal purchase: called when user has sufficient balance */
   const handleModalPurchase = async (plan: ComparePlan) => {
-    const price = plan.price;
-
-    if (walletToken && balanceUSD >= price) {
-      // Sufficient balance — purchase directly
+    if (walletToken && balanceUSD >= plan.price) {
       setModalStep('purchasing');
       try {
         await executePurchase(plan.id, walletToken, plan.engine);
@@ -517,36 +375,35 @@ export function ESIMWall() {
         setModalStep('error');
         setModalError(e?.message || 'Purchase failed');
       }
-    } else {
-      // Need to deposit first
-      const needed = walletToken ? price - balanceUSD : price;
-      const depositAmt = Math.max(needed, 3);
-      setDepositAmount(Math.ceil(depositAmt));
-      setModalStep('paying');
-      setCreatingPayment(true);
-      try {
-        const body: Record<string, unknown> = { amount: Math.ceil(depositAmt), method: paymentMethod, walletToken };
-        if (paymentMethod === 'USDT') body.chain = usdtChain;
-        const data = await apiClient<PaymentData>('/v1/tools/esim/payment/create', {
-          method: 'POST',
-          body,
-        });
-        setPaymentData(data);
-        setPaymentPolling(true);
-        setPendingPurchase({ planId: plan.id, engine: plan.engine });
-        setModalStep('confirming');
-      } catch {
-        setModalStep('error');
-        setModalError('Failed to create payment');
-      } finally {
-        setCreatingPayment(false);
-      }
     }
   };
 
-  const handleDeposit = () => {
-    createPayment(depositAmount);
-  };
+  /** Called by PaymentGate when a deposit is confirmed — with optional auto-purchase */
+  const handlePaymentDeposit = useCallback(async (usd: number, autoPurchase?: { planId: string; engine: string }) => {
+    setBalanceUSD(prev => prev + usd);
+    toast.success(`$${usd.toFixed(2)} deposited`);
+
+    // Re-fetch wallet to get the actual balance and token
+    const token = walletToken || localStorage.getItem(WALLET_KEY);
+    if (token) {
+      try {
+        const data = await apiClient<{ balanceUSD: number }>(`/v1/tools/esim/balance?token=${token}`);
+        setBalanceUSD(data.balanceUSD);
+      } catch { /* use optimistic balance */ }
+    }
+
+    // Auto-purchase if we have a plan to buy
+    if (autoPurchase && token) {
+      setModalStep('purchasing');
+      try {
+        await executePurchase(autoPurchase.planId, token, autoPurchase.engine);
+        setModalStep('success');
+      } catch {
+        setModalStep('error');
+        setModalError('Purchase failed after payment');
+      }
+    }
+  }, [walletToken]);
 
   const copyText = (text: string) => {
     navigator.clipboard.writeText(text); setCopied(true);
@@ -958,7 +815,7 @@ export function ESIMWall() {
                   </div>
                 </div>
                 <button
-                  onClick={() => { setShowMethodInModal(true); setShowPaymentModal(true); }}
+                  onClick={() => setShowPaymentModal(true)}
                   className="relative z-10 w-full md:w-auto px-6 py-3 bg-wr-accent hover:bg-wr-accent text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-wr-accent/20 hover:-translate-y-0.5"
                 >
                   <Plus size={14} /> {walletToken ? t('sms.top_up') : t('sms.deposit')} <ChevronRight size={14} />
@@ -1141,16 +998,13 @@ export function ESIMWall() {
 
                                       <button
                                         onClick={() => setSelectedPlanDetail(plan)}
-                                        disabled={creatingPayment}
                                         className={`w-full mt-3 py-2 text-xs font-bold tracking-widest uppercase rounded-sm border transition-all flex items-center justify-center ${
-                                          creatingPayment
-                                            ? 'border-wr-border text-wr-dim cursor-wait'
-                                            : isCheapest
+                                            isCheapest
                                               ? 'border-wr-green text-wr-green hover:bg-wr-green hover:text-black shadow-[0_0_10px_rgba(0,255,65,0.15)]'
                                               : 'border-wr-accent/40 text-wr-accent hover:bg-wr-accent hover:text-black'
                                         }`}
                                       >
-                                        {creatingPayment ? <RefreshCw size={10} className="animate-spin" /> : t('esim.buy')}
+                                        {t('esim.buy')}
                                       </button>
                                     </div>
                                   );
@@ -1330,16 +1184,13 @@ export function ESIMWall() {
 
                                       <button
                                         onClick={() => setSelectedPlanDetail(plan)}
-                                        disabled={creatingPayment}
                                         className={`w-full mt-3 py-2 text-xs font-bold tracking-widest uppercase rounded-sm border transition-all flex items-center justify-center ${
-                                          creatingPayment
-                                            ? 'border-wr-border text-wr-dim cursor-wait'
-                                            : isCheapest
+                                            isCheapest
                                               ? 'border-wr-green text-wr-green hover:bg-wr-green hover:text-black shadow-[0_0_10px_rgba(0,255,65,0.15)]'
                                               : 'border-wr-accent/40 text-wr-accent hover:bg-wr-accent hover:text-black'
                                         }`}
                                       >
-                                        {creatingPayment ? <RefreshCw size={10} className="animate-spin" /> : t('esim.buy')}
+                                        {t('esim.buy')}
                                       </button>
                                     </div>
                                   );
@@ -1446,16 +1297,13 @@ export function ESIMWall() {
 
                                   <button
                                     onClick={() => setSelectedPlanDetail(plan)}
-                                    disabled={creatingPayment}
                                     className={`w-full mt-3 py-2 text-xs font-bold tracking-widest uppercase rounded-sm border transition-all flex items-center justify-center ${
-                                      creatingPayment
-                                        ? 'border-wr-border text-wr-dim cursor-wait'
-                                        : isCheapest
+                                        isCheapest
                                           ? 'border-wr-green text-wr-green hover:bg-wr-green hover:text-black shadow-[0_0_10px_rgba(0,255,65,0.15)]'
                                           : 'border-wr-accent/40 text-wr-accent hover:bg-wr-accent hover:text-black'
                                     }`}
                                   >
-                                    {creatingPayment ? <RefreshCw size={10} className="animate-spin" /> : t('esim.buy')}
+                                    {t('esim.buy')}
                                   </button>
                                 </div>
                               );
@@ -1746,172 +1594,58 @@ export function ESIMWall() {
                       </ul>
                     </div>
 
-                    {/* Payment Method Selector */}
-                    <div className="border-t border-wr-border/30 pt-4 space-y-3">
-                      <h4 className="text-xs font-bold uppercase text-wr-dim tracking-widest flex items-center gap-2">
-                        <Zap size={12} className="text-wr-accent" /> {t('esim.payment_protocol')}
-                      </h4>
-
-                      {/* Wallet balance indicator */}
-                      {walletToken && (
-                        <div className="flex items-center gap-2 text-xs">
-                          <Wallet size={12} className="text-wr-accent" />
-                          <span className="text-wr-dim">{t('sms.wallet_balance')}:</span>
-                          <span className={`font-mono font-bold ${hasSufficientBalance ? 'text-wr-green' : 'text-wr-warning'}`}>
-                            ${balanceUSD.toFixed(2)}
+                    {/* Wallet balance indicator */}
+                    {walletToken && (
+                      <div className="flex items-center gap-2 text-xs border-t border-wr-border/30 pt-4">
+                        <Wallet size={12} className="text-wr-accent" />
+                        <span className="text-wr-dim">{t('sms.wallet_balance')}:</span>
+                        <span className={`font-mono font-bold ${hasSufficientBalance ? 'text-wr-green' : 'text-wr-warning'}`}>
+                          ${balanceUSD.toFixed(2)}
+                        </span>
+                        {hasSufficientBalance && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-wr-green/10 border border-wr-green/20 rounded-full text-wr-green">
+                            {t('esim.sufficient_balance', 'Sufficient')}
                           </span>
-                          {hasSufficientBalance && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-wr-green/10 border border-wr-green/20 rounded-full text-wr-green">
-                              {t('esim.sufficient_balance', 'Sufficient')}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Payment method buttons */}
-                      <div className="grid grid-cols-4 gap-2">
-                        <button onClick={() => setPaymentMethod('XMR')}
-                          className={`py-2.5 px-2 border flex items-center justify-center gap-1.5 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <img src="/monero-xmr-logo.png" className="w-3.5 h-3.5" alt="XMR" />
-                          <span className="text-[11px] font-bold tracking-widest font-mono uppercase">XMR</span>
-                        </button>
-                        <button onClick={() => setPaymentMethod('LN')}
-                          className={`py-2.5 px-2 border flex items-center justify-center gap-1.5 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <Zap size={13} className="fill-current" />
-                          <span className="text-[11px] font-bold tracking-widest font-mono uppercase">LN</span>
-                        </button>
-                        <button onClick={() => setPaymentMethod('XMR402')}
-                          className={`py-2.5 px-2 border flex items-center justify-center gap-1.5 transition-all rounded-sm ${paymentMethod === 'XMR402' ? 'border-red-400 bg-red-400/10 text-red-400 shadow-[0_0_15px_rgba(248,113,113,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <Shield size={13} />
-                          <span className="text-[11px] font-bold tracking-widest font-mono uppercase">402</span>
-                        </button>
-                        <button onClick={() => setPaymentMethod('USDT')}
-                          className={`py-2.5 px-2 border flex items-center justify-center gap-1.5 transition-all rounded-sm ${paymentMethod === 'USDT' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b] shadow-[0_0_15px_rgba(38,161,123,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <DollarSign size={13} />
-                          <span className="text-[11px] font-bold tracking-widest font-mono uppercase">USDT</span>
-                        </button>
-                      </div>
-
-                      {/* USDT chain selector */}
-                      {paymentMethod === 'USDT' && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <button onClick={() => setUsdtChain('tron')}
-                            className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'tron' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                            {t('sms.payment_usdt_tron', 'TRON (TRC-20)')}
-                          </button>
-                          <button onClick={() => setUsdtChain('eth')}
-                            className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'eth' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                            {t('sms.payment_usdt_eth', 'Ethereum (ERC-20)')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-3 pt-2 border-t border-wr-border/30">
-                      <button
-                        onClick={() => setSelectedPlanDetail(null)}
-                        className="px-4 py-2.5 text-xs text-wr-dim hover:text-current transition-colors uppercase tracking-widest"
-                      >
-                        {t('common.cancel')}
-                      </button>
-                      <button
-                        onClick={() => handleModalPurchase(plan)}
-                        disabled={creatingPayment}
-                        className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-sm shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
-                          paymentMethod === 'LN'
-                            ? 'bg-wr-accent text-black hover:bg-wr-accent/90 shadow-wr-accent/20'
-                            : paymentMethod === 'USDT'
-                              ? 'bg-[#26a17b] text-white hover:bg-[#26a17b]/90 shadow-[#26a17b]/20'
-                              : 'bg-wr-green text-black hover:bg-wr-green/90 shadow-wr-green/20'
-                        }`}
-                      >
-                        {creatingPayment
-                          ? <><RefreshCw size={12} className="animate-spin" /> {t('common.loading')}</>
-                          : hasSufficientBalance
-                            ? <><Check size={14} /> {t('esim.detail_confirm_purchase')}</>
-                            : <><Wallet size={14} /> Pay ${plan.price.toFixed(2)}</>
-                        }
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* ═══ STEP: PAYING (loading spinner while creating payment) ═══ */}
-                {modalStep === 'paying' && (
-                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                    <RefreshCw size={32} className="animate-spin text-wr-accent" />
-                    <p className="text-xs text-wr-dim uppercase tracking-widest">{t('sms.generating', 'Generating payment...')}</p>
-                  </div>
-                )}
-
-                {/* ═══ STEP: CONFIRMING (payment address + QR + polling) ═══ */}
-                {modalStep === 'confirming' && paymentData && (
-                  <div className="space-y-5 text-center">
-                    {/* Plan summary bar */}
-                    <div className="flex items-center justify-between p-3 rounded-sm bg-wr-surface/30 border border-wr-border/30">
-                      <div className="flex items-center gap-2">
-                        <Database size={12} className="text-wr-accent" />
-                        <span className="text-xs font-mono text-current">{plan.dataGB}GB / {plan.durationDays}d</span>
-                      </div>
-                      <span className="text-xs font-black font-mono text-wr-green">${plan.price.toFixed(2)}</span>
-                    </div>
-
-                    {paymentData.method === 'USDT' ? (
-                      /* USDT: just payment page link */
-                      <>
-                        <div>
-                          <div className="text-lg font-bold font-mono text-[#26a17b]">{paymentData.amount} USDT</div>
-                          {paymentData.chain && (
-                            <div className="text-[10px] text-[#26a17b]/70 uppercase mt-1 font-mono">
-                              {paymentData.chain === 'tron' ? 'TRON (TRC-20)' : 'Ethereum (ERC-20)'}
-                            </div>
-                          )}
-                        </div>
-                        {paymentData.paymentUrl && (
-                          <a href={paymentData.paymentUrl} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 py-4 bg-[#26a17b] hover:bg-[#26a17b]/90 text-white rounded-sm text-sm font-bold uppercase tracking-widest transition-all shadow-lg shadow-[#26a17b]/30">
-                            <ExternalLink size={16} /> {t('sms.open_payment_page', 'OPEN PAYMENT PAGE')}
-                          </a>
                         )}
-                        <div className="flex items-center justify-center gap-2 text-xs text-wr-dim uppercase tracking-widest animate-pulse">
-                          <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation', 'Waiting for payment...')}
-                        </div>
-                        <p className="text-[9px] text-wr-dim/50">{t('sms.auto_detect_note', 'Payment will be detected automatically. Do not close this window.')}</p>
-                      </>
-                    ) : (
-                      /* XMR / LN: QR + address */
-                      <>
-                        <div className="flex justify-center">
-                          <div className="bg-white p-3 rounded-sm">
-                            <QRCodeCanvas
-                              value={paymentData.method === 'LN' ? paymentData.address : `monero:${paymentData.address}?tx_amount=${paymentData.amount}`}
-                              size={180} level="M" bgColor="#ffffff" fgColor="#000000"
-                              imageSettings={paymentData.method === 'XMR' ? { src: '/monero-xmr-logo.png', x: undefined, y: undefined, height: 30, width: 30, excavate: true } : undefined}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
-                          <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>
-                            {paymentData.method === 'LN' ? `${paymentData.amount} sats` : `${paymentData.amount} XMR`}
-                          </div>
-                        </div>
-                        <button onClick={() => copyText(paymentData.address)}
-                          className="w-full p-3 rounded bg-wr-surface border border-wr-border text-xs font-mono break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer flex items-center justify-between gap-2 text-wr-green">
-                          <span className="truncate">{paymentData.address}</span>
-                          {copied ? <Check size={14} className="text-green-500 shrink-0" /> : <Copy size={14} className="text-wr-dim shrink-0" />}
-                        </button>
-                        <div className="flex items-center justify-center gap-2 text-xs text-wr-dim uppercase tracking-widest animate-pulse">
-                          <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation', 'Waiting for payment...')}
-                        </div>
-                      </>
+                      </div>
                     )}
 
-                    <div className="text-xs text-wr-accent/60">
-                      {t('esim.auto_purchase_esim', 'eSIM will be purchased automatically after payment')}
-                    </div>
-                  </div>
+                    {/* Purchase or deposit via PaymentGate */}
+                    {hasSufficientBalance ? (
+                      <div className="flex items-center gap-3 pt-2 border-t border-wr-border/30">
+                        <button
+                          onClick={() => setSelectedPlanDetail(null)}
+                          className="px-4 py-2.5 text-xs text-wr-dim hover:text-current transition-colors uppercase tracking-widest"
+                        >
+                          {t('common.cancel')}
+                        </button>
+                        <button
+                          onClick={() => handleModalPurchase(plan)}
+                          className="flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-sm shadow-lg transition-all flex items-center justify-center gap-2 bg-wr-green text-black hover:bg-wr-green/90 shadow-wr-green/20"
+                        >
+                          <Check size={14} /> {t('esim.detail_confirm_purchase')}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border-t border-wr-border/30 pt-4">
+                        <PaymentGate
+                          amount={plan.price}
+                          methods={['XMR', 'LN', 'XMR402', 'USDT']}
+                          walletToken={walletToken || undefined}
+                          serviceName="esim"
+                          createEndpoint="/v1/tools/esim/payment/create"
+                          checkEndpoint="/v1/tools/sms/payment/check"
+                          inline={true}
+                          onDeposit={(usd) => {
+                            handlePaymentDeposit(usd, { planId: plan.id, engine: plan.engine });
+                          }}
+                        />
+                        <div className="text-xs text-wr-accent/60 text-center mt-3">
+                          {t('esim.auto_purchase_esim', 'eSIM will be purchased automatically after payment')}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* ═══ STEP: PURCHASING (after payment confirmed, buying eSIM) ═══ */}
@@ -1988,114 +1722,30 @@ export function ESIMWall() {
       })()}
 
       {/* STANDALONE DEPOSIT MODAL (for top-up without buying a plan) */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-          <div className={`border bg-wr-base p-0 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent' : paymentMethod === 'USDT' ? 'border-[#26a17b]' : 'border-wr-green'}`}>
-            <button onClick={() => { setShowPaymentModal(false); setPaymentData(null); setPaymentPolling(false); setPendingPurchase(null); }} className="absolute top-4 right-4 text-wr-dim hover:text-wr-green z-10"><X size={20} /></button>
-
-            <div className={`p-3 md:p-4 border-b flex items-center gap-2 ${paymentData ? 'animate-pulse' : ''} ${paymentMethod === 'LN' ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : paymentMethod === 'USDT' ? 'bg-[#26a17b]/10 border-[#26a17b]/30 text-[#26a17b]' : 'bg-wr-green/10 border-wr-green/30 text-wr-green'}`}>
-              <Wallet size={14} />
-              <span className="text-xs font-bold tracking-widest uppercase">
-                {paymentData ? t('sms.awaiting_payment') : t('sms.deposit_to_wallet')}
-              </span>
-            </div>
-
-            <div className="p-4 md:p-8 text-center">
-              {paymentData ? (
-                <div className="space-y-5">
-                  <div className="flex justify-center">
-                    <div className="bg-white p-3 rounded-sm">
-                      <QRCodeCanvas
-                        value={paymentData.method === 'LN' ? paymentData.address : paymentData.method === 'USDT' ? paymentData.address : `monero:${paymentData.address}?tx_amount=${paymentData.amount}`}
-                        size={160} level="M" bgColor="#ffffff" fgColor="#000000"
-                        imageSettings={paymentData.method === 'XMR' ? { src: '/monero-xmr-logo.png', x: undefined, y: undefined, height: 30, width: 30, excavate: true } : undefined}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
-                    <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : paymentMethod === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>
-                      {paymentData.method === 'LN' ? `${paymentData.amount} sats` : paymentData.method === 'USDT' ? `${paymentData.amount} USDT` : `${paymentData.amount} XMR`}
-                    </div>
-                    {paymentData.method === 'USDT' && paymentData.chain && (
-                      <div className="text-[10px] text-[#26a17b]/70 uppercase mt-1 font-mono">
-                        {paymentData.chain === 'tron' ? 'TRON (TRC-20)' : 'Ethereum (ERC-20)'}
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={() => copyText(paymentData.address)}
-                    className={`w-full p-3 rounded bg-wr-surface border border-wr-border text-xs font-mono break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer ${paymentData.method === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>
-                    {paymentData.address}
-                  </button>
-                  <div className="flex items-center justify-center gap-2 text-xs text-wr-dim uppercase tracking-widest">
-                    <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation')}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-black text-wr-dim uppercase tracking-widest">{t('sms.deposit_amount')}</label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {DEPOSIT_AMOUNTS.map(amt => (
-                        <button key={amt} onClick={() => setDepositAmount(amt)}
-                          className={`py-3 rounded-sm border text-sm font-bold font-mono transition-all ${depositAmount === amt ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.15)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          ${amt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {showMethodInModal && (
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-black text-wr-dim uppercase tracking-widest">{t('sms.payment_method')}</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <button onClick={() => setPaymentMethod('XMR')}
-                          className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <img src="/monero-xmr-logo.png" className="w-4 h-4" alt="XMR" />
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">Monero</span>
-                        </button>
-                        <button onClick={() => setPaymentMethod('LN')}
-                          className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <Zap size={16} className="fill-current" />
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">Lightning</span>
-                        </button>
-                        <button onClick={() => setPaymentMethod('USDT')}
-                          className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'USDT' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b] shadow-[0_0_15px_rgba(38,161,123,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <DollarSign size={16} />
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">USDT</span>
-                        </button>
-                      </div>
-                      {paymentMethod === 'USDT' && (
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                          <button onClick={() => setUsdtChain('tron')}
-                            className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'tron' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                            {t('sms.payment_usdt_tron', 'TRON (TRC-20)')}
-                          </button>
-                          <button onClick={() => setUsdtChain('eth')}
-                            className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'eth' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                            {t('sms.payment_usdt_eth', 'Ethereum (ERC-20)')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="border-t border-wr-border pt-5 flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[11px] text-wr-dim uppercase tracking-widest font-bold">{t('sms.total_deposit')}</span>
-                      <span className={`text-2xl font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : paymentMethod === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>${depositAmount.toFixed(2)}</span>
-                    </div>
-                    <button onClick={handleDeposit} disabled={creatingPayment}
-                      className={`px-8 py-3 text-xs font-black hover:opacity-90 shadow-lg uppercase tracking-widest rounded-sm flex items-center gap-2 disabled:opacity-50 ${creatingPayment ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'LN' ? 'bg-wr-accent text-black shadow-wr-accent/20' : paymentMethod === 'USDT' ? 'bg-[#26a17b] text-white shadow-[#26a17b]/20' : 'bg-wr-green text-black shadow-wr-green/20'}`}>
-                      {creatingPayment ? <><RefreshCw size={12} className="animate-spin" /> {t('sms.generating')}</> : t('sms.deposit')}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <PaymentGate
+        amount={5}
+        methods={['XMR', 'LN', 'XMR402', 'USDT']}
+        walletToken={walletToken || undefined}
+        serviceName="esim"
+        createEndpoint="/v1/tools/esim/payment/create"
+        checkEndpoint="/v1/tools/sms/payment/check"
+        showPresets={true}
+        presets={[3, 5, 10, 20]}
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onDeposit={(usd) => {
+          setBalanceUSD(prev => prev + usd);
+          toast.success(`$${usd.toFixed(2)} deposited`);
+          setShowPaymentModal(false);
+          // Re-fetch wallet balance
+          const token = walletToken || localStorage.getItem(WALLET_KEY);
+          if (token) {
+            apiClient<{ balanceUSD: number }>(`/v1/tools/esim/balance?token=${token}`)
+              .then(data => setBalanceUSD(data.balanceUSD))
+              .catch(() => {});
+          }
+        }}
+      />
     </div>
   );
 }

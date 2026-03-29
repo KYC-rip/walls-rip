@@ -1,26 +1,16 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand, Shield, Layers, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand, Shield, Layers } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
+import { PaymentGate } from '../components/PaymentGate';
 
 interface Country { id: string; name: string; shortName: string; engine: string }
 interface Service { id: string; name: string; category?: string; engine: string }
 interface PriceInfo { price: string; cost_price: string; success_rate: number; engine: string }
-
-interface PaymentData {
-  method: 'XMR' | 'LN' | 'USDT';
-  address: string;
-  paymentId: string;
-  amount: number;
-  usd: number;
-  chain?: 'tron' | 'eth';
-  paymentUrl?: string;
-}
 
 interface PurchaseResult {
   orderId: string;
@@ -51,53 +41,7 @@ interface RentalOrder { orderId: string; phoneNumber: string; service: string; e
 interface RentalMessage { sender: string; message: string; timestamp: string }
 interface RentalStatus { orderId: string; phoneNumber: string; messages: RentalMessage[]; expiresAt: string; engine: string }
 
-// XMR402 types
-interface XMR402Challenge {
-  address: string;
-  amount: string; // piconero
-  message: string; // nonce
-  timestamp: string;
-}
-
-function parseWwwAuthenticate(header: string): XMR402Challenge | null {
-  const match = header.match(
-    /XMR402\s+address="([^"]+)",\s*amount="([^"]+)",\s*message="([^"]+)",\s*timestamp="([^"]+)"/
-  );
-  if (!match) return null;
-  return { address: match[1], amount: match[2], message: match[3], timestamp: match[4] };
-}
-
-function Xmr402Countdown({ timestamp, onExpired }: { timestamp: string; onExpired: () => void }) {
-  const [remaining, setRemaining] = useState(300);
-  useEffect(() => {
-    const expiresAt = parseInt(timestamp, 10) + 300000;
-    const tick = () => {
-      const left = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
-      setRemaining(left);
-      if (left <= 0) onExpired();
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [timestamp, onExpired]);
-
-  return (
-    <div className={`flex items-center justify-center gap-2 text-xs font-mono font-bold ${remaining <= 60 ? 'text-red-400 animate-pulse' : 'text-wr-dim'}`}>
-      <Clock size={12} />
-      {remaining > 0 ? `${Math.floor(remaining / 60)}:${(remaining % 60).toString().padStart(2, '0')} remaining` : 'EXPIRED'}
-    </div>
-  );
-}
-
-function piconeroToXMR(piconero: string): string {
-  const val = BigInt(piconero);
-  const whole = val / BigInt(1e12);
-  const frac = val % BigInt(1e12);
-  return `${whole}.${frac.toString().padStart(12, '0').replace(/0+$/, '') || '0'}`;
-}
-
 const WALLET_KEY = 'walls_sms_wallet';
-const DEPOSIT_AMOUNTS = [0.50, 1, 3, 5];
 
 const POPULAR_COUNTRIES = ['US', 'GB', 'NL', 'DE', 'FR', 'SE', 'PH', 'IN', 'MX'];
 
@@ -180,32 +124,13 @@ export function SMSWall() {
   const [balanceUSD, setBalanceUSD] = useState<number>(0);
 
   // Payment
-  const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN' | 'XMR402' | 'USDT'>('XMR');
-  const [usdtChain, setUsdtChain] = useState<'tron' | 'eth'>('tron');
-  const [depositAmount, setDepositAmount] = useState<number>(1);
+  const [depositAmount, setDepositAmount] = useState<number>(3);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showMethodInModal, setShowMethodInModal] = useState(false); // show XMR/LN picker in deposit modal
-  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
-  const [paymentPolling, setPaymentPolling] = useState(false);
-  // Track what to do after payment completes
-  const [pendingPurchase, setPendingPurchase] = useState<{ country: string; service: string } | null>(null);
-
-  // XMR402 state
-  const [xmr402Loading, setXmr402Loading] = useState(false);
-  const [xmr402Challenge, setXmr402Challenge] = useState<XMR402Challenge | null>(null);
-  const [xmr402Copied, setXmr402Copied] = useState(false);
-  const [showXmr402Modal, setShowXmr402Modal] = useState(false);
 
   // XMR402 return flow: detect proof params from URL on mount
   const [xmr402ReturnProof] = useState<Xmr402ReturnProof | null>(() => extractXmr402ReturnParams());
   const [xmr402Verifying, setXmr402Verifying] = useState(false);
   const [, setXmr402PurchaseResult] = useState<PurchaseResult | null>(null);
-
-  const handleCopyXmr402 = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setXmr402Copied(true);
-    setTimeout(() => setXmr402Copied(false), 2000);
-  };
 
   // SMS flow
   const [purchase, setPurchase] = useState<PurchaseResult | null>(null);
@@ -391,60 +316,6 @@ export function SMSWall() {
     return () => clearInterval(interval);
   }, [polling, purchase, walletToken, balanceUSD]);
 
-  // Poll for payment
-  useEffect(() => {
-    if (!paymentPolling || !paymentData) return;
-    const interval = setInterval(async () => {
-      try {
-        const result = await apiClient<{ status: string; walletToken?: string; balanceUSD?: number }>(
-          `/v1/tools/sms/payment/check?paymentId=${paymentData.paymentId}`
-        );
-        if (result.status === 'COMPLETED' && result.walletToken) {
-          setPaymentPolling(false);
-          setWalletToken(result.walletToken);
-          setBalanceUSD(result.balanceUSD || 0);
-          localStorage.setItem(WALLET_KEY, result.walletToken);
-          setPaymentData(null); setShowPaymentModal(false);
-          toast.success(`$${paymentData.usd.toFixed(2)} deposited!`);
-          fireNotification('Payment Confirmed', `$${paymentData.usd.toFixed(2)} deposited to wallet`);
-
-          // If per-sms mode, auto-purchase after payment
-          if (pendingPurchase) {
-            setTimeout(() => executePurchase(pendingPurchase.country, pendingPurchase.service, result.walletToken!), 500);
-            setPendingPurchase(null);
-          }
-        } else if (result.status === 'EXPIRED') {
-          setPaymentPolling(false); setPaymentData(null);
-          setPendingPurchase(null);
-          toast.error('Payment expired');
-        }
-      } catch { /* keep polling */ }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [paymentPolling, paymentData, pendingPurchase]);
-
-  const [creatingPayment, setCreatingPayment] = useState(false);
-
-  const createPayment = async (usdAmount: number, purchaseAfter?: { country: string; service: string }) => {
-    setCreatingPayment(true);
-    // XMR402 doesn't use wallet deposits — fallback to XMR for deposit flow
-    const depositMethod = paymentMethod === 'XMR402' ? 'XMR' : paymentMethod;
-    try {
-      const body: Record<string, unknown> = { amount: usdAmount, method: depositMethod, walletToken };
-      if (depositMethod === 'USDT') body.chain = usdtChain;
-      const data = await apiClient<PaymentData>('/v1/tools/sms/payment/create', {
-        method: 'POST',
-        body,
-      });
-      setPaymentData(data); setPaymentPolling(true); setShowPaymentModal(true); setShowMethodInModal(false);
-      if (purchaseAfter) setPendingPurchase(purchaseAfter);
-      if (data.paymentUrl && data.method === 'USDT') {
-        window.open(data.paymentUrl, '_blank');
-      }
-    } catch { toast.error('Failed to create payment'); }
-    finally { setCreatingPayment(false); }
-  };
-
   const executePurchase = async (country: string, service: string, token: string) => {
     try {
       const data = await apiClient<PurchaseResult>('/v1/tools/sms/purchase', {
@@ -467,67 +338,11 @@ export function SMSWall() {
       // Enough balance — purchase directly
       executePurchase(selectedCountry, selectedService, walletToken);
     } else {
-      // Need payment first
+      // Need deposit first — open PaymentGate modal
       const needed = walletToken ? price - balanceUSD : price;
-      // For USDT: exact amount. For XMR/LN: minimum $0.50 to avoid dust
-      const minDeposit = paymentMethod === 'USDT' ? 0.01 : 0.50;
-      const depositAmt = Math.max(needed, minDeposit);
+      const depositAmt = Math.max(needed, 0.50);
       setDepositAmount(parseFloat(depositAmt.toFixed(2)));
-      createPayment(depositAmt, { country: selectedCountry, service: selectedService });
-    }
-  };
-
-  const handleDeposit = () => {
-    createPayment(depositAmount);
-  };
-
-  const handleXmr402Purchase = async () => {
-    if (!selectedCountry || !selectedService) return;
-    setXmr402Loading(true);
-    setXmr402Challenge(null);
-    try {
-      const apiBase = import.meta.env.VITE_API_URL || 'https://api.kyc.rip';
-      const res = await fetch(`${apiBase}/v1/tools/sms/purchase/xmr402`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ country: selectedCountry, service: selectedService }),
-      });
-
-      if (res.status === 402) {
-        const wwwAuth = res.headers.get('WWW-Authenticate');
-        const body402 = await res.json().catch(() => ({})) as { callback_sig?: string };
-        if (wwwAuth) {
-          const challenge = parseWwwAuthenticate(wwwAuth);
-          if (challenge) {
-            (challenge as any).callbackSig = body402.callback_sig || '';
-            // Store wallet ref for secure cross-browser callback
-            if (walletToken) {
-              try {
-                const wrefRes = await fetch(`${apiBase}/v1/tools/xmr402/wref`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ token: walletToken }),
-                });
-                const wrefData = await wrefRes.json() as { wref: string };
-                (challenge as any).wref = wrefData.wref || '';
-              } catch {}
-            }
-            setXmr402Challenge(challenge);
-            setShowXmr402Modal(true);
-          } else {
-            toast.error('Failed to parse XMR402 challenge');
-          }
-        } else {
-          toast.error('No WWW-Authenticate header in 402 response');
-        }
-      } else {
-        toast.error(`Unexpected response: ${res.status}`);
-      }
-    } catch (e: any) {
-      console.error(e);
-      toast.error(e.message || 'XMR402 request failed');
-    } finally {
-      setXmr402Loading(false);
+      setShowPaymentModal(true);
     }
   };
 
@@ -598,9 +413,8 @@ export function SMSWall() {
   const handleRentalPurchase = async (serviceId: string, days: number) => {
     if (!walletToken || balanceUSD < (rentalPrices.find(p => p.days === days)?.price || 0)) {
       const needed = rentalPrices.find(p => p.days === days)?.price || 5;
-      const minDep = paymentMethod === 'USDT' ? 0.01 : 0.50;
-      setDepositAmount(parseFloat(Math.max(needed - balanceUSD, minDep).toFixed(2)));
-      setShowMethodInModal(true); setShowPaymentModal(true);
+      setDepositAmount(parseFloat(Math.max(needed - balanceUSD, 0.50).toFixed(2)));
+      setShowPaymentModal(true);
       return;
     }
     setPurchasingRental(true);
@@ -855,7 +669,7 @@ export function SMSWall() {
                 </div>
               </div>
               <button
-                onClick={() => { setShowMethodInModal(true); setShowPaymentModal(true); }}
+                onClick={() => { setShowPaymentModal(true); }}
                 className="relative z-10 w-full md:w-auto px-6 py-3 bg-green-500 hover:bg-green-400 text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:-translate-y-0.5"
               >
                 <Plus size={14} /> {walletToken ? t('sms.top_up') : t('sms.deposit')} <ChevronRight size={14} />
@@ -1042,55 +856,6 @@ export function SMSWall() {
               </div>
             </div>
 
-            {/* ═══ PAYMENT METHOD ═══ */}
-            <div className="mb-6">
-              <div className="text-xs text-wr-dim mb-4 uppercase tracking-widest font-bold flex items-center gap-2">
-                <Zap size={12} className="text-wr-accent" /> {t('sms.payment_protocol')}
-              </div>
-              <div className="grid grid-cols-4 gap-3">
-                <button onClick={() => setPaymentMethod('XMR')}
-                  className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                  <img src="/monero-xmr-logo.png" className="w-4 h-4" alt="XMR" />
-                  <span className="text-xs font-bold tracking-widest font-mono uppercase">XMR</span>
-                </button>
-                <button onClick={() => setPaymentMethod('LN')}
-                  className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                  <Zap size={16} className="fill-current" />
-                  <span className="text-xs font-bold tracking-widest font-mono uppercase">LN</span>
-                </button>
-                <button onClick={() => setPaymentMethod('USDT')}
-                  className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'USDT' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b] shadow-[0_0_15px_rgba(38,161,123,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                  <span className="text-sm font-bold">$</span>
-                  <span className="text-xs font-bold tracking-widest font-mono uppercase">USDT</span>
-                </button>
-                <button onClick={() => setPaymentMethod('XMR402')}
-                  className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR402' ? 'border-wr-error bg-wr-error/10 text-wr-error shadow-[0_0_15px_rgba(248,113,113,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                  <Shield size={16} />
-                  <span className="text-xs font-bold tracking-widest font-mono uppercase">402</span>
-                </button>
-              </div>
-              {paymentMethod === 'USDT' && (
-                <div className="mt-3 space-y-2">
-                  <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.payment_usdt_chain', 'Network')}</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => setUsdtChain('tron')}
-                      className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'tron' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                      {t('sms.payment_usdt_tron', 'TRON (TRC-20)')}
-                    </button>
-                    <button onClick={() => setUsdtChain('eth')}
-                      className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'eth' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                      {t('sms.payment_usdt_eth', 'Ethereum (ERC-20)')}
-                    </button>
-                  </div>
-                </div>
-              )}
-              {paymentMethod === 'XMR402' && (
-                <div className="mt-2 text-[9px] text-wr-error/70 leading-relaxed">
-                  {t('sms.xmr402_hint', 'XMR402: Stateless payment — pay directly from your Monero wallet. No deposit wallet needed.')}
-                </div>
-              )}
-            </div>
-
             {/* ═══ ACTION BAR ═══ */}
             <div className="pt-6 border-t border-wr-border/30 flex flex-col md:flex-row justify-between items-center gap-6 md:gap-4">
               <div className="text-xs text-wr-dim font-mono uppercase tracking-widest">
@@ -1111,24 +876,15 @@ export function SMSWall() {
                 <div className="flex items-center gap-2 text-wr-dim text-xs"><RefreshCw size={14} className="animate-spin" /> {t('sms.checking_price')}</div>
               ) : priceInfo ? (
                 <button
-                  onClick={paymentMethod === 'XMR402' ? handleXmr402Purchase : handleGetNumber}
-                  disabled={!selectedService || creatingPayment || xmr402Loading}
-                  className={`w-full md:w-auto group relative px-8 py-4 text-sm font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-3 overflow-hidden rounded-sm
-                    ${creatingPayment || xmr402Loading ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'XMR402' ? 'bg-wr-error text-white shadow-[0_0_20px_rgba(248,113,113,0.4)]' : paymentMethod === 'USDT' ? 'bg-[#26a17b] text-white shadow-[0_0_20px_rgba(38,161,123,0.4)]' : paymentMethod === 'XMR' ? 'bg-wr-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'bg-wr-accent text-black shadow-[0_0_20px_rgba(34,211,238,0.4)]'}
-                    disabled:opacity-30 disabled:cursor-not-allowed`}
+                  onClick={handleGetNumber}
+                  disabled={!selectedService}
+                  className="w-full md:w-auto group relative px-8 py-4 text-sm font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-3 overflow-hidden rounded-sm bg-wr-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)] disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  {creatingPayment || xmr402Loading ? (
-                    <><RefreshCw size={16} className="animate-spin" /> {t('sms.generating')}</>
-                  ) : (
-                    <>
-                      <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12" />
-                      {paymentMethod === 'XMR402' && <Shield size={16} />}
-                      <span>{paymentMethod === 'XMR402' ? t('sms.xmr402_pay', 'PAY VIA XMR402') : t('sms.get_number')}</span>
-                      <span className="opacity-40">|</span>
-                      <span>${priceInfo.price}</span>
-                      <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
+                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12" />
+                  <span>{t('sms.get_number')}</span>
+                  <span className="opacity-40">|</span>
+                  <span>${priceInfo.price}</span>
+                  <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </button>
               ) : (
                 <div className="px-8 py-4 bg-wr-surface border border-wr-border text-wr-dim text-sm rounded-sm cursor-not-allowed">
@@ -1541,225 +1297,37 @@ export function SMSWall() {
         </div>
       )}
 
-      {/* ═══ PAYMENT MODAL ═══ */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-          <div className={`border bg-wr-base p-0 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent' : paymentMethod === 'USDT' ? 'border-[#26a17b]' : 'border-wr-green'}`}>
-            <button onClick={() => { setShowPaymentModal(false); setPaymentData(null); setPaymentPolling(false); setPendingPurchase(null); }} className="absolute top-4 right-4 text-wr-dim hover:text-wr-green z-10"><X size={20} /></button>
-
-            <div className={`p-3 md:p-4 border-b flex items-center gap-2 ${paymentData ? 'animate-pulse' : ''} ${paymentMethod === 'LN' ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : paymentMethod === 'USDT' ? 'bg-[#26a17b]/10 border-[#26a17b]/30 text-[#26a17b]' : 'bg-wr-green/10 border-wr-green/30 text-wr-green'}`}>
-              <Wallet size={14} />
-              <span className="text-xs font-bold tracking-widest uppercase">
-                {paymentData ? t('sms.awaiting_payment') : t('sms.deposit_to_wallet')}
-              </span>
-            </div>
-
-            <div className="p-4 md:p-8 text-center">
-              {paymentData ? (
-                paymentData.method === 'USDT' ? (
-                  /* USDT: just show payment page link */
-                  <div className="space-y-5">
-                    <div>
-                      <div className="text-lg font-bold font-mono text-[#26a17b]">{paymentData.amount} USDT</div>
-                      {paymentData.chain && (
-                        <div className="text-[10px] text-[#26a17b]/70 uppercase mt-1 font-mono">
-                          {paymentData.chain === 'tron' ? 'TRON (TRC-20)' : 'Ethereum (ERC-20)'}
-                        </div>
-                      )}
-                    </div>
-                    {paymentData.paymentUrl && (
-                      <a href={paymentData.paymentUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 py-4 bg-[#26a17b] hover:bg-[#26a17b]/90 text-white rounded-sm text-sm font-bold uppercase tracking-widest transition-all shadow-lg shadow-[#26a17b]/30">
-                        <ExternalLink size={16} /> {t('sms.open_payment_page', 'OPEN PAYMENT PAGE')}
-                      </a>
-                    )}
-                    <div className="flex items-center justify-center gap-2 text-[10px] text-wr-dim uppercase tracking-widest">
-                      <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation')}
-                    </div>
-                    <p className="text-[9px] text-wr-dim/50">{t('sms.auto_detect_note', 'Payment will be detected automatically. Do not close this window.')}</p>
-                    {pendingPurchase && (
-                      <div className="text-[10px] text-wr-green/60">
-                        {t('sms.auto_purchase', { service: selectedServiceName, country: selectedCountryName })}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                /* XMR / LN: show QR + address */
-                <div className="space-y-5">
-                  <div className="flex justify-center">
-                    <div className="bg-white p-3 rounded-sm">
-                      <QRCodeCanvas
-                        value={paymentData.method === 'LN' ? paymentData.address : `monero:${paymentData.address}?tx_amount=${paymentData.amount}`}
-                        size={160} level="M" bgColor="#ffffff" fgColor="#000000"
-                        imageSettings={paymentData.method === 'XMR' ? { src: '/monero-xmr-logo.png', x: undefined, y: undefined, height: 30, width: 30, excavate: true } : undefined}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
-                    <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>
-                      {paymentData.method === 'LN' ? `${paymentData.amount} sats` : `${paymentData.amount} XMR`}
-                    </div>
-                  </div>
-                  <button onClick={() => copyText(paymentData.address)}
-                    className="w-full p-3 rounded bg-wr-surface border border-wr-border text-[10px] font-mono break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer text-wr-green">
-                    {paymentData.address}
-                  </button>
-                  <div className="flex items-center justify-center gap-2 text-[10px] text-wr-dim uppercase tracking-widest">
-                    <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation')}
-                  </div>
-                  {pendingPurchase && (
-                    <div className="text-[10px] text-wr-green/60">
-                      {t('sms.auto_purchase', { service: selectedServiceName, country: selectedCountryName })}
-                    </div>
-                  )}
-                </div>
-                )
-              ) : (
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.deposit_amount')}</label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {DEPOSIT_AMOUNTS.map(amt => (
-                        <button key={amt} onClick={() => setDepositAmount(amt)}
-                          className={`py-3 rounded-sm border text-sm font-bold font-mono transition-all ${depositAmount === amt ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.15)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          ${amt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Payment method — only shown when opened from banner */}
-                  {showMethodInModal && (
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.payment_method')}</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <button onClick={() => setPaymentMethod('XMR')}
-                          className={`py-3 px-4 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <img src="/monero-xmr-logo.png" className="w-4 h-4" alt="XMR" />
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">XMR</span>
-                        </button>
-                        <button onClick={() => setPaymentMethod('LN')}
-                          className={`py-3 px-4 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <Zap size={16} className="fill-current" />
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">LN</span>
-                        </button>
-                        <button onClick={() => setPaymentMethod('USDT')}
-                          className={`py-3 px-4 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'USDT' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b] shadow-[0_0_15px_rgba(38,161,123,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <span className="text-sm font-bold">$</span>
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">USDT</span>
-                        </button>
-                      </div>
-                      {paymentMethod === 'USDT' && (
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                          <button onClick={() => setUsdtChain('tron')}
-                            className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'tron' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                            {t('sms.payment_usdt_tron', 'TRON (TRC-20)')}
-                          </button>
-                          <button onClick={() => setUsdtChain('eth')}
-                            className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'eth' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                            {t('sms.payment_usdt_eth', 'Ethereum (ERC-20)')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="border-t border-wr-border pt-5 flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[9px] text-wr-dim uppercase tracking-widest font-bold">{t('sms.total_deposit')}</span>
-                      <span className={`text-2xl font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : paymentMethod === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>${depositAmount.toFixed(2)}</span>
-                    </div>
-                    <button onClick={handleDeposit} disabled={creatingPayment}
-                      className={`px-8 py-3 text-xs font-black hover:opacity-90 shadow-lg uppercase tracking-widest rounded-sm flex items-center gap-2 disabled:opacity-50 ${creatingPayment ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'LN' ? 'bg-wr-accent text-black shadow-wr-accent/20' : paymentMethod === 'USDT' ? 'bg-[#26a17b] text-white shadow-[#26a17b]/20' : 'bg-wr-green text-black shadow-wr-green/20'}`}>
-                      {creatingPayment ? <><RefreshCw size={12} className="animate-spin" /> {t('sms.generating')}</> : t('sms.deposit')}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* XMR402 PAYMENT MODAL */}
-      {showXmr402Modal && xmr402Challenge && (
-        <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="border border-wr-error bg-wr-base p-0 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm">
-            <button onClick={() => { setShowXmr402Modal(false); setXmr402Challenge(null); }} className="absolute top-4 right-4 text-wr-dim hover:text-wr-error z-10"><X size={20} /></button>
-
-            <div className="p-3 md:p-4 border-b bg-wr-error/10 border-wr-error/30 text-wr-error flex items-center gap-2">
-              <Shield size={14} />
-              <span className="text-xs font-bold tracking-widest uppercase">
-                {t('sms.xmr402_challenge', 'XMR402 PAYMENT REQUIRED')}
-              </span>
-            </div>
-
-            <div className="p-4 md:p-8 space-y-5 animate-in slide-in-from-bottom-4 duration-300">
-              <div className="flex justify-center">
-                <div className="bg-white p-3 rounded-sm shadow-sm border border-wr-border">
-                  <QRCodeCanvas
-                    value={(() => { const apiBase = import.meta.env.VITE_API_URL || 'https://api.kyc.rip'; const cbParams = new URLSearchParams({ nonce: xmr402Challenge.message, amount: xmr402Challenge.amount, sig: (xmr402Challenge as any).callbackSig || '', svc: 'sms', wref: (xmr402Challenge as any).wref || '', return: window.location.pathname }); return `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(`${apiBase}/v1/tools/xmr402/callback?${cbParams}`)}`; })()}
-                    size={160}
-                    level="M"
-                    bgColor="#ffffff"
-                    fgColor="#000000"
-                    includeMargin={false}
-                    imageSettings={{ src: '/monero-xmr-logo.png', x: undefined, y: undefined, height: 30, width: 30, excavate: true }}
-                  />
-                </div>
-              </div>
-
-              <div className="text-center">
-                <div className="text-[10px] text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
-                <div className="text-lg font-bold font-mono text-wr-error">
-                  {piconeroToXMR(xmr402Challenge.amount)} XMR
-                </div>
-              </div>
-
-              <div
-                onClick={() => handleCopyXmr402(xmr402Challenge.address)}
-                className="group relative p-3 bg-wr-base/50 rounded border border-wr-border cursor-pointer hover:border-wr-error/50 transition-all active:scale-[0.98]"
-              >
-                <div className="text-[9px] text-wr-dim uppercase tracking-widest mb-1">
-                  {t('sms.xmr402_address', 'DESTINATION ADDRESS')}
-                </div>
-                <div className="font-mono text-[10px] text-wr-green break-all leading-tight flex items-center gap-2">
-                  <span className="flex-1">{xmr402Challenge.address}</span>
-                  <span className="shrink-0 text-wr-dim group-hover:text-wr-green">
-                    {xmr402Copied ? <CheckCircle2 size={14} className="text-wr-green" /> : <Copy size={14} />}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-wr-surface border border-wr-border rounded">
-                <div className="text-[9px] text-wr-dim uppercase tracking-widest mb-1">
-                  {t('sms.xmr402_nonce', 'CHALLENGE NONCE (tx_description)')}
-                </div>
-                <div className="font-mono text-xs text-wr-error flex items-center gap-2">
-                  <span>{xmr402Challenge.message}</span>
-                  <Copy size={12} className="cursor-pointer text-wr-dim hover:text-wr-error shrink-0"
-                    onClick={(e) => { e.stopPropagation(); handleCopyXmr402(xmr402Challenge.message); }} />
-                </div>
-              </div>
-
-              <a
-                href={(() => { const apiBase = import.meta.env.VITE_API_URL || 'https://api.kyc.rip'; const cbParams = new URLSearchParams({ nonce: xmr402Challenge.message, amount: xmr402Challenge.amount, sig: (xmr402Challenge as any).callbackSig || '', svc: 'sms', wref: (xmr402Challenge as any).wref || '', return: window.location.pathname }); return `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(`${apiBase}/v1/tools/xmr402/callback?${cbParams}`)}`; })()}
-                className="flex items-center justify-center gap-2 py-2.5 bg-wr-error/20 hover:bg-wr-error/30 text-wr-error border border-wr-error/30 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all"
-              >
-                <ExternalLink size={12} />
-                {t('sms.xmr402_open_wallet', 'OPEN IN MONERO WALLET')}
-              </a>
-
-              <Xmr402Countdown timestamp={xmr402Challenge.timestamp} onExpired={() => { setXmr402Challenge(null); setShowXmr402Modal(false); toast.error('Challenge expired'); }} />
-
-              <div className="text-[9px] text-wr-dim/60 leading-relaxed text-center">
-                {t('sms.xmr402_instructions', 'Scan the QR with Ripley Terminal or click "Open in Ripley Terminal". Challenge expires when timer reaches zero.')}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ═══ PAYMENT GATE ═══ */}
+      <PaymentGate
+        amount={depositAmount}
+        methods={['XMR', 'LN', 'XMR402', 'USDT']}
+        walletToken={walletToken || undefined}
+        serviceName="sms"
+        showPresets={true}
+        presets={[3, 5, 10, 20]}
+        isOpen={showPaymentModal}
+        onClose={() => { setShowPaymentModal(false); }}
+        onDeposit={(usd) => {
+          setBalanceUSD(prev => prev + usd);
+          setShowPaymentModal(false);
+          toast.success(`$${usd.toFixed(2)} deposited`);
+          // Refresh wallet token from storage in case it was created during deposit
+          const storedToken = localStorage.getItem(WALLET_KEY);
+          if (storedToken && !walletToken) {
+            setWalletToken(storedToken);
+          }
+          // Refresh wallet balance from API
+          if (walletToken || storedToken) {
+            const token = walletToken || storedToken;
+            apiClient<{ balanceUSD: number; totalDeposited?: number; totalSpent?: number }>(`/v1/tools/sms/balance?token=${token}`)
+              .then(data => {
+                setBalanceUSD(data.balanceUSD);
+                setWalletStats({ totalDeposited: data.totalDeposited || 0, totalSpent: data.totalSpent || 0 });
+              })
+              .catch(() => {});
+          }
+        }}
+      />
     </div>
   );
 }

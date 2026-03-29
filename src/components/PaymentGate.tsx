@@ -173,7 +173,7 @@ export function PaymentGate({
   const [copied, setCopied] = useState(false);
 
   // Refs for cleanup
-  const pollingRef = useRef<ReturnType<typeof setInterval>>();
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Keep depositAmount in sync with amount prop when presets are off
   useEffect(() => {
