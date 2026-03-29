@@ -238,7 +238,17 @@
   "mail": {
     "title": "幽靈信箱",
     "subtitle": "燃燒的一次性信箱",
-    "desc": "拋棄式加密電子信箱。無需註冊、無需身份。PGP 加密、自訂網域、自動銷毀計時器。使用 XMR 付款。"
+    "desc": "拋棄式加密電子信箱。無需註冊、無需身份。PGP 加密、自訂網域、自動銷毀計時器。使用 XMR 付款。",
+    "payment_usdt_pending": "USDT 付款等待中",
+    "payment_usdt_amount": "金額",
+    "payment_usdt_network": "網路：{{network}}",
+    "payment_usdt_network_tron": "TRON (TRC20)",
+    "payment_usdt_network_eth": "以太坊 (ERC20)",
+    "payment_usdt_send_label": "請將精確的 USDT 金額發送至此地址",
+    "payment_usdt_open_page": "開啟付款頁面",
+    "payment_usdt_awaiting": "等待 USDT 付款確認中...",
+    "payment_chain_tron": "TRON (TRC20)",
+    "payment_chain_eth": "以太坊 (ERC20)"
   },
   "drop": {
     "title_1": "死信",

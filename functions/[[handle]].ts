@@ -145,6 +145,15 @@ ${ldJsonScripts}`;
     });
   }
 
-  // For regular users, just serve the SPA
+  // For regular users, inject geo country code for client-side use
+  const geoCountry = context.request.headers.get('CF-IPCountry') || '';
+  if (geoCountry && url.pathname === '/esim') {
+    let html = await res.text();
+    html = html.replace('</head>', `<script>window.__GEO_COUNTRY="${geoCountry}";</script>\n</head>`);
+    return new Response(html, {
+      headers: { ...Object.fromEntries(res.headers.entries()), 'content-type': 'text/html; charset=utf-8' },
+    });
+  }
+
   return res;
 };

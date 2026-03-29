@@ -238,7 +238,17 @@
   "mail": {
     "title": "Ghost Mail",
     "subtitle": "燃え尽きる使い捨てメール",
-    "desc": "使い捨て暗号化メールボックス。登録不要、身元不要。PGP暗号化、カスタムドメイン、自動破棄タイマー。XMRで支払い。"
+    "desc": "使い捨て暗号化メールボックス。登録不要、身元不要。PGP暗号化、カスタムドメイン、自動破棄タイマー。XMRで支払い。",
+    "payment_usdt_pending": "USDT決済待ち",
+    "payment_usdt_amount": "金額",
+    "payment_usdt_network": "ネットワーク：{{network}}",
+    "payment_usdt_network_tron": "TRON (TRC20)",
+    "payment_usdt_network_eth": "Ethereum (ERC20)",
+    "payment_usdt_send_label": "正確なUSDT金額をこのアドレスに送金してください",
+    "payment_usdt_open_page": "決済ページを開く",
+    "payment_usdt_awaiting": "USDT決済の確認を待っています...",
+    "payment_chain_tron": "TRON (TRC20)",
+    "payment_chain_eth": "Ethereum (ERC20)"
   },
   "drop": {
     "title_1": "Dead",

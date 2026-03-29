@@ -238,7 +238,17 @@
   "mail": {
     "title": "Ghost Mail",
     "subtitle": "Email descartavel que queima",
-    "desc": "Caixas de email criptografadas descartaveis. Sem cadastro, sem identidade. Criptografia PGP, dominios personalizados, temporizadores de autodestruicao. Pague com XMR."
+    "desc": "Caixas de email criptografadas descartaveis. Sem cadastro, sem identidade. Criptografia PGP, dominios personalizados, temporizadores de autodestruicao. Pague com XMR.",
+    "payment_usdt_pending": "PAGAMENTO USDT PENDENTE",
+    "payment_usdt_amount": "VALOR",
+    "payment_usdt_network": "Rede: {{network}}",
+    "payment_usdt_network_tron": "TRON (TRC20)",
+    "payment_usdt_network_eth": "Ethereum (ERC20)",
+    "payment_usdt_send_label": "Envie a quantia exata de USDT para este endereco",
+    "payment_usdt_open_page": "ABRIR PAGINA DE PAGAMENTO",
+    "payment_usdt_awaiting": "AGUARDANDO CONFIRMACAO DE PAGAMENTO USDT...",
+    "payment_chain_tron": "TRON (TRC20)",
+    "payment_chain_eth": "Ethereum (ERC20)"
   },
   "drop": {
     "title_1": "Dead",

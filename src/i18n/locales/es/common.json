@@ -238,7 +238,17 @@
   "mail": {
     "title": "Ghost Mail",
     "subtitle": "Correo desechable que se quema",
-    "desc": "Bandejas de correo encriptadas desechables. Sin registro, sin identidad. Encriptacion PGP, dominios personalizados, temporizadores de autodestruccion. Paga con XMR."
+    "desc": "Bandejas de correo encriptadas desechables. Sin registro, sin identidad. Encriptacion PGP, dominios personalizados, temporizadores de autodestruccion. Paga con XMR.",
+    "payment_usdt_pending": "PAGO USDT PENDIENTE",
+    "payment_usdt_amount": "MONTO",
+    "payment_usdt_network": "Red: {{network}}",
+    "payment_usdt_network_tron": "TRON (TRC20)",
+    "payment_usdt_network_eth": "Ethereum (ERC20)",
+    "payment_usdt_send_label": "Envie la cantidad exacta de USDT a esta direccion",
+    "payment_usdt_open_page": "ABRIR PAGINA DE PAGO",
+    "payment_usdt_awaiting": "ESPERANDO CONFIRMACION DE PAGO USDT...",
+    "payment_chain_tron": "TRON (TRC20)",
+    "payment_chain_eth": "Ethereum (ERC20)"
   },
   "drop": {
     "title_1": "Dead",

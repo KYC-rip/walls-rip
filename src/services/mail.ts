@@ -50,11 +50,13 @@ export async function setupPgp(email: string, token: string, publicKey: string, 
 
 // Payment creation response (POST /api/payment/create)
 export interface PaymentInitResponse {
-  method: 'XMR' | 'LN';
-  address: string;    // XMR integrated address or LN Bolt11 Invoice
+  method: 'XMR' | 'LN' | 'USDT';
+  address: string;    // XMR integrated address, LN Bolt11, or USDT deposit address
   paymentId: string;  // ID for polling
-  amount: number;     // amount to pay (XMR or Sats)
+  amount: number;     // amount to pay (XMR, Sats, or USD)
   tier: TierType;
+  paymentUrl?: string; // uPay payment page URL (USDT only)
+  chain?: string;     // tron/eth (USDT only)
 }
 
 // Payment status response (GET /api/payment/check)
@@ -92,12 +94,12 @@ export async function fetchConfig(): Promise<ConfigResponse> {
 /**
  * Create a payment session
  */
-export async function createPaymentSession(tier: TierType, duration: DurationConfig, customEmail?: string, method: 'XMR' | 'LN' = 'XMR'): Promise<PaymentInitResponse> {
+export async function createPaymentSession(tier: TierType, duration: DurationConfig, customEmail?: string, method: 'XMR' | 'LN' | 'USDT' = 'XMR', chain?: string): Promise<PaymentInitResponse> {
   try {
     return await mailApiClient('/api/payment/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tier, duration, customEmail, method })
+      body: JSON.stringify({ tier, duration, customEmail, method, ...(chain && { chain }) })
     });
   } catch (error: any) {
     throw new Error(error.error || 'FAILED_TO_INIT_PAYMENT');
@@ -107,12 +109,12 @@ export async function createPaymentSession(tier: TierType, duration: DurationCon
 /**
  * Create an extension (renewal) session
  */
-export async function createExtensionSession(email: string, token: string, duration: DurationConfig, method: 'XMR' | 'LN' = 'XMR'): Promise<PaymentInitResponse> {
+export async function createExtensionSession(email: string, token: string, duration: DurationConfig, method: 'XMR' | 'LN' | 'USDT' = 'XMR', chain?: string): Promise<PaymentInitResponse> {
   try {
     return await mailApiClient('/api/payment/extend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, token, duration, method })
+      body: JSON.stringify({ email, token, duration, method, ...(chain && { chain }) })
     });
   } catch (error: any) {
     throw new Error(error.error || 'FAILED_TO_INIT_EXTENSION');

@@ -21,7 +21,7 @@ interface ConfigPanelProps {
   generateRandomName: () => void;
   isRandom: boolean;
   paymentState: PaymentState;
-  startPurchase: (t: TierType, method: 'XMR' | 'LN') => void;
+  startPurchase: (t: TierType, method: 'XMR' | 'LN' | 'USDT', chain?: string) => void;
   getFinalPrice: () => number;
   openToS: () => void;
 }
@@ -47,7 +47,8 @@ export function ConfigPanel({
   getFinalPrice,
   openToS
 }: ConfigPanelProps) {
-  const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN'>('XMR');
+  const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN' | 'USDT'>('XMR');
+  const [usdtChain, setUsdtChain] = useState<'tron' | 'eth'>('tron');
   const isBasic = selectedTier === 'BASIC';
 
   const validateHandle = (val: string) => {
@@ -305,22 +306,41 @@ export function ConfigPanel({
           <div className="text-[10px] md:text-xs text-wr-dim mb-4 uppercase tracking-widest font-bold flex items-center gap-2">
             <Zap size={12} className="text-wr-accent" /> PAYMENT PROTOCOL
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             <button
               onClick={() => setPaymentMethod('XMR')}
-              className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}
+              className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}
             >
               <img src="/monero-xmr-logo.png" className="w-4 h-4" alt="XMR" />
               <span className="text-xs font-bold tracking-widest font-mono uppercase">Monero</span>
             </button>
             <button
               onClick={() => setPaymentMethod('LN')}
-              className={`py-3 px-4 border flex items-center justify-center gap-3 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(255,153,0,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}
+              className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(255,153,0,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}
             >
               <Zap size={16} className="fill-current" />
               <span className="text-xs font-bold tracking-widest font-mono uppercase">Lightning</span>
             </button>
+            <button
+              onClick={() => setPaymentMethod('USDT')}
+              className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'USDT' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b] shadow-[0_0_15px_rgba(38,161,123,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}
+            >
+              <span className="text-sm font-bold">₮</span>
+              <span className="text-xs font-bold tracking-widest font-mono uppercase">USDT</span>
+            </button>
           </div>
+          {paymentMethod === 'USDT' && (
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => setUsdtChain('tron')}
+                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-sm transition-all ${usdtChain === 'tron' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                TRON (TRC20)
+              </button>
+              <button onClick={() => setUsdtChain('eth')}
+                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border rounded-sm transition-all ${usdtChain === 'eth' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                Ethereum (ERC20)
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Action Bar */}
@@ -329,11 +349,11 @@ export function ConfigPanel({
             <span className="text-wr-green animate-pulse">●</span> SYSTEM READY — AWAITING AUTHORIZATION
           </div>
           <button
-            onClick={() => startPurchase(selectedTier, paymentMethod)}
+            onClick={() => startPurchase(selectedTier, paymentMethod, paymentMethod === 'USDT' ? usdtChain : undefined)}
             disabled={!customName || !!handleError || paymentState.status === 'CREATING'}
             className={`
               w-full md:w-auto group relative px-8 py-4 text-xs md:text-sm font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-3 overflow-hidden rounded-sm
-              ${customName && !handleError ? (paymentMethod === 'XMR' ? 'bg-wr-green text-wr-base shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'bg-wr-accent text-black shadow-[0_0_20px_rgba(255,153,0,0.4)]') : 'bg-wr-surface border border-wr-border text-wr-dim cursor-not-allowed'}
+              ${customName && !handleError ? (paymentMethod === 'USDT' ? 'bg-[#26a17b] text-white shadow-[0_0_20px_rgba(38,161,123,0.4)]' : paymentMethod === 'XMR' ? 'bg-wr-green text-wr-base shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'bg-wr-accent text-black shadow-[0_0_20px_rgba(255,153,0,0.4)]') : 'bg-wr-surface border border-wr-border text-wr-dim cursor-not-allowed'}
             `}
           >
             <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12"></div>

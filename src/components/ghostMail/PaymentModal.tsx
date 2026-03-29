@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import type { PaymentState, GhostMailSession } from '../../hooks/useGhostMail';
 
-type PaymentTab = 'XMR' | 'LN' | 'XMR402';
+type PaymentTab = 'XMR' | 'LN' | 'XMR402' | 'USDT';
 
 interface XMR402Challenge {
   address: string;
@@ -120,7 +120,8 @@ export function PaymentModal({
   const data = paymentState.status === 'WAITING_PAYMENT' ? paymentState.data : null;
   const isCompleted = paymentState.status === 'COMPLETED';
   const isLN = data?.method === 'LN';
-  const isXMR402 = activeTab === 'XMR402';
+  const isUSDT = data?.method === 'USDT';
+  const isXMR402 = activeTab === 'XMR402' && !isUSDT;
 
   const handleWebLN = async () => {
     if (typeof window.webln === 'undefined') {
@@ -188,9 +189,9 @@ export function PaymentModal({
     setTimeout(() => setXmr402Copied(false), 2000);
   };
 
-  const borderClass = isXMR402 ? 'border-wr-error' : isLN ? 'border-wr-accent' : 'border-wr-green';
-  const headerBgClass = isXMR402 ? 'bg-wr-error/10 border-wr-error/30 text-wr-error' : isLN ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : 'bg-wr-green/10 border-wr-green/30 text-wr-green';
-  const textAccentClass = isXMR402 ? 'text-wr-error' : isLN ? 'text-wr-accent' : 'text-wr-green';
+  const borderClass = isUSDT ? 'border-[#26a17b]' : isXMR402 ? 'border-wr-error' : isLN ? 'border-wr-accent' : 'border-wr-green';
+  const headerBgClass = isUSDT ? 'bg-[#26a17b]/10 border-[#26a17b]/30 text-[#26a17b]' : isXMR402 ? 'bg-wr-error/10 border-wr-error/30 text-wr-error' : isLN ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : 'bg-wr-green/10 border-wr-green/30 text-wr-green';
+  const textAccentClass = isUSDT ? 'text-[#26a17b]' : isXMR402 ? 'text-wr-error' : isLN ? 'text-wr-accent' : 'text-wr-green';
 
   return (
     <div className="fixed inset-0 bg-wr-base/90 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
@@ -202,11 +203,13 @@ export function PaymentModal({
           <span className="text-[10px] md:text-xs font-bold tracking-widest uppercase">
             {isCompleted
               ? t('ghostMail.payment.uplinkEstablished', 'UPLINK ESTABLISHED')
-              : isXMR402
-                ? t('ghostMail.payment.xmr402Pending', 'XMR402 PAYMENT REQUIRED')
-                : isLN
-                  ? t('ghostMail.payment.lnPending', 'LIGHTNING PAYMENT PENDING')
-                  : t('ghostMail.payment.xmrPending', 'XMR PAYMENT PENDING')}
+              : isUSDT
+                ? t('mail.payment_usdt_pending', 'USDT PAYMENT PENDING')
+                : isXMR402
+                  ? t('ghostMail.payment.xmr402Pending', 'XMR402 PAYMENT REQUIRED')
+                  : isLN
+                    ? t('ghostMail.payment.lnPending', 'LIGHTNING PAYMENT PENDING')
+                    : t('ghostMail.payment.xmrPending', 'XMR PAYMENT PENDING')}
           </span>
         </div>
 
@@ -238,8 +241,8 @@ export function PaymentModal({
                 </div>
               </div>
 
-              {/* XMR402 toggle — separate flow from XMR/LN */}
-              {!isCompleted && (
+              {/* XMR402 toggle — separate flow from XMR/LN (hidden for USDT) */}
+              {!isCompleted && !isUSDT && (
                 <div className="flex border border-wr-border rounded-sm overflow-hidden">
                   <button
                     onClick={() => setActiveTab(isLN ? 'LN' : 'XMR')}
@@ -264,8 +267,52 @@ export function PaymentModal({
                 </div>
               )}
 
+              {/* USDT Payment Content */}
+              {isUSDT && data && (
+                <>
+                  <div>
+                    <div className="text-[10px] text-wr-dim uppercase tracking-widest mb-1">{t('mail.payment_usdt_amount', 'AMOUNT')}</div>
+                    <div className="text-lg font-bold font-mono text-[#26a17b]">{data.amount} USDT</div>
+                    {data.chain && (
+                      <div className="text-[10px] text-wr-dim mt-0.5">{t('mail.payment_usdt_network', { network: data.chain === 'tron' ? t('mail.payment_usdt_network_tron', 'TRON (TRC20)') : t('mail.payment_usdt_network_eth', 'Ethereum (ERC20)') })}</div>
+                    )}
+                  </div>
+
+                  <div className="scale-90 md:scale-100 origin-center">
+                    <DepositAddress
+                      currency={{
+                        ticker: 'usdt',
+                        name: 'Tether USD',
+                        network: data.chain === 'tron' ? 'TRC20' : 'ERC20',
+                        image: 'https://trocador.app/static/img/icons/usdt.svg',
+                      }}
+                      address={data.address}
+                      amount={String(data.amount)}
+                      label={t('mail.payment_usdt_send_label', 'Send exact USDT amount to this address')}
+                      actualNetwork={data.chain === 'tron' ? 'TRON' : 'Ethereum'}
+                    />
+                  </div>
+
+                  {data.paymentUrl && (
+                    <a
+                      href={data.paymentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 py-3 bg-[#26a17b]/20 hover:bg-[#26a17b]/30 text-[#26a17b] border border-[#26a17b]/30 rounded-sm text-xs font-bold uppercase tracking-widest transition-all"
+                    >
+                      <ExternalLink size={14} /> {t('mail.payment_usdt_open_page', 'OPEN PAYMENT PAGE')}
+                    </a>
+                  )}
+
+                  <div className="text-[10px] text-wr-dim flex items-center justify-center gap-2 uppercase tracking-tighter">
+                    <RefreshCw size={10} className="animate-spin" />
+                    {t('mail.payment_usdt_awaiting', 'AWAITING USDT PAYMENT CONFIRMATION...')}
+                  </div>
+                </>
+              )}
+
               {/* XMR / LN Payment Content */}
-              {!isXMR402 && data && (
+              {!isXMR402 && !isUSDT && data && (
                 <>
                   <div className="scale-90 md:scale-100 origin-center">
                     <DepositAddress

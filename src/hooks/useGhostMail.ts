@@ -230,10 +230,10 @@ export function useGhostMail() {
   }, [session, inbox?.expiresAt]);
 
   // 3. Action: start purchase
-  const startPurchase = useCallback(async (tier: TierType, customEmail?: string, method: 'XMR' | 'LN' = 'XMR') => {
+  const startPurchase = useCallback(async (tier: TierType, customEmail?: string, method: 'XMR' | 'LN' | 'USDT' = 'XMR', chain?: string) => {
     setPaymentState({ status: 'CREATING' });
     try {
-      const data = await createPaymentSession(tier, selectedDuration, customEmail, method);
+      const data = await createPaymentSession(tier, selectedDuration, customEmail, method, chain);
       setPaymentState({ status: 'WAITING_PAYMENT', data });
       startPaymentPolling(data.paymentId);
     } catch (e: any) {
@@ -243,11 +243,11 @@ export function useGhostMail() {
   }, [selectedDuration]);
 
   // 3.5 Action: start extension
-  const startExtension = useCallback(async (duration: DurationConfig, method: 'XMR' | 'LN' = 'XMR') => {
+  const startExtension = useCallback(async (duration: DurationConfig, method: 'XMR' | 'LN' | 'USDT' = 'XMR', chain?: string) => {
     if (!session) return;
     setPaymentState({ status: 'CREATING' });
     try {
-      const data = await createExtensionSession(session.email, session.token, duration, method);
+      const data = await createExtensionSession(session.email, session.token, duration, method, chain);
       setPaymentState({ status: 'WAITING_PAYMENT', data });
       startPaymentPolling(data.paymentId);
     } catch (e: any) {

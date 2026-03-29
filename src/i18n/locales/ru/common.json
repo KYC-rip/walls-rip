@@ -238,7 +238,17 @@
   "mail": {
     "title": "Ghost Mail",
     "subtitle": "Одноразовая почта, которая сгорает",
-    "desc": "Одноразовые зашифрованные почтовые ящики. Без регистрации, без личности. PGP-шифрование, свои домены, таймеры самоуничтожения. Оплата XMR."
+    "desc": "Одноразовые зашифрованные почтовые ящики. Без регистрации, без личности. PGP-шифрование, свои домены, таймеры самоуничтожения. Оплата XMR.",
+    "payment_usdt_pending": "ОЖИДАНИЕ ОПЛАТЫ USDT",
+    "payment_usdt_amount": "СУММА",
+    "payment_usdt_network": "Сеть: {{network}}",
+    "payment_usdt_network_tron": "TRON (TRC20)",
+    "payment_usdt_network_eth": "Ethereum (ERC20)",
+    "payment_usdt_send_label": "Отправьте точную сумму USDT на этот адрес",
+    "payment_usdt_open_page": "ОТКРЫТЬ СТРАНИЦУ ОПЛАТЫ",
+    "payment_usdt_awaiting": "ОЖИДАНИЕ ПОДТВЕРЖДЕНИЯ ОПЛАТЫ USDT...",
+    "payment_chain_tron": "TRON (TRC20)",
+    "payment_chain_eth": "Ethereum (ERC20)"
   },
   "drop": {
     "title_1": "Dead",

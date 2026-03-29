@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand, Shield, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand, Shield, Layers, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -13,11 +13,13 @@ interface Service { id: string; name: string; category?: string; engine: string 
 interface PriceInfo { price: string; cost_price: string; success_rate: number; engine: string }
 
 interface PaymentData {
-  method: 'XMR' | 'LN';
+  method: 'XMR' | 'LN' | 'USDT';
   address: string;
   paymentId: string;
   amount: number;
   usd: number;
+  chain?: 'tron' | 'eth';
+  paymentUrl?: string;
 }
 
 interface PurchaseResult {
@@ -151,7 +153,8 @@ export function SMSWall() {
   const [balanceUSD, setBalanceUSD] = useState<number>(0);
 
   // Payment
-  const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN' | 'XMR402'>('XMR');
+  const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN' | 'XMR402' | 'USDT'>('XMR');
+  const [usdtChain, setUsdtChain] = useState<'tron' | 'eth'>('tron');
   const [depositAmount, setDepositAmount] = useState<number>(1);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showMethodInModal, setShowMethodInModal] = useState(false); // show XMR/LN picker in deposit modal
@@ -213,6 +216,9 @@ export function SMSWall() {
   const [purchasingRental, setPurchasingRental] = useState(false);
   const [showExtendModal, setShowExtendModal] = useState<string | null>(null); // orderId
   const [extendingRental, setExtendingRental] = useState(false);
+
+  // FAQ accordion
+  const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
   const requestNotifPermission = async () => {
     if (!('Notification' in window)) return;
@@ -373,12 +379,17 @@ export function SMSWall() {
     // XMR402 doesn't use wallet deposits — fallback to XMR for deposit flow
     const depositMethod = paymentMethod === 'XMR402' ? 'XMR' : paymentMethod;
     try {
+      const body: Record<string, unknown> = { amount: usdAmount, method: depositMethod, walletToken };
+      if (depositMethod === 'USDT') body.chain = usdtChain;
       const data = await apiClient<PaymentData>('/v1/tools/sms/payment/create', {
         method: 'POST',
-        body: { amount: usdAmount, method: depositMethod, walletToken },
+        body,
       });
       setPaymentData(data); setPaymentPolling(true); setShowPaymentModal(true); setShowMethodInModal(false);
       if (purchaseAfter) setPendingPurchase(purchaseAfter);
+      if (data.paymentUrl && data.method === 'USDT') {
+        window.open(data.paymentUrl, '_blank');
+      }
     } catch { toast.error('Failed to create payment'); }
     finally { setCreatingPayment(false); }
   };
@@ -407,8 +418,9 @@ export function SMSWall() {
     } else {
       // Need payment first
       const needed = walletToken ? price - balanceUSD : price;
-      // Round up to nearest $0.50 or the exact price, whichever is higher
-      const depositAmt = Math.max(needed, 0.50);
+      // For USDT: exact amount. For XMR/LN: minimum $0.50 to avoid dust
+      const minDeposit = paymentMethod === 'USDT' ? 0.01 : 0.50;
+      const depositAmt = Math.max(needed, minDeposit);
       setDepositAmount(parseFloat(depositAmt.toFixed(2)));
       createPayment(depositAmt, { country: selectedCountry, service: selectedService });
     }
@@ -521,7 +533,8 @@ export function SMSWall() {
   const handleRentalPurchase = async (serviceId: string, days: number) => {
     if (!walletToken || balanceUSD < (rentalPrices.find(p => p.days === days)?.price || 0)) {
       const needed = rentalPrices.find(p => p.days === days)?.price || 5;
-      setDepositAmount(parseFloat(Math.max(needed - balanceUSD, 0.50).toFixed(2)));
+      const minDep = paymentMethod === 'USDT' ? 0.01 : 0.50;
+      setDepositAmount(parseFloat(Math.max(needed - balanceUSD, minDep).toFixed(2)));
       setShowMethodInModal(true); setShowPaymentModal(true);
       return;
     }
@@ -716,8 +729,9 @@ export function SMSWall() {
             url: 'https://walls.rip/sms',
             applicationCategory: 'UtilitiesApplication',
             operatingSystem: 'Web',
-            description: 'Get temporary phone numbers for anonymous SMS verification. 150+ countries, 1700+ services.',
+            description: 'Get temporary phone numbers for anonymous SMS verification. 150+ countries, 1700+ services. Pay with XMR, Lightning, USDT, or XMR402.',
             offers: { '@type': 'Offer', price: '0.10', priceCurrency: 'USD', description: 'Starting price for SMS verification' },
+            featureList: '150+ countries, 1700+ services, Auto-refund, XMR/Lightning/USDT/XMR402 payments',
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
           },
           {
@@ -968,7 +982,7 @@ export function SMSWall() {
               <div className="text-xs text-wr-dim mb-4 uppercase tracking-widest font-bold flex items-center gap-2">
                 <Zap size={12} className="text-wr-accent" /> {t('sms.payment_protocol')}
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <button onClick={() => setPaymentMethod('XMR')}
                   className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
                   <img src="/monero-xmr-logo.png" className="w-4 h-4" alt="XMR" />
@@ -979,12 +993,32 @@ export function SMSWall() {
                   <Zap size={16} className="fill-current" />
                   <span className="text-xs font-bold tracking-widest font-mono uppercase">LN</span>
                 </button>
+                <button onClick={() => setPaymentMethod('USDT')}
+                  className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'USDT' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b] shadow-[0_0_15px_rgba(38,161,123,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                  <span className="text-sm font-bold">$</span>
+                  <span className="text-xs font-bold tracking-widest font-mono uppercase">USDT</span>
+                </button>
                 <button onClick={() => setPaymentMethod('XMR402')}
                   className={`py-3 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR402' ? 'border-wr-error bg-wr-error/10 text-wr-error shadow-[0_0_15px_rgba(248,113,113,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
                   <Shield size={16} />
                   <span className="text-xs font-bold tracking-widest font-mono uppercase">402</span>
                 </button>
               </div>
+              {paymentMethod === 'USDT' && (
+                <div className="mt-3 space-y-2">
+                  <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.payment_usdt_chain', 'Network')}</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setUsdtChain('tron')}
+                      className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'tron' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                      {t('sms.payment_usdt_tron', 'TRON (TRC-20)')}
+                    </button>
+                    <button onClick={() => setUsdtChain('eth')}
+                      className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'eth' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                      {t('sms.payment_usdt_eth', 'Ethereum (ERC-20)')}
+                    </button>
+                  </div>
+                </div>
+              )}
               {paymentMethod === 'XMR402' && (
                 <div className="mt-2 text-[9px] text-wr-error/70 leading-relaxed">
                   {t('sms.xmr402_hint', 'XMR402: Stateless payment — pay directly from your Monero wallet. No deposit wallet needed.')}
@@ -1015,7 +1049,7 @@ export function SMSWall() {
                   onClick={paymentMethod === 'XMR402' ? handleXmr402Purchase : handleGetNumber}
                   disabled={!selectedService || creatingPayment || xmr402Loading}
                   className={`w-full md:w-auto group relative px-8 py-4 text-sm font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-3 overflow-hidden rounded-sm
-                    ${creatingPayment || xmr402Loading ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'XMR402' ? 'bg-wr-error text-white shadow-[0_0_20px_rgba(248,113,113,0.4)]' : paymentMethod === 'XMR' ? 'bg-wr-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'bg-wr-accent text-black shadow-[0_0_20px_rgba(34,211,238,0.4)]'}
+                    ${creatingPayment || xmr402Loading ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'XMR402' ? 'bg-wr-error text-white shadow-[0_0_20px_rgba(248,113,113,0.4)]' : paymentMethod === 'USDT' ? 'bg-[#26a17b] text-white shadow-[0_0_20px_rgba(38,161,123,0.4)]' : paymentMethod === 'XMR' ? 'bg-wr-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'bg-wr-accent text-black shadow-[0_0_20px_rgba(34,211,238,0.4)]'}
                     disabled:opacity-30 disabled:cursor-not-allowed`}
                 >
                   {creatingPayment || xmr402Loading ? (
@@ -1308,6 +1342,98 @@ export function SMSWall() {
             ))}
           </div>
           )}
+
+          {/* ═══ WHY CHOOSE SMS WALL ═══ */}
+          <div className="mx-2 md:mx-0 space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="font-mono text-sm md:text-base font-bold uppercase tracking-widest text-current">
+                {t('sms.why_title')}
+              </h2>
+              <div className="mx-auto w-12 h-px bg-wr-accent" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {([
+                { icon: <Shield size={18} />, title: t('sms.why_anonymous_title'), desc: t('sms.why_anonymous_desc') },
+                { icon: <Globe size={18} />, title: t('sms.why_global_title'), desc: t('sms.why_global_desc') },
+                { icon: <Zap size={18} />, title: t('sms.why_instant_title'), desc: t('sms.why_instant_desc') },
+                { icon: <Wallet size={18} />, title: t('sms.why_crypto_title'), desc: t('sms.why_crypto_desc') },
+                { icon: <RefreshCw size={18} />, title: t('sms.why_refund_title'), desc: t('sms.why_refund_desc') },
+                { icon: <Layers size={18} />, title: t('sms.why_providers_title'), desc: t('sms.why_providers_desc') },
+              ]).map((card) => (
+                <div key={card.title} className="p-4 rounded-sm border border-wr-border bg-wr-surface space-y-2 hover:border-wr-accent/30 transition-colors">
+                  <div className="text-wr-accent">{card.icon}</div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-current">{card.title}</h3>
+                  <p className="text-xs text-wr-dim leading-relaxed">{card.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ═══ HOW IT WORKS ═══ */}
+          <div className="mx-2 md:mx-0 space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="font-mono text-sm md:text-base font-bold uppercase tracking-widest text-current">
+                {t('sms.how_title')}
+              </h2>
+              <div className="mx-auto w-12 h-px bg-wr-accent" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-0 relative">
+              {/* Connector lines (desktop only) */}
+              <div className="hidden md:block absolute top-8 left-[calc(33.33%+0.5rem)] right-[calc(33.33%+0.5rem)] h-px bg-wr-accent/30" />
+              {([
+                { num: '01', icon: <Search size={20} />, title: t('sms.how_step1_title'), desc: t('sms.how_step1_desc') },
+                { num: '02', icon: <Wallet size={20} />, title: t('sms.how_step2_title'), desc: t('sms.how_step2_desc') },
+                { num: '03', icon: <MessageSquare size={20} />, title: t('sms.how_step3_title'), desc: t('sms.how_step3_desc') },
+              ]).map((step, i) => (
+                <div key={step.num} className="flex flex-col items-center text-center space-y-3 relative px-4">
+                  <div className="relative z-10 w-16 h-16 rounded-full bg-wr-accent/10 border border-wr-accent/30 flex items-center justify-center text-wr-accent">
+                    {step.icon}
+                  </div>
+                  <div className="text-xs text-wr-accent font-mono font-bold tracking-widest">{step.num}</div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-current">{step.title}</h3>
+                  <p className="text-xs text-wr-dim leading-relaxed max-w-xs">{step.desc}</p>
+                  {/* Vertical connector for mobile */}
+                  {i < 2 && <div className="md:hidden w-px h-6 bg-wr-accent/30" />}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ═══ FAQ ACCORDION ═══ */}
+          <div className="mx-2 md:mx-0 space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="font-mono text-sm md:text-base font-bold uppercase tracking-widest text-current">
+                {t('sms.faq_title')}
+              </h2>
+              <div className="mx-auto w-12 h-px bg-wr-accent" />
+            </div>
+            <div className="space-y-2">
+              {([1, 2, 3, 4, 5, 6] as const).map((n) => {
+                const isOpen = faqOpen === n;
+                return (
+                  <div key={n} className="border border-wr-border rounded-sm bg-wr-surface overflow-hidden">
+                    <button
+                      onClick={() => setFaqOpen(isOpen ? null : n)}
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-wr-base/50 transition-colors"
+                    >
+                      <span className="text-xs font-bold text-current pr-4">{t(`sms.faq_q${n}`)}</span>
+                      <ChevronDown
+                        size={16}
+                        className={`text-wr-accent shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                    <div
+                      className={`overflow-hidden transition-all duration-200 ${isOpen ? 'max-h-60' : 'max-h-0'}`}
+                    >
+                      <div className="px-4 pb-4 text-xs text-wr-dim leading-relaxed border-t border-wr-border/30 pt-3">
+                        {t(`sms.faq_a${n}`)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </main>
       <Footer />
@@ -1353,10 +1479,10 @@ export function SMSWall() {
       {/* ═══ PAYMENT MODAL ═══ */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-          <div className={`border bg-wr-base p-0 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent' : 'border-wr-green'}`}>
+          <div className={`border bg-wr-base p-0 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent' : paymentMethod === 'USDT' ? 'border-[#26a17b]' : 'border-wr-green'}`}>
             <button onClick={() => { setShowPaymentModal(false); setPaymentData(null); setPaymentPolling(false); setPendingPurchase(null); }} className="absolute top-4 right-4 text-wr-dim hover:text-wr-green z-10"><X size={20} /></button>
 
-            <div className={`p-3 md:p-4 border-b flex items-center gap-2 ${paymentData ? 'animate-pulse' : ''} ${paymentMethod === 'LN' ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : 'bg-wr-green/10 border-wr-green/30 text-wr-green'}`}>
+            <div className={`p-3 md:p-4 border-b flex items-center gap-2 ${paymentData ? 'animate-pulse' : ''} ${paymentMethod === 'LN' ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : paymentMethod === 'USDT' ? 'bg-[#26a17b]/10 border-[#26a17b]/30 text-[#26a17b]' : 'bg-wr-green/10 border-wr-green/30 text-wr-green'}`}>
               <Wallet size={14} />
               <span className="text-xs font-bold tracking-widest uppercase">
                 {paymentData ? t('sms.awaiting_payment') : t('sms.deposit_to_wallet')}
@@ -1369,7 +1495,7 @@ export function SMSWall() {
                   <div className="flex justify-center">
                     <div className="bg-white p-3 rounded-sm">
                       <QRCodeCanvas
-                        value={paymentData.method === 'LN' ? paymentData.address : `monero:${paymentData.address}?tx_amount=${paymentData.amount}`}
+                        value={paymentData.method === 'LN' ? paymentData.address : paymentData.method === 'USDT' ? paymentData.address : `monero:${paymentData.address}?tx_amount=${paymentData.amount}`}
                         size={160} level="M" bgColor="#ffffff" fgColor="#000000"
                         imageSettings={paymentData.method === 'XMR' ? { src: '/monero-xmr-logo.png', x: undefined, y: undefined, height: 30, width: 30, excavate: true } : undefined}
                       />
@@ -1377,12 +1503,17 @@ export function SMSWall() {
                   </div>
                   <div>
                     <div className="text-[10px] text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
-                    <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>
-                      {paymentData.method === 'LN' ? `${paymentData.amount} sats` : `${paymentData.amount} XMR`}
+                    <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : paymentMethod === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>
+                      {paymentData.method === 'LN' ? `${paymentData.amount} sats` : paymentData.method === 'USDT' ? `${paymentData.amount} USDT` : `${paymentData.amount} XMR`}
                     </div>
+                    {paymentData.method === 'USDT' && paymentData.chain && (
+                      <div className="text-[10px] text-[#26a17b]/70 uppercase mt-1 font-mono">
+                        {paymentData.chain === 'tron' ? 'TRON (TRC-20)' : 'Ethereum (ERC-20)'}
+                      </div>
+                    )}
                   </div>
                   <button onClick={() => copyText(paymentData.address)}
-                    className="w-full p-3 rounded bg-wr-surface border border-wr-border text-[10px] font-mono text-wr-green break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer">
+                    className={`w-full p-3 rounded bg-wr-surface border border-wr-border text-[10px] font-mono break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer ${paymentData.method === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>
                     {paymentData.address}
                   </button>
                   <div className="flex items-center justify-center gap-2 text-[10px] text-wr-dim uppercase tracking-widest">
@@ -1412,7 +1543,7 @@ export function SMSWall() {
                   {showMethodInModal && (
                     <div className="space-y-2">
                       <label className="text-[9px] font-black text-wr-dim uppercase tracking-widest">{t('sms.payment_method')}</label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <button onClick={() => setPaymentMethod('XMR')}
                           className={`py-3 px-4 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
                           <img src="/monero-xmr-logo.png" className="w-4 h-4" alt="XMR" />
@@ -1423,17 +1554,34 @@ export function SMSWall() {
                           <Zap size={16} className="fill-current" />
                           <span className="text-xs font-bold tracking-widest font-mono uppercase">LN</span>
                         </button>
+                        <button onClick={() => setPaymentMethod('USDT')}
+                          className={`py-3 px-4 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'USDT' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b] shadow-[0_0_15px_rgba(38,161,123,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                          <span className="text-sm font-bold">$</span>
+                          <span className="text-xs font-bold tracking-widest font-mono uppercase">USDT</span>
+                        </button>
                       </div>
+                      {paymentMethod === 'USDT' && (
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          <button onClick={() => setUsdtChain('tron')}
+                            className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'tron' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                            {t('sms.payment_usdt_tron', 'TRON (TRC-20)')}
+                          </button>
+                          <button onClick={() => setUsdtChain('eth')}
+                            className={`py-2 px-3 border text-xs font-bold font-mono uppercase tracking-widest rounded-sm transition-all ${usdtChain === 'eth' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                            {t('sms.payment_usdt_eth', 'Ethereum (ERC-20)')}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 
                   <div className="border-t border-wr-border pt-5 flex items-center justify-between">
                     <div className="flex flex-col">
                       <span className="text-[9px] text-wr-dim uppercase tracking-widest font-bold">{t('sms.total_deposit')}</span>
-                      <span className={`text-2xl font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>${depositAmount.toFixed(2)}</span>
+                      <span className={`text-2xl font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : paymentMethod === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>${depositAmount.toFixed(2)}</span>
                     </div>
                     <button onClick={handleDeposit} disabled={creatingPayment}
-                      className={`px-8 py-3 text-xs font-black hover:opacity-90 shadow-lg uppercase tracking-widest rounded-sm flex items-center gap-2 disabled:opacity-50 ${creatingPayment ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'LN' ? 'bg-wr-accent text-black shadow-wr-accent/20' : 'bg-wr-green text-black shadow-wr-green/20'}`}>
+                      className={`px-8 py-3 text-xs font-black hover:opacity-90 shadow-lg uppercase tracking-widest rounded-sm flex items-center gap-2 disabled:opacity-50 ${creatingPayment ? 'bg-wr-surface border border-wr-border text-wr-dim cursor-wait' : paymentMethod === 'LN' ? 'bg-wr-accent text-black shadow-wr-accent/20' : paymentMethod === 'USDT' ? 'bg-[#26a17b] text-white shadow-[#26a17b]/20' : 'bg-wr-green text-black shadow-wr-green/20'}`}>
                       {creatingPayment ? <><RefreshCw size={12} className="animate-spin" /> {t('sms.generating')}</> : t('sms.deposit')}
                     </button>
                   </div>

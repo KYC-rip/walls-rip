@@ -1,34 +1,68 @@
 # walls.rip
 
-> walls.rip — Anonymous communication toolkit. Break walls for private, uncensored communication.
+> walls.rip — Anonymous communication & connectivity toolkit. Break walls for private, uncensored communication.
 
 ## What is walls.rip?
 
-walls.rip is a suite of privacy-first communication tools that require no identity, accounts, or personal data. All tools are designed with zero-knowledge principles — the server never sees your plaintext.
+walls.rip is a suite of privacy-first communication and connectivity tools that require no identity, accounts, or personal data. All tools are designed with zero-knowledge principles — the server never sees your plaintext. Pay with Monero (XMR), Lightning Network, USDT, or XMR402.
 
 ## Tools
 
 ### Ghost Mail
 Disposable encrypted email inboxes. Create temporary email addresses with optional PGP encryption. Available in three tiers:
 - BASIC (free): Random address, standard domains, 30-minute session
-- PREMIUM (~$1 XMR): Custom name, premium domains, extended time, PGP
-- PRIVATE (~$3 XMR): Full control, all domains, max duration, PGP + extensions
+- PREMIUM (~$1): Custom name, premium domains, extended time, PGP
+- PRIVATE (~$3): Full control, all domains, max duration, PGP + extensions
+Payment: Monero, Lightning, USDT (TRON/Ethereum), XMR402
 
 ### Dead Drop
 Self-destructing encrypted messages using AES-256-GCM. Encryption happens entirely in the browser — the server stores only ciphertext. The decryption key lives in the URL fragment and never reaches the server. Configurable TTL: 10 minutes to 3 days.
 
 ### SMS Wall
-Anonymous phone number verification. Get temporary numbers for SMS verification across 150+ countries and 300+ services. No identity required. Auto-refund if SMS not received.
+Anonymous phone number verification. Get temporary numbers for SMS verification across 150+ countries and 1,700+ services. No identity required. Auto-refund if SMS not received. Supports long-term phone number rentals.
 
-### Ghost Chat (Coming Soon)
-End-to-end encrypted messaging over decentralized Nostr relays. Ephemeral identities, no server trust.
+### Ghost Chat
+End-to-end encrypted messaging over decentralized Nostr relays. PGP-encrypted, ephemeral identities, no server trust. Generate keys in-browser or import your own.
+
+### eSIM
+Anonymous eSIM data plans for 120+ countries. Country, Regional, and Global plans with 3G/4G/5G connectivity. No KYC or registration. Install via QR code. Pay with Monero, Lightning, USDT, or XMR402.
+
+### Proxy Wall
+Anonymous proxy access — residential, datacenter, and mobile proxies. SOCKS5 and HTTP protocols. Global coverage with anonymous crypto payments.
+
+## Developer API
+
+Full REST API available at walls.rip/api. Endpoints for SMS verification, eSIM purchases, proxy access, and dead drops. No API keys needed — wallet tokens serve as authentication. JSON responses.
+
+### API Base URLs
+- SMS/eSIM/Proxy/Dead Drop: https://api.kyc.rip/v1/tools/
+- Ghost Mail: https://mail-api.kyc.rip/
+
+### Key SMS Endpoints
+- GET /sms/countries — List countries
+- GET /sms/services — List services
+- GET /sms/price?country=X&service=Y — Check price
+- POST /sms/purchase — Buy number
+- GET /sms/check?order_id=X&token=X — Poll for SMS
+
+### Key eSIM Endpoints
+- GET /esim/countries — List countries
+- GET /esim/plans?country=X — List data plans
+- POST /esim/purchase — Buy eSIM
+- GET /esim/profile?order_id=X — Get QR code
+
+### Payment Flow
+1. POST /sms/payment/create — Create XMR or Lightning payment
+2. GET /sms/payment/check?paymentId=X — Poll until paid
+3. Wallet credited, use for purchases across SMS, eSIM, Proxy
 
 ## Privacy Principles
 
 - Zero Identity: No accounts, emails, or phone numbers required
 - Client-Side Crypto: Encryption in the browser, server never sees plaintext
 - No Logs: No IP logging, no user-agent storage, no analytics
-- XMR Payments: Premium features paid with Monero for untraceable transactions
+- Crypto Payments: Monero (XMR), Lightning, USDT (TRON/Ethereum), XMR402
+- Push Notifications: Browser-only, no server-side tracking
 
 ## Pages
 
@@ -36,18 +70,25 @@ End-to-end encrypted messaging over decentralized Nostr relays. Ephemeral identi
 - /mail — Ghost Mail burner email
 - /drop — Dead Drop encrypted messages
 - /sms — SMS Wall anonymous verification
+- /esim — eSIM anonymous data plans
+- /proxy — Proxy Wall anonymous proxies
+- /comms — Ghost Chat encrypted messaging
+- /api — Developer API documentation
 - /faq — Frequently asked questions
 
-## rip.family
+## rip.family Ecosystem
 
 - kyc.rip — No-KYC exchange aggregator
 - stables.rip — Stablecoin censorship tracker
 - walls.rip — Anonymous communication toolkit (this site)
+- upay.rip — USDT payment gateway (powers USDT payments across walls.rip)
+- disperse.rip — USDT batch disperser (TRON/Ethereum)
 - xmrprice.live — Monero price tracker
 - ripley.run — Monero toolkit and wallet
 - xmr402.org — XMR payment protocol
 
-## Contact
+## Support
 
+- Telegram Bot: https://t.me/kyc_rip_bot
 - Twitter: @XBToshi, @kyc_rip
 - Website: https://walls.rip
