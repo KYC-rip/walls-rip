@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Wifi, Signal, SlidersHorizontal, Shield, MapPin, Database, DollarSign, ArrowUpDown } from 'lucide-react';
+import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Wifi, Signal, SlidersHorizontal, Shield, MapPin, Database, DollarSign, ArrowUpDown, ExternalLink } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -171,19 +171,52 @@ function planMatchesRegion(plan: { country: string; name: string }, region: stri
   return false;
 }
 
+// Read initial state from URL params
+function getInitialParams(): { tab: BrowseTab; country: string; region: string } {
+  const params = new URLSearchParams(window.location.search);
+  const tab = (['country', 'regional', 'global'] as BrowseTab[]).includes(params.get('t') as BrowseTab)
+    ? (params.get('t') as BrowseTab) : 'country';
+  return { tab, country: params.get('c') || '', region: params.get('r') || '' };
+}
+
+function updateUrlParams(tab: BrowseTab, country: string, region: string) {
+  const params = new URLSearchParams();
+  if (tab !== 'country') params.set('t', tab);
+  if (tab === 'country' && country) params.set('c', country);
+  if (tab === 'regional' && region) params.set('r', region);
+  const qs = params.toString();
+  const url = `${window.location.pathname}${qs ? '?' + qs : ''}`;
+  window.history.replaceState(null, '', url);
+}
+
 export function ESIMWall() {
   const { t } = useTranslation();
+  const initial = useMemo(getInitialParams, []);
   const [countries, setCountries] = useState<MergedCountry[]>([]);
   const [comparePlans, setComparePlans] = useState<ComparePlan[]>([]);
   const [, setActiveEngines] = useState<string[]>([]);
   const [, setCheapestId] = useState<string | null>(null);
-  const [selectedCountry, setSelectedCountry] = useState<string>('');
+  const [selectedCountry, _setSelectedCountry] = useState<string>(initial.country);
   const [countrySearch, setCountrySearch] = useState('');
   const [loadingPlans, setLoadingPlans] = useState(false);
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<BrowseTab>('country');
-  const [selectedRegion, setSelectedRegion] = useState<string>('');
+  const [activeTab, _setActiveTab] = useState<BrowseTab>(initial.tab);
+  const [selectedRegion, _setSelectedRegion] = useState<string>(initial.region);
+
+  // Wrap setters to sync URL
+  const setSelectedCountry = useCallback((c: string) => {
+    _setSelectedCountry(c);
+    updateUrlParams('country', c, '');
+  }, []);
+  const setSelectedRegion = useCallback((r: string) => {
+    _setSelectedRegion(r);
+    updateUrlParams(activeTab, '', r);
+  }, [activeTab]);
+  const setActiveTab = useCallback((t: BrowseTab) => {
+    _setActiveTab(t);
+    updateUrlParams(t, t === 'country' ? selectedCountry : '', '');
+  }, [selectedCountry]);
   const [allPlans, setAllPlans] = useState<ComparePlan[]>([]);
   const [loadingAllPlans, setLoadingAllPlans] = useState(false);
   const PLANS_PER_PAGE = 12;
@@ -209,7 +242,7 @@ export function ESIMWall() {
   const [balanceUSD, setBalanceUSD] = useState<number>(0);
 
   // Payment
-  const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN' | 'USDT'>('XMR');
+  const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN' | 'USDT' | 'XMR402'>('XMR');
   const [usdtChain, setUsdtChain] = useState<'tron' | 'eth'>('tron');
   const [depositAmount, setDepositAmount] = useState<number>(5);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -217,6 +250,9 @@ export function ESIMWall() {
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [pendingPurchase, setPendingPurchase] = useState<{ planId: string; engine: string } | null>(null);
+
+  // XMR402 state
+  const [, setXmr402Loading] = useState(false);
 
   // Modal step state machine for unified purchase flow
   const [modalStep, setModalStep] = useState<'details' | 'paying' | 'confirming' | 'purchasing' | 'success' | 'error'>('details');
@@ -251,9 +287,9 @@ export function ESIMWall() {
     apiClient<MergedCountry[]>('/v1/tools/esim/countries/all')
       .then(c => {
         setCountries(c);
-        // Auto-select user's territory from CF geo header
+        // Auto-select user's territory from CF geo header (skip if URL already has selection)
         const geo = (window as any).__GEO_COUNTRY as string | undefined;
-        if (geo && !selectedCountry) {
+        if (geo && !selectedCountry && !initial.country && !initial.region) {
           if (c.some(cc => cc.code === geo)) {
             // Exact match — select the user's territory
             setSelectedCountry(geo);
@@ -380,6 +416,43 @@ export function ESIMWall() {
   const [creatingPayment, setCreatingPayment] = useState(false);
 
   const createPayment = async (usdAmount: number, purchaseAfter?: { planId: string; engine: string }) => {
+    // XMR402: use the shared SMS XMR402 deposit endpoint to get a 402 challenge
+    if (paymentMethod === 'XMR402') {
+      setXmr402Loading(true);
+      setCreatingPayment(true);
+      try {
+        const apiBase = import.meta.env.VITE_API_URL || 'https://api.kyc.rip';
+        // Request 402 challenge via SMS deposit endpoint (shared wallet system)
+        const res = await fetch(`${apiBase}/v1/tools/sms/deposit/xmr402`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: usdAmount }),
+        });
+        if (res.status === 402) {
+          const wwwAuth = res.headers.get('WWW-Authenticate');
+          const body402 = await res.json().catch(() => ({})) as { callback_sig?: string };
+          if (wwwAuth) {
+            const match = wwwAuth.match(/XMR402\s+address="([^"]+)",\s*amount="([^"]+)",\s*message="([^"]+)",\s*timestamp="([^"]+)"/);
+            if (match) {
+              let wref = '';
+              if (walletToken) {
+                try {
+                  const wr = await fetch(`${apiBase}/v1/tools/xmr402/wref`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: walletToken }) });
+                  wref = ((await wr.json()) as { wref: string }).wref || '';
+                } catch {}
+              }
+              // Build XMR402 URI and open Ripley directly
+              const cbParams = new URLSearchParams({ nonce: match[3], amount: match[2], sig: body402.callback_sig || '', svc: 'esim', wref, return: window.location.pathname });
+              const xmr402Uri = `xmr402://${match[1]}?amount=${match[2]}&message=${match[3]}&return_url=${encodeURIComponent(`${apiBase}/v1/tools/xmr402/callback?${cbParams}`)}`;
+              window.location.href = xmr402Uri;
+            }
+          }
+        }
+      } catch { toast.error('Failed to create XMR402 challenge'); }
+      finally { setXmr402Loading(false); setCreatingPayment(false); }
+      return;
+    }
+
     setCreatingPayment(true);
     try {
       const body: Record<string, unknown> = { amount: usdAmount, method: paymentMethod, walletToken };
@@ -655,6 +728,14 @@ export function ESIMWall() {
     setVisiblePlans(PLANS_PER_PAGE);
     setSortKey('price');
     setSortAsc(true);
+    if (tab === 'regional' && !selectedRegion) {
+      // Auto-select user's continent
+      const geo = (window as any).__GEO_COUNTRY as string | undefined;
+      if (geo) {
+        const continent = COUNTRY_TO_CONTINENT[geo];
+        if (continent) setSelectedRegion(continent);
+      }
+    }
     if (tab !== 'regional') setSelectedRegion('');
   };
 
@@ -1111,7 +1192,8 @@ export function ESIMWall() {
 
                   {/* ═══ TAB: Regional ═══ */}
                   {activeTab === 'regional' && (
-                    <>
+                    <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 md:gap-8">
+                      {/* LEFT: Region Selection */}
                       <div className="space-y-3">
                         <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
                           <MapPin size={12} className="text-wr-accent" /> {t('esim.select_region')}
@@ -1122,28 +1204,26 @@ export function ESIMWall() {
                             <span className="tracking-widest uppercase">{t('esim.loading_all_plans')}</span>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                          <div className="flex flex-col gap-1">
                             {Object.keys(REGIONS).map(region => {
                               const count = regionCounts[region] || 0;
                               const isSelected = selectedRegion === region;
                               return (
                                 <button
                                   key={region}
-                                  onClick={() => setSelectedRegion(isSelected ? '' : region)}
-                                  className={`p-3 rounded-sm border text-left transition-all group/region ${
+                                  onClick={() => { setSelectedRegion(isSelected ? '' : region); if (window.innerWidth < 768) setTimeout(() => plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}
+                                  className={`p-3 rounded-sm border text-left transition-all ${
                                     isSelected
-                                      ? 'border-wr-accent bg-wr-accent/10 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
+                                      ? 'border-wr-accent bg-wr-accent/10'
                                       : 'border-wr-border hover:border-wr-accent/40 bg-wr-base'
                                   }`}
                                 >
-                                  <div className={`text-xs font-bold tracking-wider uppercase ${isSelected ? 'text-wr-accent' : 'text-current group-hover/region:text-wr-accent'}`}>
+                                  <div className={`text-xs font-bold tracking-wider uppercase ${isSelected ? 'text-wr-accent' : 'text-current'}`}>
                                     {t(REGION_I18N_KEYS[region] || region)}
                                   </div>
-                                  <div className="text-xs text-wr-dim mt-1">
-                                    {count > 0
-                                      ? <span className="text-wr-accent/70">{t('esim.plans_available')}</span>
-                                      : <span className="text-wr-dim/50">--</span>}
-                                  </div>
+                                  {count > 0 && (
+                                    <div className="text-[10px] text-wr-dim mt-0.5">{count} {t('esim.plans_available', 'plans')}</div>
+                                  )}
                                 </button>
                               );
                             })}
@@ -1151,9 +1231,9 @@ export function ESIMWall() {
                         )}
                       </div>
 
-                      {/* Regional plan list */}
-                      {selectedRegion && (
-                        <div className="space-y-4">
+                      {/* RIGHT: Regional Plans */}
+                      {selectedRegion ? (
+                        <div ref={plansRef} className="space-y-4">
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                             <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
                               <Wifi size={12} className="text-wr-accent" /> {t('esim.regional_plans')} — {t(REGION_I18N_KEYS[selectedRegion] || selectedRegion)}
@@ -1285,8 +1365,13 @@ export function ESIMWall() {
                             </div>
                           )}
                         </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                          <MapPin size={40} className="text-wr-dim/30 mb-4" />
+                          <p className="text-sm text-wr-dim">{t('esim.select_region_prompt', 'Select a region to browse available plans')}</p>
+                        </div>
                       )}
-                    </>
+                    </div>
                   )}
 
                   {/* ═══ TAB: Global ═══ */}
@@ -1684,21 +1769,26 @@ export function ESIMWall() {
                       )}
 
                       {/* Payment method buttons */}
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 gap-2">
                         <button onClick={() => setPaymentMethod('XMR')}
-                          className={`py-2.5 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <img src="/monero-xmr-logo.png" className="w-4 h-4" alt="XMR" />
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">XMR</span>
+                          className={`py-2.5 px-2 border flex items-center justify-center gap-1.5 transition-all rounded-sm ${paymentMethod === 'XMR' ? 'border-wr-green bg-wr-green/10 text-wr-green shadow-[0_0_15px_rgba(0,255,65,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                          <img src="/monero-xmr-logo.png" className="w-3.5 h-3.5" alt="XMR" />
+                          <span className="text-[11px] font-bold tracking-widest font-mono uppercase">XMR</span>
                         </button>
                         <button onClick={() => setPaymentMethod('LN')}
-                          className={`py-2.5 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <Zap size={14} className="fill-current" />
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">LN</span>
+                          className={`py-2.5 px-2 border flex items-center justify-center gap-1.5 transition-all rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                          <Zap size={13} className="fill-current" />
+                          <span className="text-[11px] font-bold tracking-widest font-mono uppercase">LN</span>
+                        </button>
+                        <button onClick={() => setPaymentMethod('XMR402')}
+                          className={`py-2.5 px-2 border flex items-center justify-center gap-1.5 transition-all rounded-sm ${paymentMethod === 'XMR402' ? 'border-red-400 bg-red-400/10 text-red-400 shadow-[0_0_15px_rgba(248,113,113,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                          <Shield size={13} />
+                          <span className="text-[11px] font-bold tracking-widest font-mono uppercase">402</span>
                         </button>
                         <button onClick={() => setPaymentMethod('USDT')}
-                          className={`py-2.5 px-3 border flex items-center justify-center gap-2 transition-all rounded-sm ${paymentMethod === 'USDT' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b] shadow-[0_0_15px_rgba(38,161,123,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                          <DollarSign size={14} />
-                          <span className="text-xs font-bold tracking-widest font-mono uppercase">USDT</span>
+                          className={`py-2.5 px-2 border flex items-center justify-center gap-1.5 transition-all rounded-sm ${paymentMethod === 'USDT' ? 'border-[#26a17b] bg-[#26a17b]/10 text-[#26a17b] shadow-[0_0_15px_rgba(38,161,123,0.1)]' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
+                          <DollarSign size={13} />
+                          <span className="text-[11px] font-bold tracking-widest font-mono uppercase">USDT</span>
                         </button>
                       </div>
 
@@ -1767,53 +1857,56 @@ export function ESIMWall() {
                       <span className="text-xs font-black font-mono text-wr-green">${plan.price.toFixed(2)}</span>
                     </div>
 
-                    {/* QR Code */}
-                    <div className="flex justify-center">
-                      <div className="bg-white p-3 rounded-sm">
-                        <QRCodeCanvas
-                          value={paymentData.method === 'LN' ? paymentData.address : paymentData.method === 'USDT' ? paymentData.address : `monero:${paymentData.address}?tx_amount=${paymentData.amount}`}
-                          size={180} level="M" bgColor="#ffffff" fgColor="#000000"
-                          imageSettings={paymentData.method === 'XMR' ? { src: '/monero-xmr-logo.png', x: undefined, y: undefined, height: 30, width: 30, excavate: true } : undefined}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Amount */}
-                    <div>
-                      <div className="text-xs text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
-                      <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : paymentMethod === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>
-                        {paymentData.method === 'LN' ? `${paymentData.amount} sats` : paymentData.method === 'USDT' ? `${paymentData.amount} USDT` : `${paymentData.amount} XMR`}
-                      </div>
-                      {paymentData.method === 'USDT' && paymentData.chain && (
-                        <div className="text-[10px] text-[#26a17b]/70 uppercase mt-1 font-mono">
-                          {paymentData.chain === 'tron' ? 'TRON (TRC-20)' : 'Ethereum (ERC-20)'}
+                    {paymentData.method === 'USDT' ? (
+                      /* USDT: just payment page link */
+                      <>
+                        <div>
+                          <div className="text-lg font-bold font-mono text-[#26a17b]">{paymentData.amount} USDT</div>
+                          {paymentData.chain && (
+                            <div className="text-[10px] text-[#26a17b]/70 uppercase mt-1 font-mono">
+                              {paymentData.chain === 'tron' ? 'TRON (TRC-20)' : 'Ethereum (ERC-20)'}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-
-                    {/* Address + Copy */}
-                    <button onClick={() => copyText(paymentData.address)}
-                      className={`w-full p-3 rounded bg-wr-surface border border-wr-border text-xs font-mono break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer flex items-center justify-between gap-2 ${paymentData.method === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>
-                      <span className="truncate">{paymentData.address}</span>
-                      {copied ? <Check size={14} className="text-green-500 shrink-0" /> : <Copy size={14} className="text-wr-dim shrink-0" />}
-                    </button>
-
-                    {/* Open uPay payment page button for USDT */}
-                    {paymentData.method === 'USDT' && paymentData.paymentUrl && (
-                      <a
-                        href={paymentData.paymentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block w-full py-3 px-4 rounded-sm bg-[#26a17b] text-white text-xs font-bold tracking-widest uppercase text-center hover:bg-[#1e8c6b] transition-colors"
-                      >
-                        Open Payment Page →
-                      </a>
+                        {paymentData.paymentUrl && (
+                          <a href={paymentData.paymentUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 py-4 bg-[#26a17b] hover:bg-[#26a17b]/90 text-white rounded-sm text-sm font-bold uppercase tracking-widest transition-all shadow-lg shadow-[#26a17b]/30">
+                            <ExternalLink size={16} /> {t('sms.open_payment_page', 'OPEN PAYMENT PAGE')}
+                          </a>
+                        )}
+                        <div className="flex items-center justify-center gap-2 text-xs text-wr-dim uppercase tracking-widest animate-pulse">
+                          <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation', 'Waiting for payment...')}
+                        </div>
+                        <p className="text-[9px] text-wr-dim/50">{t('sms.auto_detect_note', 'Payment will be detected automatically. Do not close this window.')}</p>
+                      </>
+                    ) : (
+                      /* XMR / LN: QR + address */
+                      <>
+                        <div className="flex justify-center">
+                          <div className="bg-white p-3 rounded-sm">
+                            <QRCodeCanvas
+                              value={paymentData.method === 'LN' ? paymentData.address : `monero:${paymentData.address}?tx_amount=${paymentData.amount}`}
+                              size={180} level="M" bgColor="#ffffff" fgColor="#000000"
+                              imageSettings={paymentData.method === 'XMR' ? { src: '/monero-xmr-logo.png', x: undefined, y: undefined, height: 30, width: 30, excavate: true } : undefined}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
+                          <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>
+                            {paymentData.method === 'LN' ? `${paymentData.amount} sats` : `${paymentData.amount} XMR`}
+                          </div>
+                        </div>
+                        <button onClick={() => copyText(paymentData.address)}
+                          className="w-full p-3 rounded bg-wr-surface border border-wr-border text-xs font-mono break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer flex items-center justify-between gap-2 text-wr-green">
+                          <span className="truncate">{paymentData.address}</span>
+                          {copied ? <Check size={14} className="text-green-500 shrink-0" /> : <Copy size={14} className="text-wr-dim shrink-0" />}
+                        </button>
+                        <div className="flex items-center justify-center gap-2 text-xs text-wr-dim uppercase tracking-widest animate-pulse">
+                          <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation', 'Waiting for payment...')}
+                        </div>
+                      </>
                     )}
-
-                    {/* Polling status */}
-                    <div className="flex items-center justify-center gap-2 text-xs text-wr-dim uppercase tracking-widest animate-pulse">
-                      <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation', 'Waiting for payment...')}
-                    </div>
 
                     <div className="text-xs text-wr-accent/60">
                       {t('esim.auto_purchase_esim', 'eSIM will be purchased automatically after payment')}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand, Shield, Layers, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -135,12 +135,39 @@ function extractXmr402ReturnParams(): Xmr402ReturnProof | null {
   return null;
 }
 
+function getSmsInitialParams(): { country: string; service: string } {
+  const params = new URLSearchParams(window.location.search);
+  return { country: params.get('c') || '1', service: params.get('s') || '' };
+}
+
+function updateSmsUrlParams(country: string, service: string) {
+  const params = new URLSearchParams(window.location.search);
+  // Preserve XMR402 params if present
+  const preserve = ['xmr402_txid', 'xmr402_proof', 'xmr402_country', 'xmr402_service'];
+  const kept = new URLSearchParams();
+  for (const key of preserve) { const v = params.get(key); if (v) kept.set(key, v); }
+  if (country && country !== '1') kept.set('c', country);
+  if (service) kept.set('s', service);
+  const qs = kept.toString();
+  window.history.replaceState(null, '', `${window.location.pathname}${qs ? '?' + qs : ''}`);
+}
+
 export function SMSWall() {
   const { t } = useTranslation();
+  const smsInitial = useMemo(getSmsInitialParams, []);
   const [countries, setCountries] = useState<Country[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState<string>('1');
-  const [selectedService, setSelectedService] = useState<string>('');
+  const [selectedCountry, _setSelectedCountry] = useState<string>(smsInitial.country);
+  const [selectedService, _setSelectedService] = useState<string>(smsInitial.service);
+
+  const setSelectedCountry = useCallback((c: string) => {
+    _setSelectedCountry(c);
+    updateSmsUrlParams(c, selectedService);
+  }, [selectedService]);
+  const setSelectedService = useCallback((s: string) => {
+    _setSelectedService(s);
+    updateSmsUrlParams(selectedCountry, s);
+  }, [selectedCountry]);
   const [serviceSearch, setServiceSearch] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
@@ -242,8 +269,32 @@ export function SMSWall() {
       .finally(() => setLoading(false));
   }, []);
 
-  // XMR402 return flow: auto-verify proof on mount
+  // XMR402 return flow: handle callback result or legacy proof
   useEffect(() => {
+    // New flow: callback already handled verification+deposit, check for xmr402_done
+    const urlParams = new URLSearchParams(window.location.search);
+    const xmr402Done = urlParams.get('xmr402_done');
+    if (xmr402Done === 'true') {
+      // Clean URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('xmr402_done');
+      url.searchParams.delete('xmr402_ref');
+      window.history.replaceState({}, '', url.toString());
+      toast.success('XMR402 payment verified — wallet topped up!');
+      // Refresh wallet balance
+      if (walletToken) {
+        const apiBase = import.meta.env.VITE_API_URL || 'https://api.kyc.rip';
+        fetch(`${apiBase}/v1/tools/sms/wallet?token=${walletToken}`)
+          .then(r => r.json())
+          .then((w: any) => {
+            if (w.balanceUSD !== undefined) setBalanceUSD(w.balanceUSD);
+          })
+          .catch(() => {});
+      }
+      return;
+    }
+
+    // Legacy flow: proof in URL params (same-browser)
     if (!xmr402ReturnProof) return;
     const { txid, proof, country, service } = xmr402ReturnProof;
 
@@ -444,9 +495,23 @@ export function SMSWall() {
 
       if (res.status === 402) {
         const wwwAuth = res.headers.get('WWW-Authenticate');
+        const body402 = await res.json().catch(() => ({})) as { callback_sig?: string };
         if (wwwAuth) {
           const challenge = parseWwwAuthenticate(wwwAuth);
           if (challenge) {
+            (challenge as any).callbackSig = body402.callback_sig || '';
+            // Store wallet ref for secure cross-browser callback
+            if (walletToken) {
+              try {
+                const wrefRes = await fetch(`${apiBase}/v1/tools/xmr402/wref`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token: walletToken }),
+                });
+                const wrefData = await wrefRes.json() as { wref: string };
+                (challenge as any).wref = wrefData.wref || '';
+              } catch {}
+            }
             setXmr402Challenge(challenge);
             setShowXmr402Modal(true);
           } else {
@@ -1491,11 +1556,40 @@ export function SMSWall() {
 
             <div className="p-4 md:p-8 text-center">
               {paymentData ? (
+                paymentData.method === 'USDT' ? (
+                  /* USDT: just show payment page link */
+                  <div className="space-y-5">
+                    <div>
+                      <div className="text-lg font-bold font-mono text-[#26a17b]">{paymentData.amount} USDT</div>
+                      {paymentData.chain && (
+                        <div className="text-[10px] text-[#26a17b]/70 uppercase mt-1 font-mono">
+                          {paymentData.chain === 'tron' ? 'TRON (TRC-20)' : 'Ethereum (ERC-20)'}
+                        </div>
+                      )}
+                    </div>
+                    {paymentData.paymentUrl && (
+                      <a href={paymentData.paymentUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 py-4 bg-[#26a17b] hover:bg-[#26a17b]/90 text-white rounded-sm text-sm font-bold uppercase tracking-widest transition-all shadow-lg shadow-[#26a17b]/30">
+                        <ExternalLink size={16} /> {t('sms.open_payment_page', 'OPEN PAYMENT PAGE')}
+                      </a>
+                    )}
+                    <div className="flex items-center justify-center gap-2 text-[10px] text-wr-dim uppercase tracking-widest">
+                      <RefreshCw size={10} className="animate-spin" /> {t('sms.awaiting_confirmation')}
+                    </div>
+                    <p className="text-[9px] text-wr-dim/50">{t('sms.auto_detect_note', 'Payment will be detected automatically. Do not close this window.')}</p>
+                    {pendingPurchase && (
+                      <div className="text-[10px] text-wr-green/60">
+                        {t('sms.auto_purchase', { service: selectedServiceName, country: selectedCountryName })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                /* XMR / LN: show QR + address */
                 <div className="space-y-5">
                   <div className="flex justify-center">
                     <div className="bg-white p-3 rounded-sm">
                       <QRCodeCanvas
-                        value={paymentData.method === 'LN' ? paymentData.address : paymentData.method === 'USDT' ? paymentData.address : `monero:${paymentData.address}?tx_amount=${paymentData.amount}`}
+                        value={paymentData.method === 'LN' ? paymentData.address : `monero:${paymentData.address}?tx_amount=${paymentData.amount}`}
                         size={160} level="M" bgColor="#ffffff" fgColor="#000000"
                         imageSettings={paymentData.method === 'XMR' ? { src: '/monero-xmr-logo.png', x: undefined, y: undefined, height: 30, width: 30, excavate: true } : undefined}
                       />
@@ -1503,17 +1597,12 @@ export function SMSWall() {
                   </div>
                   <div>
                     <div className="text-[10px] text-wr-dim uppercase mb-1">{t('sms.send_exactly')}</div>
-                    <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : paymentMethod === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>
-                      {paymentData.method === 'LN' ? `${paymentData.amount} sats` : paymentData.method === 'USDT' ? `${paymentData.amount} USDT` : `${paymentData.amount} XMR`}
+                    <div className={`text-lg font-bold font-mono ${paymentMethod === 'LN' ? 'text-wr-accent' : 'text-wr-green'}`}>
+                      {paymentData.method === 'LN' ? `${paymentData.amount} sats` : `${paymentData.amount} XMR`}
                     </div>
-                    {paymentData.method === 'USDT' && paymentData.chain && (
-                      <div className="text-[10px] text-[#26a17b]/70 uppercase mt-1 font-mono">
-                        {paymentData.chain === 'tron' ? 'TRON (TRC-20)' : 'Ethereum (ERC-20)'}
-                      </div>
-                    )}
                   </div>
                   <button onClick={() => copyText(paymentData.address)}
-                    className={`w-full p-3 rounded bg-wr-surface border border-wr-border text-[10px] font-mono break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer ${paymentData.method === 'USDT' ? 'text-[#26a17b]' : 'text-wr-green'}`}>
+                    className="w-full p-3 rounded bg-wr-surface border border-wr-border text-[10px] font-mono break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer text-wr-green">
                     {paymentData.address}
                   </button>
                   <div className="flex items-center justify-center gap-2 text-[10px] text-wr-dim uppercase tracking-widest">
@@ -1525,6 +1614,7 @@ export function SMSWall() {
                     </div>
                   )}
                 </div>
+                )
               ) : (
                 <div className="space-y-5">
                   <div className="space-y-2">
@@ -1609,7 +1699,7 @@ export function SMSWall() {
               <div className="flex justify-center">
                 <div className="bg-white p-3 rounded-sm shadow-sm border border-wr-border">
                   <QRCodeCanvas
-                    value={(() => { const ru = new URL(window.location.href); ru.searchParams.set('xmr402_country', selectedCountry); ru.searchParams.set('xmr402_service', selectedService); return `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(ru.toString())}`; })()}
+                    value={(() => { const apiBase = import.meta.env.VITE_API_URL || 'https://api.kyc.rip'; const cbParams = new URLSearchParams({ nonce: xmr402Challenge.message, amount: xmr402Challenge.amount, sig: (xmr402Challenge as any).callbackSig || '', svc: 'sms', wref: (xmr402Challenge as any).wref || '', return: window.location.pathname }); return `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(`${apiBase}/v1/tools/xmr402/callback?${cbParams}`)}`; })()}
                     size={160}
                     level="M"
                     bgColor="#ffffff"
@@ -1654,7 +1744,7 @@ export function SMSWall() {
               </div>
 
               <a
-                href={(() => { const ru = new URL(window.location.href); ru.searchParams.set('xmr402_country', selectedCountry); ru.searchParams.set('xmr402_service', selectedService); return `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(ru.toString())}`; })()}
+                href={(() => { const apiBase = import.meta.env.VITE_API_URL || 'https://api.kyc.rip'; const cbParams = new URLSearchParams({ nonce: xmr402Challenge.message, amount: xmr402Challenge.amount, sig: (xmr402Challenge as any).callbackSig || '', svc: 'sms', wref: (xmr402Challenge as any).wref || '', return: window.location.pathname }); return `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(`${apiBase}/v1/tools/xmr402/callback?${cbParams}`)}`; })()}
                 className="flex items-center justify-center gap-2 py-2.5 bg-wr-error/20 hover:bg-wr-error/30 text-wr-error border border-wr-error/30 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all"
               >
                 <ExternalLink size={12} />

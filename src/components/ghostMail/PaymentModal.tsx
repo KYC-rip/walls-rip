@@ -85,8 +85,10 @@ export function PaymentModal({
   const xmr402VerifyAttempted = useRef(false);
 
   // Auto-verify XMR402 proof when returned from Ripley Terminal
+  // Wait for customName and selectedDomain to be populated (avoids race condition on page reload)
   useEffect(() => {
     if (!xmr402Proof || xmr402VerifyAttempted.current || !verifyXmr402Proof) return;
+    if (!customName || !selectedDomain) return; // Wait for config to load
     xmr402VerifyAttempted.current = true;
     setXmr402Verifying(true);
 
@@ -115,6 +117,29 @@ export function PaymentModal({
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [xmr402Challenge?.timestamp]);
+
+  // Poll for XMR402 callback completion (original browser detects when other browser completes)
+  useEffect(() => {
+    if (!xmr402Challenge || !customName || !selectedDomain) return;
+    const email = `${customName}@${selectedDomain}`;
+    const mailApiBase = import.meta.env.VITE_MAIL_API_URL || 'https://mail-api.kyc.rip';
+
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`${mailApiBase}/api/payment/xmr402/poll?email=${encodeURIComponent(email)}`);
+        if (!res.ok) return;
+        const data = await res.json() as { status: string; account?: { email: string; token: string } };
+        if (data.status === 'COMPLETED' && data.account) {
+          clearInterval(poll);
+          toast.success('UPLINK ESTABLISHED VIA XMR402');
+          localStorage.setItem('ghost_mail_session', JSON.stringify({ email: data.account.email, token: data.account.token }));
+          window.location.href = `${window.location.pathname}?email=${encodeURIComponent(data.account.email)}&token=${encodeURIComponent(data.account.token)}`;
+        }
+      } catch {}
+    }, 3000);
+
+    return () => clearInterval(poll);
+  }, [xmr402Challenge, customName, selectedDomain]);
 
   if (paymentState.status === 'IDLE' && !xmr402Proof) return null;
   const data = paymentState.status === 'WAITING_PAYMENT' ? paymentState.data : null;
@@ -157,9 +182,11 @@ export function PaymentModal({
 
       if (res.status === 402) {
         const wwwAuth = res.headers.get('WWW-Authenticate');
+        const body402 = await res.json().catch(() => ({})) as { callback_sig?: string };
         if (wwwAuth) {
           const challenge = parseWwwAuthenticate(wwwAuth);
           if (challenge) {
+            (challenge as any).callbackSig = body402.callback_sig || '';
             setXmr402Challenge(challenge);
           } else {
             toast.error('Failed to parse XMR402 challenge');
@@ -178,9 +205,22 @@ export function PaymentModal({
     }
   };
 
-  const xmr402ReturnUrl = encodeURIComponent(window.location.href);
+  // Build return URL pointing to the API callback (stateless, works across browsers)
+  const apiBase = import.meta.env.VITE_MAIL_API_URL || 'https://mail-api.kyc.rip';
+  const xmr402CallbackUrl = xmr402Challenge ? (() => {
+    const params = new URLSearchParams({
+      email: `${customName}@${selectedDomain}`,
+      tier: selectedTier || 'BASIC',
+      duration: String(selectedDuration?.value || 0),
+      addon: String(selectedDuration?.addonPrice || 0),
+      nonce: xmr402Challenge.message,
+      amount: xmr402Challenge.amount,
+      sig: (xmr402Challenge as any).callbackSig || '',
+    });
+    return `${apiBase}/api/payment/xmr402/callback?${params}`;
+  })() : '';
   const xmr402Uri = xmr402Challenge
-    ? `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${xmr402ReturnUrl}`
+    ? `xmr402://${xmr402Challenge.address}?amount=${xmr402Challenge.amount}&message=${xmr402Challenge.message}&return_url=${encodeURIComponent(xmr402CallbackUrl)}`
     : '';
 
   const handleCopyXmr402 = (text: string) => {
@@ -267,30 +307,14 @@ export function PaymentModal({
                 </div>
               )}
 
-              {/* USDT Payment Content */}
+              {/* USDT Payment Content — just link to uPay payment page */}
               {isUSDT && data && (
                 <>
-                  <div>
-                    <div className="text-[10px] text-wr-dim uppercase tracking-widest mb-1">{t('mail.payment_usdt_amount', 'AMOUNT')}</div>
+                  <div className="text-center space-y-2">
                     <div className="text-lg font-bold font-mono text-[#26a17b]">{data.amount} USDT</div>
                     {data.chain && (
-                      <div className="text-[10px] text-wr-dim mt-0.5">{t('mail.payment_usdt_network', { network: data.chain === 'tron' ? t('mail.payment_usdt_network_tron', 'TRON (TRC20)') : t('mail.payment_usdt_network_eth', 'Ethereum (ERC20)') })}</div>
+                      <div className="text-[10px] text-wr-dim">{t('mail.payment_usdt_network', { network: data.chain === 'tron' ? t('mail.payment_usdt_network_tron', 'TRON (TRC20)') : t('mail.payment_usdt_network_eth', 'Ethereum (ERC20)') })}</div>
                     )}
-                  </div>
-
-                  <div className="scale-90 md:scale-100 origin-center">
-                    <DepositAddress
-                      currency={{
-                        ticker: 'usdt',
-                        name: 'Tether USD',
-                        network: data.chain === 'tron' ? 'TRC20' : 'ERC20',
-                        image: 'https://trocador.app/static/img/icons/usdt.svg',
-                      }}
-                      address={data.address}
-                      amount={String(data.amount)}
-                      label={t('mail.payment_usdt_send_label', 'Send exact USDT amount to this address')}
-                      actualNetwork={data.chain === 'tron' ? 'TRON' : 'Ethereum'}
-                    />
                   </div>
 
                   {data.paymentUrl && (
@@ -298,9 +322,9 @@ export function PaymentModal({
                       href={data.paymentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-3 bg-[#26a17b]/20 hover:bg-[#26a17b]/30 text-[#26a17b] border border-[#26a17b]/30 rounded-sm text-xs font-bold uppercase tracking-widest transition-all"
+                      className="flex items-center justify-center gap-2 py-4 bg-[#26a17b] hover:bg-[#26a17b]/90 text-white rounded-sm text-sm font-bold uppercase tracking-widest transition-all shadow-lg shadow-[#26a17b]/30"
                     >
-                      <ExternalLink size={14} /> {t('mail.payment_usdt_open_page', 'OPEN PAYMENT PAGE')}
+                      <ExternalLink size={16} /> {t('mail.payment_usdt_open_page', 'OPEN PAYMENT PAGE')}
                     </a>
                   )}
 
@@ -308,6 +332,9 @@ export function PaymentModal({
                     <RefreshCw size={10} className="animate-spin" />
                     {t('mail.payment_usdt_awaiting', 'AWAITING USDT PAYMENT CONFIRMATION...')}
                   </div>
+                  <p className="text-[9px] text-wr-dim/50 text-center">
+                    {t('mail.payment_usdt_auto_detect', 'Payment will be detected automatically. Do not close this window.')}
+                  </p>
                 </>
               )}
 
