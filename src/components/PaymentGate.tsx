@@ -42,7 +42,7 @@ export interface PaymentGateProps {
   /** API base URL */
   apiBase?: string;
   /** Called when payment is confirmed and wallet credited (wallet mode) */
-  onDeposit?: (usdAmount: number, method: string) => void;
+  onDeposit?: (usdAmount: number, method: string, walletToken?: string) => void;
   /** Called when direct payment is confirmed (Ghost Mail mode) */
   onPaymentConfirmed?: (data: {
     method: string;
@@ -194,7 +194,7 @@ export function PaymentGate({
           clearInterval(interval);
 
           if (onDeposit) {
-            onDeposit(paymentData.usd, paymentData.method);
+            onDeposit(paymentData.usd, paymentData.method, result.walletToken);
           }
           if (onPaymentConfirmed) {
             onPaymentConfirmed({

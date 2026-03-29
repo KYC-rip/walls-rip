@@ -165,6 +165,7 @@ export function SMSWall() {
   const [viewingRentalMessages, setViewingRentalMessages] = useState<string | null>(null); // orderId
   const [rentalMessages, setRentalMessages] = useState<RentalMessage[]>([]);
   const [pollingRentalMessages, setPollingRentalMessages] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
   const [purchasingRental, setPurchasingRental] = useState(false);
   const [showExtendModal, setShowExtendModal] = useState<string | null>(null); // orderId
   const [extendingRental, setExtendingRental] = useState(false);
@@ -331,12 +332,18 @@ export function SMSWall() {
   };
 
   const handleGetNumber = async () => {
-    if (!priceInfo || !selectedCountry || !selectedService) return;
+    if (!priceInfo || !selectedCountry || !selectedService || purchasing) return;
     const price = parseFloat(priceInfo.price);
 
     if (walletToken && balanceUSD >= price) {
       // Enough balance — purchase directly
-      executePurchase(selectedCountry, selectedService, walletToken);
+      setPurchasing(true);
+      try {
+        await executePurchase(selectedCountry, selectedService, walletToken);
+      } finally {
+        setPurchasing(false);
+      }
+      return;
     } else {
       // Need deposit first — open PaymentGate modal
       const needed = walletToken ? price - balanceUSD : price;
@@ -877,14 +884,15 @@ export function SMSWall() {
               ) : priceInfo ? (
                 <button
                   onClick={handleGetNumber}
-                  disabled={!selectedService}
+                  disabled={!selectedService || purchasing || (stockInfo !== null && !stockInfo.available)}
                   className="w-full md:w-auto group relative px-8 py-4 text-sm font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-3 overflow-hidden rounded-sm bg-wr-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)] disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12" />
-                  <span>{t('sms.get_number')}</span>
-                  <span className="opacity-40">|</span>
-                  <span>${priceInfo.price}</span>
-                  <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                  {purchasing ? (
+                    <><RefreshCw size={16} className="animate-spin" /> <span>{t('sms.purchasing', 'PURCHASING...')}</span></>
+                  ) : (
+                    <><span>{t('sms.get_number')}</span><span className="opacity-40">|</span><span>${priceInfo.price}</span><ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" /></>
+                  )}
                 </button>
               ) : (
                 <div className="px-8 py-4 bg-wr-surface border border-wr-border text-wr-dim text-sm rounded-sm cursor-not-allowed">
@@ -1307,18 +1315,23 @@ export function SMSWall() {
         presets={[3, 5, 10, 20]}
         isOpen={showPaymentModal}
         onClose={() => { setShowPaymentModal(false); }}
-        onDeposit={(usd) => {
+        onDeposit={(usd, _method, newWalletToken) => {
           setBalanceUSD(prev => prev + usd);
           setShowPaymentModal(false);
           toast.success(`$${usd.toFixed(2)} deposited`);
-          // Refresh wallet token from storage in case it was created during deposit
-          const storedToken = localStorage.getItem(WALLET_KEY);
-          if (storedToken && !walletToken) {
-            setWalletToken(storedToken);
+          // Save wallet token if returned (new wallet created during deposit)
+          let activeToken = walletToken;
+          if (newWalletToken) {
+            setWalletToken(newWalletToken);
+            localStorage.setItem(WALLET_KEY, newWalletToken);
+            activeToken = newWalletToken;
+          } else if (!walletToken) {
+            const stored = localStorage.getItem(WALLET_KEY);
+            if (stored) { setWalletToken(stored); activeToken = stored; }
           }
           // Refresh wallet balance from API
-          if (walletToken || storedToken) {
-            const token = walletToken || storedToken;
+          if (activeToken) {
+            const token = activeToken;
             apiClient<{ balanceUSD: number; totalDeposited?: number; totalSpent?: number }>(`/v1/tools/sms/balance?token=${token}`)
               .then(data => {
                 setBalanceUSD(data.balanceUSD);
