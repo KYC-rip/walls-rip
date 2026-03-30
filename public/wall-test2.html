@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>walls.rip - Smash Surveillance</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+  }
+
+  canvas {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+  }
+
+  #tagline {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 2s ease-in;
+  }
+
+  #tagline.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  #tagline h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(28px, 5.5vw, 72px);
+    font-weight: 800;
+    color: #00ff41;
+    line-height: 1.4;
+    text-shadow:
+      0 0 30px rgba(0,255,65,0.6),
+      0 0 80px rgba(0,255,65,0.25),
+      0 0 120px rgba(0,255,65,0.1);
+    letter-spacing: 3px;
+    animation: taglineGlow 2.5s ease-in-out infinite alternate;
+  }
+
+  #tagline p.subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(12px, 2vw, 18px);
+    color: #00ff41aa;
+    margin-top: 16px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+  }
+
+  #tagline p.brand {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(10px, 1.4vw, 14px);
+    color: #00ff4160;
+    margin-top: 32px;
+    letter-spacing: 10px;
+    text-transform: uppercase;
+  }
+
+  #restart-btn {
+    display: inline-block;
+    margin-top: 48px;
+    padding: 12px 36px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #00ff41;
+    background: transparent;
+    border: 1px solid #00ff4140;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='rotate(-45, 16, 16)'%3E%3Crect x='14' y='16' width='4' height='14' rx='1' fill='%238B7355' stroke='%23665533' stroke-width='0.5'/%3E%3Crect x='7' y='8' width='18' height='9' rx='2' fill='%23888888' stroke='%23666666' stroke-width='0.5'/%3E%3Crect x='7' y='8' width='18' height='3' rx='1' fill='%23999999' opacity='0.5'/%3E%3C/g%3E%3C/svg%3E") 8 28, crosshair;
+    transition: all 0.3s;
+  }
+
+  #restart-btn:hover {
+    background: #00ff4112;
+    border-color: #00ff41;
+    box-shadow: 0 0 30px rgba(0,255,65,0.2);
+  }
+
+  @keyframes taglineGlow {
+    0% { text-shadow: 0 0 30px rgba(0,255,65,0.5), 0 0 80px rgba(0,255,65,0.2), 0 0 120px rgba(0,255,65,0.08); }
+    100% { text-shadow: 0 0 40px rgba(0,255,65,0.7), 0 0 100px rgba(0,255,65,0.35), 0 0 160px rgba(0,255,65,0.15); }
+  }
+
+  #hint {
+    position: fixed;
+    bottom: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: #00ff41;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    z-index: 20;
+    animation: pulse 1.8s ease-in-out infinite;
+    text-shadow: 0 0 10px rgba(0,255,65,0.5), 0 0 40px rgba(0,255,65,0.15);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: translateX(-50%) scale(1); }
+    50% { opacity: 1; transform: translateX(-50%) scale(1.04); }
+  }
+
+  #counter {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #00ff4180;
+    letter-spacing: 2px;
+    z-index: 20;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+
+  #counter.visible {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="main"></canvas>
+<div id="hint">[ click to smash ]</div>
+<script>
+  // Immediately update hint text for touch devices
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    document.getElementById('hint').textContent = '[ tap to smash ]';
+  }
+</script>
+<div id="counter"></div>
+
+<div id="tagline">
+  <h1>Break walls.<br>Reclaim privacy.</h1>
+  <p class="subtitle">no kyc. no trace. no compromise.</p>
+  <p class="brand">walls.rip</p>
+  <button id="restart-btn" onclick="restart()">Smash again</button>
+</div>
+
+<script>
+// ============================================================
+// Configuration
+// ============================================================
+const WORD_COUNT = 240;
+const REPULSION_RADIUS = 120;
+const REPULSION_FORCE = 2.5;
+const SMASH_RADIUS = 200;
+const SMASH_FORCE = 18;
+const SMASH_OUTER_RADIUS = 400;
+const DRIFT_SPEED_MIN = 0.15;
+const DRIFT_SPEED_MAX = 0.5;
+const FONT_SIZE_MIN = 10;
+const FONT_SIZE_MAX = 18;
+const OPACITY_MIN = 0.3;
+const OPACITY_MAX = 0.8;
+const CLEAR_THRESHOLD = 0.2; // When 20% remain, trigger final scatter
+const SHAKE_DURATION = 400;
+const SHAKE_INTENSITY = 14;
+
+// ============================================================
+// Surveillance terms
+// ============================================================
+const TERMS = [
+  'KYC', 'IDENTITY', 'SURVEILLANCE', 'COMPLIANCE', 'DATA HARVEST',
+  'PHONE VERIFY', 'SELFIE CHECK', 'ADDRESS PROOF', 'SSN', 'FACIAL RECOGNITION',
+  'PASSPORT', 'BANK STATEMENT', 'UTILITY BILL', 'BIOMETRIC', 'FINGERPRINT',
+  'GOVERNMENT ID', 'TAX RETURN', 'CREDIT CHECK', 'SOCIAL SECURITY', 'VIDEO CALL',
+  'LIVENESS CHECK', 'AML', 'SANCTIONS', 'WATCHLIST', 'PII', 'TRACKING',
+  'PROFILING', 'METADATA', 'DRAGNET', 'CENSORSHIP', 'DOXXING', 'BLACKLIST',
+  'DATA BROKER', 'MASS SURVEILLANCE', 'PHONE NUMBER', 'EMAIL VERIFY', 'REAL NAME',
+  'HOME ADDRESS', 'DATE OF BIRTH', 'EMPLOYER', 'INCOME PROOF'
+];
+
+// Color palettes for words
+const WORD_COLORS = [
+  '#555555', '#5a5a5a', '#4a4a4a', '#606060', // muted gray
+  '#2a5a2a', '#2d5d2d', '#336633', '#285828', // dim green
+  '#5a2a2a', '#5d2d2d', '#663333', '#582828', // dim red
+];
+
+// ============================================================
+// Hammer SVG cursor (encoded)
+// ============================================================
+const HAMMER_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
+  <g transform='rotate(-45, 16, 16)'>
+    <rect x='14' y='16' width='4' height='14' rx='1' fill='%238B7355' stroke='%23665533' stroke-width='0.5'/>
+    <rect x='7' y='8' width='18' height='9' rx='2' fill='%23888888' stroke='%23666666' stroke-width='0.5'/>
+    <rect x='7' y='8' width='18' height='3' rx='1' fill='%23999999' opacity='0.5'/>
+  </g>
+</svg>`;
+
+// ============================================================
+// State
+// ============================================================
+let canvas, ctx;
+let W, H;
+let words = [];
+let particles = [];
+let shockwaves = [];
+let cracks = [];
+let flashes = [];
+let initialWordCount = 0;
+let smashCount = 0;
+let gameOver = false;
+let finalScatter = false;
+let shakeOffset = { x: 0, y: 0 };
+let shakeEnd = 0;
+let mouseX = -9999, mouseY = -9999;
+let isTouchDevice = false;
+let hintVisible = true;
+let counterVisible = false;
+let fontLoaded = false;
+let dpr = 1;
+let scanlinePattern = null;
+let scanlinePatternH = 0;
+let vignetteGrad = null;
+let vignetteW = 0, vignetteH = 0;
+
+// ============================================================
+// Word object
+// ============================================================
+function createWord(term) {
+  const fontSize = FONT_SIZE_MIN + Math.random() * (FONT_SIZE_MAX - FONT_SIZE_MIN);
+  const opacity = OPACITY_MIN + Math.random() * (OPACITY_MAX - OPACITY_MIN);
+  const color = WORD_COLORS[Math.floor(Math.random() * WORD_COLORS.length)];
+  const angle = Math.random() * Math.PI * 2;
+  const speed = DRIFT_SPEED_MIN + Math.random() * (DRIFT_SPEED_MAX - DRIFT_SPEED_MIN);
+
+  return {
+    text: term,
+    x: 40 + Math.random() * (W - 80),
+    y: 40 + Math.random() * (H - 80),
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    fontSize,
+    baseOpacity: opacity,
+    opacity,
+    color,
+    alive: true,
+    blasted: false,
+    // For repulsion recovery
+    repelVx: 0,
+    repelVy: 0,
+    // Slight rotation for organic feel
+    rotation: (Math.random() - 0.5) * 0.15,
+    // Measured width (cached)
+    width: 0,
+    height: fontSize,
+  };
+}
+
+// ============================================================
+// Particle (dust/sparks)
+// ============================================================
+function spawnParticles(x, y, count, opts = {}) {
+  const { speedMin = 1, speedMax = 6, sizeMin = 1, sizeMax = 4, color, life = 1 } = opts;
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = speedMin + Math.random() * (speedMax - speedMin);
+    const c = color || (Math.random() > 0.7
+      ? `rgba(0, 255, 65, ${0.3 + Math.random() * 0.5})`
+      : `rgba(${150 + Math.random() * 80|0}, ${140 + Math.random() * 60|0}, ${120 + Math.random() * 40|0}, ${0.4 + Math.random() * 0.4})`);
+    particles.push({
+      x: x + (Math.random() - 0.5) * 20,
+      y: y + (Math.random() - 0.5) * 20,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: sizeMin + Math.random() * (sizeMax - sizeMin),
+      life: life,
+      decay: 0.012 + Math.random() * 0.025,
+      color: c,
+      opacity: 0.5 + Math.random() * 0.5,
+    });
+  }
+}
+
+// ============================================================
+// Shockwave
+// ============================================================
+function spawnShockwave(x, y) {
+  shockwaves.push({
+    x, y,
+    radius: 0,
+    maxRadius: SMASH_OUTER_RADIUS,
+    opacity: 0.6,
+    lineWidth: 3,
+  });
+}
+
+// ============================================================
+// Crack lines (radial)
+// ============================================================
+function spawnCracks(x, y) {
+  const count = 8 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.4;
+    const length = 40 + Math.random() * 120;
+    cracks.push({
+      x, y, angle, length,
+      progress: 0,
+      speed: 0.06 + Math.random() * 0.04,
+      opacity: 0.6 + Math.random() * 0.4,
+      width: 1 + Math.random() * 2,
+    });
+  }
+}
+
+// ============================================================
+// Flash at click
+// ============================================================
+function spawnFlash(x, y) {
+  flashes.push({
+    x, y,
+    radius: 5,
+    maxRadius: 80,
+    opacity: 0.9,
+  });
+}
+
+// ============================================================
+// Screen shake
+// ============================================================
+function triggerShake(intensity, duration) {
+  shakeEnd = performance.now() + duration;
+  // We just track it via shakeEnd; the render loop handles the rest
+}
+
+// ============================================================
+// Initialize
+// ============================================================
+function init() {
+  canvas = document.getElementById('main');
+  ctx = canvas.getContext('2d');
+
+  // Detect touch
+  isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+  // Set custom cursor for desktop
+  if (!isTouchDevice) {
+    document.body.style.cursor = `url("data:image/svg+xml;utf8,${HAMMER_SVG}") 8 28, crosshair`;
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Input
+  if (!isTouchDevice) {
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('click', onSmash);
+  }
+  canvas.addEventListener('touchstart', onTouchSmash, { passive: false });
+
+  // Spawn words
+  spawnWords();
+
+  // Start loop
+  requestAnimationFrame(loop);
+}
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Invalidate cached patterns/gradients
+  vignetteGrad = null;
+  scanlinePattern = null;
+}
+
+function spawnWords() {
+  words = [];
+  particles = [];
+  shockwaves = [];
+  cracks = [];
+  flashes = [];
+  gameOver = false;
+  finalScatter = false;
+  smashCount = 0;
+  hintVisible = true;
+  counterVisible = false;
+
+  const hintEl = document.getElementById('hint');
+  hintEl.style.transition = 'none';
+  hintEl.style.display = 'block';
+  hintEl.style.opacity = '1';
+  document.getElementById('tagline').classList.remove('visible');
+  document.getElementById('counter').classList.remove('visible');
+  document.getElementById('counter').textContent = '';
+
+  // Build a shuffled pool of terms, repeating to fill WORD_COUNT
+  const pool = [];
+  while (pool.length < WORD_COUNT) {
+    const batch = [...TERMS].sort(() => Math.random() - 0.5);
+    pool.push(...batch);
+  }
+
+  // Create words spread across the viewport
+  for (let i = 0; i < WORD_COUNT; i++) {
+    const w = createWord(pool[i]);
+    // Measure text width
+    ctx.font = `700 ${w.fontSize}px 'JetBrains Mono', 'Courier New', monospace`;
+    w.width = ctx.measureText(w.text).width;
+    words.push(w);
+  }
+
+  initialWordCount = words.length;
+}
+
+// ============================================================
+// Input handlers
+// ============================================================
+function onMouseMove(e) {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+}
+
+function onSmash(e) {
+  if (gameOver) return;
+  performSmash(e.clientX, e.clientY);
+}
+
+function onTouchSmash(e) {
+  e.preventDefault();
+  if (gameOver) return;
+  const touch = e.touches[0];
+  performSmash(touch.clientX, touch.clientY);
+}
+
+function performSmash(cx, cy) {
+  // Hide hint on first smash
+  if (hintVisible) {
+    hintVisible = false;
+    const hint = document.getElementById('hint');
+    hint.style.transition = 'opacity 0.3s';
+    hint.style.opacity = '0';
+    setTimeout(() => hint.style.display = 'none', 300);
+    // Show counter
+    counterVisible = true;
+    document.getElementById('counter').classList.add('visible');
+  }
+
+  smashCount++;
+
+  // Visual effects
+  spawnShockwave(cx, cy);
+  spawnCracks(cx, cy);
+  spawnFlash(cx, cy);
+  triggerShake(SHAKE_INTENSITY, SHAKE_DURATION);
+  spawnParticles(cx, cy, 30, { speedMin: 2, speedMax: 10, sizeMin: 1, sizeMax: 5 });
+
+  // Blast words
+  for (let i = words.length - 1; i >= 0; i--) {
+    const w = words[i];
+    if (!w.alive) continue;
+
+    const dx = w.x - cx;
+    const dy = w.y - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < SMASH_RADIUS) {
+      // Direct hit: blast at high velocity
+      const angle = Math.atan2(dy, dx);
+      const force = SMASH_FORCE * (1 - dist / SMASH_RADIUS);
+      w.vx = Math.cos(angle) * force + (Math.random() - 0.5) * 4;
+      w.vy = Math.sin(angle) * force + (Math.random() - 0.5) * 4;
+      w.blasted = true;
+      w.opacity = w.baseOpacity * 1.5; // Brief brightening on impact
+      // Spawn small dust at word position
+      spawnParticles(w.x, w.y, 3, { speedMin: 0.5, speedMax: 3, sizeMin: 1, sizeMax: 2 });
+    } else if (dist < SMASH_OUTER_RADIUS) {
+      // Outer ring: weaker push
+      const angle = Math.atan2(dy, dx);
+      const falloff = 1 - (dist - SMASH_RADIUS) / (SMASH_OUTER_RADIUS - SMASH_RADIUS);
+      const force = SMASH_FORCE * 0.3 * falloff;
+      w.vx += Math.cos(angle) * force;
+      w.vy += Math.sin(angle) * force;
+    }
+  }
+
+  updateCounter();
+}
+
+function updateCounter() {
+  const alive = words.filter(w => w.alive).length;
+  const destroyed = initialWordCount - alive;
+  document.getElementById('counter').textContent = `${destroyed} / ${initialWordCount} DESTROYED`;
+}
+
+// ============================================================
+// Main loop
+// ============================================================
+let lastTime = 0;
+
+function loop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const dt = Math.min((timestamp - lastTime) / 16.667, 3); // Normalize to ~60fps, cap at 3x
+  lastTime = timestamp;
+
+  update(dt, timestamp);
+  render(timestamp);
+
+  requestAnimationFrame(loop);
+}
+
+// ============================================================
+// Update
+// ============================================================
+function update(dt, now) {
+  if (gameOver) return;
+
+  // Screen shake
+  if (now < shakeEnd) {
+    const remaining = (shakeEnd - now) / SHAKE_DURATION;
+    shakeOffset.x = (Math.random() - 0.5) * SHAKE_INTENSITY * remaining * 2;
+    shakeOffset.y = (Math.random() - 0.5) * SHAKE_INTENSITY * remaining * 2;
+  } else {
+    shakeOffset.x *= 0.8;
+    shakeOffset.y *= 0.8;
+    if (Math.abs(shakeOffset.x) < 0.1) shakeOffset.x = 0;
+    if (Math.abs(shakeOffset.y) < 0.1) shakeOffset.y = 0;
+  }
+
+  // Check final scatter
+  let aliveCount = 0;
+  for (let i = 0; i < words.length; i++) { if (words[i].alive) aliveCount++; }
+  if (!finalScatter && aliveCount > 0 && aliveCount <= initialWordCount * CLEAR_THRESHOLD) {
+    finalScatter = true;
+    // Blast remaining words outward from center
+    words.forEach(w => {
+      if (!w.alive) return;
+      const dx = w.x - W / 2;
+      const dy = w.y - H / 2;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      w.vx = (dx / dist) * 25 + (Math.random() - 0.5) * 10;
+      w.vy = (dy / dist) * 25 + (Math.random() - 0.5) * 10;
+      w.blasted = true;
+    });
+    triggerShake(20, 600);
+    spawnShockwave(W / 2, H / 2);
+    spawnParticles(W / 2, H / 2, 60, { speedMin: 3, speedMax: 15, sizeMin: 1, sizeMax: 4 });
+  }
+
+  // Update words
+  let anyAlive = false;
+  for (let i = words.length - 1; i >= 0; i--) {
+    const w = words[i];
+    if (!w.alive) continue;
+
+    // Mouse repulsion (desktop only, non-touch)
+    if (!isTouchDevice && !w.blasted) {
+      const dx = w.x - mouseX;
+      const dy = w.y - mouseY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < REPULSION_RADIUS && dist > 0) {
+        const force = (1 - dist / REPULSION_RADIUS) * REPULSION_FORCE;
+        w.repelVx += (dx / dist) * force * dt;
+        w.repelVy += (dy / dist) * force * dt;
+      }
+    }
+
+    // Decay repulsion
+    w.repelVx *= 0.92;
+    w.repelVy *= 0.92;
+
+    // If blasted, apply friction and check bounds
+    if (w.blasted) {
+      w.vx *= 0.985;
+      w.vy *= 0.985;
+      w.opacity *= 0.995;
+
+      // Remove if off-screen
+      const margin = 100;
+      if (w.x < -margin || w.x > W + margin || w.y < -margin || w.y > H + margin) {
+        w.alive = false;
+        continue;
+      }
+      // Also fade out eventually
+      if (w.opacity < 0.02) {
+        w.alive = false;
+        continue;
+      }
+    } else {
+      // Gentle drift: bounce off edges
+      const pad = 20;
+      if (w.x < pad) { w.x = pad; w.vx = Math.abs(w.vx) * 0.8 + 0.1; }
+      if (w.x > W - pad - w.width) { w.x = W - pad - w.width; w.vx = -Math.abs(w.vx) * 0.8 - 0.1; }
+      if (w.y < pad + w.height) { w.y = pad + w.height; w.vy = Math.abs(w.vy) * 0.8 + 0.1; }
+      if (w.y > H - pad) { w.y = H - pad; w.vy = -Math.abs(w.vy) * 0.8 - 0.1; }
+
+      // Cap drift speed (gentle)
+      const maxDrift = DRIFT_SPEED_MAX * 1.5;
+      const speed = Math.sqrt(w.vx * w.vx + w.vy * w.vy);
+      if (speed > maxDrift) {
+        w.vx = (w.vx / speed) * maxDrift;
+        w.vy = (w.vy / speed) * maxDrift;
+      }
+
+      // Restore opacity
+      w.opacity += (w.baseOpacity - w.opacity) * 0.02;
+    }
+
+    // Apply movement
+    w.x += (w.vx + w.repelVx) * dt;
+    w.y += (w.vy + w.repelVy) * dt;
+
+    anyAlive = true;
+  }
+
+  // Check game over
+  if (!anyAlive && smashCount > 0) {
+    gameOver = true;
+    document.getElementById('counter').classList.remove('visible');
+    setTimeout(() => {
+      document.getElementById('tagline').classList.add('visible');
+    }, 500);
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 0.04 * dt; // Slight gravity
+    p.vx *= 0.99;
+    p.life -= p.decay * dt;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+
+  // Update shockwaves
+  for (let i = shockwaves.length - 1; i >= 0; i--) {
+    const s = shockwaves[i];
+    s.radius += 8 * dt;
+    s.opacity -= 0.018 * dt;
+    s.lineWidth = Math.max(0.5, s.lineWidth - 0.04 * dt);
+    if (s.opacity <= 0 || s.radius > s.maxRadius) {
+      shockwaves.splice(i, 1);
+    }
+  }
+
+  // Update cracks
+  for (let i = cracks.length - 1; i >= 0; i--) {
+    const c = cracks[i];
+    c.progress += c.speed * dt;
+    if (c.progress >= 1) {
+      c.opacity -= 0.03 * dt;
+      if (c.opacity <= 0) {
+        cracks.splice(i, 1);
+      }
+    }
+  }
+
+  // Update flashes
+  for (let i = flashes.length - 1; i >= 0; i--) {
+    const f = flashes[i];
+    f.radius += 12 * dt;
+    f.opacity -= 0.06 * dt;
+    if (f.opacity <= 0) {
+      flashes.splice(i, 1);
+    }
+  }
+}
+
+// ============================================================
+// Render
+// ============================================================
+function render(now) {
+  ctx.save();
+
+  // Apply shake
+  ctx.translate(shakeOffset.x, shakeOffset.y);
+
+  // Clear
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+
+  // Vignette (cached gradient)
+  if (!vignetteGrad || vignetteW !== W || vignetteH !== H) {
+    vignetteGrad = ctx.createRadialGradient(W / 2, H / 2, W * 0.2, W / 2, H / 2, W * 0.75);
+    vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vignetteGrad.addColorStop(1, 'rgba(0,0,0,0.65)');
+    vignetteW = W;
+    vignetteH = H;
+  }
+  ctx.fillStyle = vignetteGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw words
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (!w.alive) continue;
+
+    ctx.save();
+    ctx.translate(w.x + w.width / 2, w.y);
+    ctx.rotate(w.rotation);
+    ctx.font = `700 ${w.fontSize}px 'JetBrains Mono', 'Courier New', monospace`;
+    ctx.globalAlpha = Math.max(0, Math.min(1, w.opacity));
+    ctx.fillStyle = w.color;
+    ctx.fillText(w.text, -w.width / 2, 0);
+    ctx.restore();
+  }
+
+  // Draw cracks (radial lines from smash point)
+  for (let i = 0; i < cracks.length; i++) {
+    const c = cracks[i];
+    const len = c.length * Math.min(1, c.progress);
+    const ex = c.x + Math.cos(c.angle) * len;
+    const ey = c.y + Math.sin(c.angle) * len;
+
+    ctx.beginPath();
+    ctx.moveTo(c.x, c.y);
+    ctx.lineTo(ex, ey);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${c.opacity * 0.5})`;
+    ctx.lineWidth = c.width;
+    ctx.stroke();
+
+    // Secondary thinner line alongside
+    if (c.width > 1.5) {
+      const offset = 3;
+      ctx.beginPath();
+      ctx.moveTo(c.x + Math.cos(c.angle + 0.3) * 5, c.y + Math.sin(c.angle + 0.3) * 5);
+      ctx.lineTo(ex + Math.cos(c.angle + 0.2) * offset, ey + Math.sin(c.angle + 0.2) * offset);
+      ctx.strokeStyle = `rgba(0, 255, 65, ${c.opacity * 0.2})`;
+      ctx.lineWidth = c.width * 0.4;
+      ctx.stroke();
+    }
+  }
+
+  // Draw shockwaves
+  for (let i = 0; i < shockwaves.length; i++) {
+    const s = shockwaves[i];
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0, 255, 65, ${s.opacity * 0.4})`;
+    ctx.lineWidth = s.lineWidth;
+    ctx.stroke();
+
+    // Inner ring
+    if (s.radius > 20) {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.radius * 0.7, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${s.opacity * 0.15})`;
+      ctx.lineWidth = s.lineWidth * 0.5;
+      ctx.stroke();
+    }
+  }
+
+  // Draw flashes (white burst at click)
+  for (let i = 0; i < flashes.length; i++) {
+    const f = flashes[i];
+    const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius);
+    grad.addColorStop(0, `rgba(255, 255, 255, ${f.opacity})`);
+    grad.addColorStop(0.3, `rgba(0, 255, 65, ${f.opacity * 0.3})`);
+    grad.addColorStop(1, `rgba(0, 255, 65, 0)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(f.x - f.radius, f.y - f.radius, f.radius * 2, f.radius * 2);
+  }
+
+  // Draw particles
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    const alpha = p.life * p.opacity;
+    const size = p.size * (0.3 + p.life * 0.7);
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.fill();
+
+    // Soft glow for larger particles
+    if (size > 2) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size * 2.5, 0, Math.PI * 2);
+      ctx.globalAlpha = alpha * 0.1;
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Scanline overlay (CRT effect) - use pre-rendered pattern for performance
+  ctx.globalAlpha = 1;
+  if (!scanlinePattern || scanlinePatternH !== H) {
+    const patCanvas = document.createElement('canvas');
+    patCanvas.width = 1;
+    patCanvas.height = 6;
+    const patCtx = patCanvas.getContext('2d');
+    patCtx.fillStyle = 'rgba(0, 255, 65, 0.012)';
+    patCtx.fillRect(0, 0, 1, 3);
+    scanlinePattern = ctx.createPattern(patCanvas, 'repeat');
+    scanlinePatternH = H;
+  }
+  ctx.fillStyle = scanlinePattern;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle horizontal scan band (moves slowly)
+  const scanBandY = (now * 0.03) % (H + 60) - 30;
+  const scanGrad = ctx.createLinearGradient(0, scanBandY - 30, 0, scanBandY + 30);
+  scanGrad.addColorStop(0, 'rgba(0, 255, 65, 0)');
+  scanGrad.addColorStop(0.5, 'rgba(0, 255, 65, 0.02)');
+  scanGrad.addColorStop(1, 'rgba(0, 255, 65, 0)');
+  ctx.fillStyle = scanGrad;
+  ctx.fillRect(0, scanBandY - 30, W, 60);
+
+  ctx.restore();
+}
+
+// ============================================================
+// Restart
+// ============================================================
+function restart() {
+  document.getElementById('tagline').classList.remove('visible');
+  setTimeout(() => {
+    spawnWords();
+    smashCount = 0;
+    shakeOffset = { x: 0, y: 0 };
+    shakeEnd = 0;
+    mouseX = -9999;
+    mouseY = -9999;
+    lastTime = 0;
+  }, 300);
+}
+
+// ============================================================
+// Boot
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  // Preload font then init
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load("700 16px 'JetBrains Mono'").then(() => {
+      fontLoaded = true;
+      init();
+    }).catch(() => {
+      init();
+    });
+  } else {
+    // Fallback: wait a bit for font
+    setTimeout(init, 300);
+  }
+});
+</script>
+
+</body>
+</html>

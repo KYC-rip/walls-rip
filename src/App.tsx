@@ -11,6 +11,7 @@ import FAQ from './pages/FAQ';
 import { PGPTerminal } from './pages/PGPTerminal';
 import { InvitePage } from './pages/InvitePage';
 import APIPage from './pages/APIPage';
+import NotFound from './pages/NotFound';
 import { InstallPrompt } from './components/InstallPrompt';
 
 // Routes without the language prefix
@@ -61,6 +62,8 @@ export default function App() {
               />
             ))
           )}
+          {/* 404 catch-all */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
         <InstallPrompt />
       </LangRouter>

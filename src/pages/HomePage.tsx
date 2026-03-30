@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Mail, Flame, MessageSquare, Phone, Shield, EyeOff, Zap, Smartphone,
   ArrowRight, ExternalLink, Lock, Globe, CreditCard, CheckCircle,
@@ -9,6 +10,7 @@ import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { BrickBreaker } from '../components/BrickBreaker';
+import { WallSplash } from '../components/WallSplash';
 import { SUPPORTED_LANGS } from '../i18n/config';
 
 function useLangPrefix() {
@@ -20,6 +22,7 @@ function useLangPrefix() {
 export default function HomePage() {
   const { t } = useTranslation();
   const lp = useLangPrefix();
+  const [showSplash, setShowSplash] = useState(() => !localStorage.getItem('walls_smashed'));
 
   const TOOLS = [
     {
@@ -132,6 +135,12 @@ export default function HomePage() {
 
   return (
     <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
+      {showSplash && (
+        <WallSplash onComplete={() => {
+          localStorage.setItem('walls_smashed', '1');
+          setShowSplash(false);
+        }} />
+      )}
       <BrickBreaker />
       <SEO
         path="/"
@@ -201,7 +210,7 @@ export default function HomePage() {
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />
 
-      <Header />
+      {!showSplash && <Header />}
 
       <main className="w-full max-w-6xl mx-auto px-4 md:px-6 relative z-10">
 
@@ -451,6 +460,18 @@ export default function HomePage() {
         </section>
 
       </main>
+
+      {/* Smash the Wall — replay button */}
+      {!showSplash && (
+        <div className="w-full max-w-6xl mx-auto px-4 md:px-6 mb-8 text-center">
+          <button
+            onClick={() => setShowSplash(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-[0.2em] font-bold text-wr-dim border border-wr-border rounded-sm hover:border-wr-accent hover:text-wr-accent transition-all"
+          >
+            🔨 {t('home.smash_wall', 'Smash the Wall Again')}
+          </button>
+        </div>
+      )}
 
       <Footer />
     </div>

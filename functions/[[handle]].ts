@@ -98,7 +98,13 @@ export const onRequest: PagesFunction = async (context) => {
   const url = new URL(context.request.url);
 
   // Let static assets through
-  if (url.pathname.match(/\.(js|css|svg|png|jpg|ico|woff2?|txt|xml|json|webmanifest)$/)) {
+  if (url.pathname.match(/\.(js|css|svg|png|jpg|ico|woff2?|txt|xml|json|webmanifest|html)$/)) {
+    return context.next();
+  }
+
+  // Static HTML pages (CF Pages strips .html extension)
+  const staticPages = ['/wall-test', '/wall-test2', '/wall-test3'];
+  if (staticPages.includes(url.pathname)) {
     return context.next();
   }
 
