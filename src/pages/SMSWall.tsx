@@ -10,7 +10,8 @@ import { PaymentGate } from '../components/PaymentGate';
 
 interface Country { id: string; name: string; shortName: string; engine: string }
 interface Service { id: string; name: string; category?: string; engine: string }
-interface PriceInfo { price: string; cost_price: string; success_rate: number; engine: string }
+interface PriceInfo { price: string; cost_price: string; success_rate: number; engine: string; pool?: string }
+interface PoolOption { pool: string; poolName: string; price: number; costPrice: number; successRate: number }
 
 interface PurchaseResult {
   orderId: string;
@@ -115,6 +116,8 @@ export function SMSWall() {
   const [serviceSearch, setServiceSearch] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
+  const [poolOptions, setPoolOptions] = useState<PoolOption[]>([]);
+  const [selectedPool, setSelectedPool] = useState<string>('');
   const [loadingPrice, setLoadingPrice] = useState(false);
   const [stockInfo, setStockInfo] = useState<StockInfo | null>(null);
   const [suggestedCountryIds, setSuggestedCountryIds] = useState<Set<string>>(new Set());
@@ -271,17 +274,28 @@ export function SMSWall() {
       .catch(() => { localStorage.removeItem(WALLET_KEY); setWalletToken(null); setBalanceUSD(0); });
   }, [walletToken]);
 
-  // Fetch price + stock when country+service selected
+  // Fetch price + stock + pool options when country+service selected
   useEffect(() => {
-    if (!selectedCountry || !selectedService) { setPriceInfo(null); setStockInfo(null); return; }
+    if (!selectedCountry || !selectedService) { setPriceInfo(null); setStockInfo(null); setPoolOptions([]); setSelectedPool(''); return; }
     setLoadingPrice(true);
     Promise.all([
       apiClient<PriceInfo>(`/v1/tools/sms/price?country=${selectedCountry}&service=${selectedService}`),
       apiClient<StockInfo>(`/v1/tools/sms/stock?country=${selectedCountry}&service=${selectedService}`).catch(() => null),
-    ]).then(([price, stock]) => {
-      setPriceInfo(price);
+      apiClient<PoolOption[]>(`/v1/tools/sms/pools?country=${selectedCountry}&service=${selectedService}`).catch(() => []),
+    ]).then(([price, stock, pools]) => {
       setStockInfo(stock);
-    }).catch(() => { setPriceInfo(null); setStockInfo(null); toast.error('Service not available'); })
+      const poolList = pools || [];
+      setPoolOptions(poolList);
+      const defaultPool = price.pool || poolList[0]?.pool || '';
+      setSelectedPool(defaultPool);
+      // Prefer pool-level success rate (fetched per-pool) over generic price endpoint
+      const matchedPool = poolList.find((p: PoolOption) => p.pool === defaultPool);
+      if (matchedPool && matchedPool.successRate > 0) {
+        setPriceInfo({ ...price, success_rate: matchedPool.successRate });
+      } else {
+        setPriceInfo(price);
+      }
+    }).catch(() => { setPriceInfo(null); setStockInfo(null); setPoolOptions([]); toast.error('Service not available'); })
       .finally(() => setLoadingPrice(false));
   }, [selectedCountry, selectedService]);
 
@@ -317,11 +331,11 @@ export function SMSWall() {
     return () => clearInterval(interval);
   }, [polling, purchase, walletToken, balanceUSD]);
 
-  const executePurchase = async (country: string, service: string, token: string) => {
+  const executePurchase = async (country: string, service: string, token: string, pool?: string) => {
     try {
       const data = await apiClient<PurchaseResult>('/v1/tools/sms/purchase', {
         method: 'POST',
-        body: { country, service, token },
+        body: { country, service, token, pool },
       });
       if (data.orderId) {
         setPurchase(data); setBalanceUSD(data.balanceUSD); setPolling(true); setStep('WAITING');
@@ -339,7 +353,7 @@ export function SMSWall() {
       // Enough balance — purchase directly
       setPurchasing(true);
       try {
-        await executePurchase(selectedCountry, selectedService, walletToken);
+        await executePurchase(selectedCountry, selectedService, walletToken, selectedPool || priceInfo.pool);
       } finally {
         setPurchasing(false);
       }
@@ -869,7 +883,11 @@ export function SMSWall() {
                 {priceInfo ? (
                   <span>
                     <span className="text-wr-green animate-pulse">●</span>{' '}
-                    {selectedServiceName} / {selectedCountryName} — {priceInfo.success_rate}% {t('sms.success_rate')}
+                    {selectedServiceName} / {selectedCountryName} — <span
+                      key={`rate-${selectedPool}-${priceInfo.success_rate}`}
+                      className="inline-block animate-[flash_0.6s_ease-out]"
+                      style={{ color: priceInfo.success_rate >= 70 ? '#00ff41' : priceInfo.success_rate >= 40 ? '#f59e0b' : '#ef4444' }}
+                    >{priceInfo.success_rate}%</span> {t('sms.success_rate')}
                     {stockInfo && stockInfo.count !== undefined && (
                       <span className={stockInfo.available ? 'text-wr-green' : 'text-red-400'}> — {stockInfo.count} {t('sms.in_stock').toLowerCase()}</span>
                     )}
@@ -878,6 +896,32 @@ export function SMSWall() {
                   <span><span className="text-wr-dim">●</span> {t('sms.select_both')}</span>
                 )}
               </div>
+
+              {/* Pool selector (when multiple pools available) */}
+              {poolOptions.length > 1 && priceInfo && (
+                <div className="w-full flex gap-2 flex-wrap">
+                  {poolOptions.map(p => {
+                    const isSelected = selectedPool === p.pool;
+                    return (
+                      <button
+                        key={p.pool}
+                        onClick={() => {
+                          setSelectedPool(p.pool);
+                          setPriceInfo({ ...priceInfo, price: p.price.toFixed(2), cost_price: p.costPrice.toFixed(2), pool: p.pool, success_rate: p.successRate });
+                        }}
+                        className={`flex-1 min-w-[120px] py-2 px-3 rounded-sm border text-xs font-mono transition-all ${
+                          isSelected
+                            ? 'border-wr-green bg-wr-green/10 text-wr-green'
+                            : 'border-wr-border text-wr-dim hover:border-wr-dim'
+                        }`}
+                      >
+                        <div className="font-bold">${p.price.toFixed(2)}</div>
+                        <div className="text-[10px] opacity-60">{p.poolName}{p.successRate > 0 ? ` · ${p.successRate}%` : ''}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {loadingPrice ? (
                 <div className="flex items-center gap-2 text-wr-dim text-xs"><RefreshCw size={14} className="animate-spin" /> {t('sms.checking_price')}</div>
