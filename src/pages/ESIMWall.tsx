@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Wifi, Signal, SlidersHorizontal, Shield, MapPin, Database, DollarSign, ArrowUpDown } from 'lucide-react';
+import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Wifi, Signal, SlidersHorizontal, Shield, MapPin, Database, DollarSign, ArrowUpDown, Key } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -230,6 +230,9 @@ export function ESIMWall() {
   // Wallet (shared with SMS)
   const [walletToken, setWalletToken] = useState<string | null>(() => localStorage.getItem(WALLET_KEY));
   const [balanceUSD, setBalanceUSD] = useState<number>(0);
+  const [showRestoreInput, setShowRestoreInput] = useState(false);
+  const [restoreToken, setRestoreToken] = useState('');
+  const [restoringWallet, setRestoringWallet] = useState(false);
 
   // Payment
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -299,6 +302,22 @@ export function ESIMWall() {
       .then(data => setBalanceUSD(data.balanceUSD))
       .catch(() => { localStorage.removeItem(WALLET_KEY); setWalletToken(null); setBalanceUSD(0); });
   }, [walletToken]);
+
+  const handleRestoreWallet = async () => {
+    if (!restoreToken.trim()) return;
+    setRestoringWallet(true);
+    try {
+      const data = await apiClient<{ balanceUSD: number }>(`/v1/tools/esim/balance?token=${restoreToken.trim()}`);
+      setWalletToken(restoreToken.trim());
+      setBalanceUSD(data.balanceUSD);
+      localStorage.setItem(WALLET_KEY, restoreToken.trim());
+      setShowRestoreInput(false);
+      setRestoreToken('');
+      toast.success('Wallet restored!');
+    } catch {
+      toast.error('Invalid wallet token');
+    } finally { setRestoringWallet(false); }
+  };
 
   // ─── Fetch compare plans when country selected ───
   useEffect(() => {
@@ -688,6 +707,9 @@ export function ESIMWall() {
                   <RefreshCw size={12} className="animate-spin" /> {t('esim.loading_activation')}
                 </div>
                 <p className="text-xs text-wr-dim">{t('esim.provisioning')}</p>
+                <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-accent hover:underline text-[10px] block text-center">
+                  Need help? @kyc_rip_bot
+                </a>
               </div>
             )}
 
@@ -790,36 +812,73 @@ export function ESIMWall() {
 
           {!notConfigured && (
             <>
-              {/* WALLET BANNER */}
-              <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-border p-4 md:p-6 rounded-sm flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-wr-accent/5 group-hover:bg-wr-accent/10 transition-colors pointer-events-none" />
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-wr-accent" />
+              {/* WALLET BANNER — same structure as SMS */}
+              <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-border rounded-sm relative overflow-hidden group">
+                <div className="absolute inset-0 bg-green-500/5 group-hover:bg-green-500/10 transition-colors pointer-events-none" />
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500" />
 
-                <div className="flex items-start gap-4 relative z-10">
-                  <div className="p-3 bg-wr-accent/10 text-wr-accent rounded-full shrink-0 border border-wr-accent/20">
-                    <Wallet size={24} />
+                <div className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-start gap-4 relative z-10">
+                    <div className="p-3 bg-green-500/10 text-green-400 rounded-full shrink-0 border border-green-400/20">
+                      <Wallet size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-green-400 font-bold tracking-widest text-sm mb-1 uppercase flex items-center gap-2">
+                        {walletToken ? (
+                          <>{t('sms.wallet_balance')} <span className="text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
+                        ) : (
+                          <>{t('sms.anonymous_wallet')} <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">{t('sms.new')}</span></>
+                        )}
+                      </h3>
+                      <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg text-left">
+                        {walletToken
+                          ? t('esim.wallet_shared')
+                          : t('esim.wallet_shared_new')}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-wr-accent font-bold tracking-widest text-sm mb-1 uppercase flex items-center gap-2">
-                      {walletToken ? (
-                        <>{t('sms.wallet_balance')} <span className="text-[11px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
-                      ) : (
-                        <>{t('sms.anonymous_wallet')} <span className="text-[11px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">{t('sms.new')}</span></>
-                      )}
-                    </h3>
-                    <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg text-left">
-                      {walletToken
-                        ? t('esim.wallet_shared')
-                        : t('esim.wallet_shared_new')}
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="relative z-10 w-full md:w-auto px-6 py-3 bg-green-500 hover:bg-green-400 text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:-translate-y-0.5"
+                  >
+                    <Plus size={14} /> {walletToken ? t('sms.top_up') : t('sms.deposit')} <ChevronRight size={14} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowPaymentModal(true)}
-                  className="relative z-10 w-full md:w-auto px-6 py-3 bg-wr-accent hover:bg-wr-accent text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-wr-accent/20 hover:-translate-y-0.5"
-                >
-                  <Plus size={14} /> {walletToken ? t('sms.top_up') : t('sms.deposit')} <ChevronRight size={14} />
-                </button>
+
+                {/* Restore wallet */}
+                {!walletToken && (
+                  <div className="border-t border-wr-border/30 px-4 md:px-6 py-3 relative z-10">
+                    {showRestoreInput ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={restoreToken}
+                          onChange={e => setRestoreToken(e.target.value)}
+                          placeholder={t('sms.paste_token')}
+                          className="flex-1 bg-wr-base border border-wr-border px-3 py-2 text-xs font-mono outline-none focus:border-green-400 rounded-sm text-current placeholder-wr-dim/30"
+                          onKeyDown={e => e.key === 'Enter' && handleRestoreWallet()}
+                        />
+                        <button
+                          onClick={handleRestoreWallet}
+                          disabled={restoringWallet || !restoreToken.trim()}
+                          className="px-4 py-2 bg-green-500/20 border border-green-400/30 text-green-400 text-xs font-bold uppercase tracking-widest hover:bg-green-500/30 transition-colors rounded-sm disabled:opacity-30"
+                        >
+                          {restoringWallet ? <RefreshCw size={12} className="animate-spin" /> : t('sms.restore')}
+                        </button>
+                        <button onClick={() => { setShowRestoreInput(false); setRestoreToken(''); }} className="p-2 text-wr-dim hover:text-wr-accent">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowRestoreInput(true)}
+                        className="text-[10px] text-wr-dim hover:text-green-400 font-mono uppercase tracking-widest transition-colors flex items-center gap-2"
+                      >
+                        <Key size={10} /> {t('sms.restore_wallet')}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* TABBED BROWSING + COMPARISON TABLE */}
@@ -1698,6 +1757,9 @@ export function ESIMWall() {
                     </div>
                     <p className="text-sm font-bold text-red-400 tracking-wider uppercase">Error</p>
                     <p className="text-xs text-wr-dim text-center max-w-sm">{modalError || 'Something went wrong. Please try again.'}</p>
+                    <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-accent hover:underline text-xs">
+                      Need help? @kyc_rip_bot
+                    </a>
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setSelectedPlanDetail(null)}
