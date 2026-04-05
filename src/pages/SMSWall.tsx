@@ -9,9 +9,9 @@ import { apiClient } from '../services/client';
 import { PaymentGate } from '../components/PaymentGate';
 
 interface CountryRaw { id: string; name: string; shortName: string; engine: string }
-interface ServiceRaw { id: string; name: string; category?: string; engine: string }
+interface UnifiedService { id: string; name: string; category?: string; engines: string[] } // id = canonical slug (from alias map) or lowercase name
 interface Country { id: string; name: string; shortName: string; engines: string[] } // id = ISO (shortName), dedupped
-interface Service { id: string; name: string; category?: string; engines: string[] } // id = lowercase slug, dedupped
+interface Service { id: string; name: string; category?: string; engines: string[] }
 interface PriceInfo { price: string; cost_price: string; success_rate: number; engine: string; pool?: string }
 interface PoolOption { pool: string; poolName: string; price: number; costPrice: number; successRate: number }
 interface CompareResult {
@@ -207,12 +207,12 @@ export function SMSWall() {
     try { new Notification(title, { body, icon: '/og-sms.jpg', tag: 'sms-wall' }); } catch { /* noop */ }
   };
 
-  // Load data — dedupe by ISO / service name across engines
+  // Load data — server-side dedupe for services (via alias map), client-side dedupe for countries (ISO)
   useEffect(() => {
     Promise.all([
       apiClient<CountryRaw[]>('/v1/tools/sms/countries'),
-      apiClient<ServiceRaw[]>('/v1/tools/sms/services'),
-    ]).then(([cRaw, sRaw]) => {
+      apiClient<UnifiedService[]>('/v1/tools/sms/services/unified'),
+    ]).then(([cRaw, unifiedServices]) => {
       // Dedupe countries by shortName (ISO)
       const countryMap = new Map<string, Country>();
       for (const c of cRaw) {
@@ -225,20 +225,8 @@ export function SMSWall() {
           countryMap.set(iso, { id: iso, name: c.name, shortName: iso, engines: [c.engine] });
         }
       }
-      // Dedupe services by lowercase name/id
-      const serviceMap = new Map<string, Service>();
-      for (const s of sRaw) {
-        const key = (s.name || s.id || '').toLowerCase().trim();
-        if (!key) continue;
-        const existing = serviceMap.get(key);
-        if (existing) {
-          if (!existing.engines.includes(s.engine)) existing.engines.push(s.engine);
-        } else {
-          serviceMap.set(key, { id: key, name: s.name || s.id, category: s.category, engines: [s.engine] });
-        }
-      }
       setCountries(Array.from(countryMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
-      setServices(Array.from(serviceMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+      setServices(unifiedServices || []);
     })
       .catch(() => toast.error('Failed to load SMS data'))
       .finally(() => setLoading(false));
@@ -596,7 +584,11 @@ export function SMSWall() {
 
   const filteredServices = services.filter(s => s.name.toLowerCase().includes(serviceSearch.toLowerCase()));
   const filteredCountries = countries
-    .filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()))
+    .filter(c => {
+      const q = countrySearch.toLowerCase().trim();
+      if (!q) return true;
+      return c.name.toLowerCase().includes(q) || c.shortName.toLowerCase().includes(q);
+    })
     .sort((a, b) => {
       const aS = suggestedCountryIds.has(a.id) ? 0 : 1;
       const bS = suggestedCountryIds.has(b.id) ? 0 : 1;
