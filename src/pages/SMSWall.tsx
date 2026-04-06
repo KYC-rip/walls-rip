@@ -1091,6 +1091,9 @@ export function SMSWall() {
                     );
                   })}
                 </div>
+                {!selectedPool && (
+                  <p className="text-[10px] text-wr-dim/60 mt-2">{t('sms.auto_price_note', 'Auto selects the cheapest available number. Actual price may vary from estimate.')}</p>
+                )}
               </div>
             )}
 
@@ -1100,11 +1103,11 @@ export function SMSWall() {
                 {priceInfo ? (
                   <span>
                     <span className="text-wr-green animate-pulse">●</span>{' '}
-                    {selectedServiceName} / {selectedCountryName} — <span
+                    {selectedServiceName} / {selectedCountryName}{priceInfo.success_rate > 0 && (<> — <span
                       key={`rate-${selectedPool}-${priceInfo.success_rate}`}
                       className="inline-block animate-[flash_0.6s_ease-out]"
                       style={{ color: priceInfo.success_rate >= 70 ? '#00ff41' : priceInfo.success_rate >= 40 ? '#f59e0b' : '#ef4444' }}
-                    >{priceInfo.success_rate}%</span> {t('sms.success_rate')}
+                    >{priceInfo.success_rate}%</span> {t('sms.success_rate')}</>)}
                     {stockInfo && stockInfo.count !== undefined && (
                       <span className={stockInfo.available ? 'text-wr-green' : 'text-red-400'}> — {stockInfo.count.toLocaleString()} {t('sms.in_stock').toLowerCase()}</span>
                     )}
@@ -1142,7 +1145,7 @@ export function SMSWall() {
                 <span>{t('sms.no_numbers_available')}</span>
               </div>
             )}
-            {priceInfo && priceInfo.success_rate < 50 && (
+            {priceInfo && priceInfo.success_rate > 0 && priceInfo.success_rate < 50 && (
               <div className="mt-4 flex items-start gap-2 text-xs text-wr-warning p-3 rounded bg-wr-warning/10 border border-wr-warning/20">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                 <span>{t('sms.low_success_rate')}</span>
