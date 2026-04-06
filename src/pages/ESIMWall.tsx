@@ -162,14 +162,16 @@ function planMatchesRegion(plan: { country: string; name: string }, region: stri
 }
 
 // Read initial state from URL params
-function getInitialParams(): { tab: BrowseTab; country: string; region: string } {
+function getInitialParams(): { tab: BrowseTab; country: string; region: string; order: string } {
   const params = new URLSearchParams(window.location.search);
   const tab = (['country', 'regional', 'global'] as BrowseTab[]).includes(params.get('t') as BrowseTab)
     ? (params.get('t') as BrowseTab) : 'country';
-  return { tab, country: params.get('c') || '', region: params.get('r') || '' };
+  return { tab, country: params.get('c') || '', region: params.get('r') || '', order: params.get('id') || '' };
 }
 
 function updateUrlParams(tab: BrowseTab, country: string, region: string) {
+  // Don't overwrite order URL
+  if (new URLSearchParams(window.location.search).has('id')) return;
   const params = new URLSearchParams();
   if (tab !== 'country') params.set('t', tab);
   if (tab === 'country' && country) params.set('c', country);
@@ -303,6 +305,27 @@ export function ESIMWall() {
       .catch(() => { localStorage.removeItem(WALLET_KEY); setWalletToken(null); setBalanceUSD(0); });
   }, [walletToken]);
 
+  // ─── Restore order from ?order= URL param ───
+  useEffect(() => {
+    if (!initial.order) return;
+    const token = walletToken || localStorage.getItem(WALLET_KEY);
+    if (!token) return;
+    const orderId = initial.order;
+
+    // Show purchased state immediately, fetch profile in background
+    setPurchase({ orderId, planId: '', status: 'PENDING', engine: orderId.split(':')[0] || '', createdAt: 0, balanceUSD: 0, charged: 0 });
+    setStep('PURCHASED');
+    setLoading(false);
+
+    // Fetch profile
+    apiClient<ProfileResult>(`/v1/tools/esim/profile?order_id=${encodeURIComponent(orderId)}&token=${token}`)
+      .then(profile => {
+        if (profile.qrCode || profile.activationUrl) setProfileData(profile);
+        else pollProfile(orderId, token);
+      })
+      .catch(() => pollProfile(orderId, token));
+  }, []);
+
   const handleRestoreWallet = async () => {
     if (!restoreToken.trim()) return;
     setRestoringWallet(true);
@@ -351,15 +374,18 @@ export function ESIMWall() {
 
   // ─── Actions ───
 
-  const executePurchase = async (planId: string, token: string, engine?: string) => {
+  const executePurchase = async (planId: string, token: string, engine?: string, country?: string) => {
     const data = await apiClient<PurchaseResult>('/v1/tools/esim/purchase', {
       method: 'POST',
-      body: { planId, token, engine },
+      body: { planId, token, engine, country: country || selectedCountry || undefined },
     });
     if (data.orderId) {
       setPurchase(data);
       setBalanceUSD(data.balanceUSD);
       setStep('PURCHASED');
+      // Persist order ID in URL (raw ID without engine prefix)
+      const rawId = data.orderId.includes(':') ? data.orderId.split(':').slice(1).join(':') : data.orderId;
+      window.history.replaceState(null, '', `${window.location.pathname}?id=${rawId}`);
       if (data.qrCode || data.activationUrl) {
         setProfileData({ qrCode: data.qrCode, activationUrl: data.activationUrl });
       } else {
@@ -388,7 +414,7 @@ export function ESIMWall() {
     if (walletToken && balanceUSD >= plan.price) {
       setModalStep('purchasing');
       try {
-        await executePurchase(plan.id, walletToken, plan.engine);
+        await executePurchase(plan.id, walletToken, plan.engine, plan.country);
         setModalStep('success');
       } catch (e: any) {
         setModalStep('error');
@@ -398,7 +424,7 @@ export function ESIMWall() {
   };
 
   /** Called by PaymentGate when a deposit is confirmed — with optional auto-purchase */
-  const handlePaymentDeposit = useCallback(async (usd: number, autoPurchase?: { planId: string; engine: string }) => {
+  const handlePaymentDeposit = useCallback(async (usd: number, autoPurchase?: { planId: string; engine: string; country?: string }) => {
     setBalanceUSD(prev => prev + usd);
     toast.success(`$${usd.toFixed(2)} deposited`);
 
@@ -415,7 +441,7 @@ export function ESIMWall() {
     if (autoPurchase && token) {
       setModalStep('purchasing');
       try {
-        await executePurchase(autoPurchase.planId, token, autoPurchase.engine);
+        await executePurchase(autoPurchase.planId, token, autoPurchase.engine, autoPurchase.country);
         setModalStep('success');
       } catch {
         setModalStep('error');
@@ -432,6 +458,7 @@ export function ESIMWall() {
   const reset = () => {
     setPurchase(null); setProfileData(null);
     setStep('SELECT');
+    window.history.replaceState(null, '', window.location.pathname);
   };
 
   // ─── Derived ───
@@ -714,9 +741,8 @@ export function ESIMWall() {
             )}
 
             <div className="border-t border-wr-border/30 pt-4 space-y-2">
-              <div className="text-xs text-wr-dim">Order: {purchase.orderId}</div>
-              <div className="text-xs text-wr-dim">Engine: {purchase.engine}</div>
-              <div className="text-xs text-wr-dim">Charged: ${purchase.charged.toFixed(2)} — Wallet: ${balanceUSD.toFixed(2)}</div>
+              <div className="text-xs text-wr-dim">Order: {purchase.orderId.includes(':') ? purchase.orderId.split(':').slice(1).join(':') : purchase.orderId}</div>
+              {purchase.charged > 0 && <div className="text-xs text-wr-dim">Charged: ${purchase.charged.toFixed(2)} — Wallet: ${balanceUSD.toFixed(2)}</div>}
             </div>
 
             <div className="bg-wr-base border border-wr-border/50 rounded p-4 text-left space-y-2">
@@ -1696,7 +1722,7 @@ export function ESIMWall() {
                           checkEndpoint="/v1/tools/sms/payment/check"
                           inline={true}
                           onDeposit={(usd) => {
-                            handlePaymentDeposit(usd, { planId: plan.id, engine: plan.engine });
+                            handlePaymentDeposit(usd, { planId: plan.id, engine: plan.engine, country: plan.country });
                           }}
                         />
                         <div className="text-xs text-wr-accent/60 text-center mt-3">

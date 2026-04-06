@@ -93,16 +93,18 @@ function extractXmr402ReturnParams(): Xmr402ReturnProof | null {
   return null;
 }
 
-function getSmsInitialParams(): { country: string; service: string } {
+function getSmsInitialParams(): { country: string; service: string; order: string } {
   const params = new URLSearchParams(window.location.search);
   const c = params.get('c') || '';
   const s = params.get('s') || '';
   // Legacy: if numeric (old smspool IDs), default to US. User can switch.
   const country = /^\d+$/.test(c) ? 'US' : (c.toUpperCase() || 'US');
-  return { country, service: s.toLowerCase() };
+  return { country, service: s.toLowerCase(), order: params.get('id') || '' };
 }
 
 function updateSmsUrlParams(country: string, service: string) {
+  // Don't overwrite order URL
+  if (new URLSearchParams(window.location.search).has('id')) return;
   const params = new URLSearchParams(window.location.search);
   // Preserve XMR402 params if present
   const preserve = ['xmr402_txid', 'xmr402_proof', 'xmr402_country', 'xmr402_service'];
@@ -308,6 +310,27 @@ export function SMSWall() {
       .catch(() => { localStorage.removeItem(WALLET_KEY); setWalletToken(null); setBalanceUSD(0); });
   }, [walletToken]);
 
+  // ─── Restore order from ?order= URL param ───
+  useEffect(() => {
+    if (!smsInitial.order) return;
+    const token = walletToken || localStorage.getItem(WALLET_KEY);
+    if (!token) return;
+    const orderId = smsInitial.order;
+
+    // Restore into WAITING state and start polling
+    setPurchase({ orderId, phoneNumber: '', country: '', service: '', costPrice: 0, engine: orderId.split(':')[0] || '', createdAt: 0, balanceUSD: 0, charged: 0 });
+    setStep('WAITING'); setPolling(true); setLoading(false);
+
+    // Check immediately
+    apiClient<SMSCheckResult>(`/v1/tools/sms/check?order_id=${encodeURIComponent(orderId)}&token=${token}`)
+      .then(result => {
+        if (result.status === 'RECEIVED' && result.sms) {
+          setSmsResult(result); setPolling(false); setStep('RECEIVED');
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Fetch compare results (all engines) + SMSPool pools when country+service selected
   useEffect(() => {
     if (!selectedCountry || !selectedService) {
@@ -395,6 +418,8 @@ export function SMSWall() {
       });
       if (data.orderId) {
         setPurchase(data); setBalanceUSD(data.balanceUSD); setPolling(true); setStep('WAITING');
+        const rawId = data.orderId.includes(':') ? data.orderId.split(':').slice(1).join(':') : data.orderId;
+        window.history.replaceState(null, '', `${window.location.pathname}?id=${rawId}`);
       } else {
         toast.error('Failed to get number');
       }
@@ -437,6 +462,7 @@ export function SMSWall() {
     try {
       const data = await apiClient<{ balanceUSD: number }>(`/v1/tools/sms/cancel?order_id=${purchase.orderId}&token=${walletToken}`);
       setBalanceUSD(data.balanceUSD); setPurchase(null); setPolling(false); setStep('SELECT');
+      window.history.replaceState(null, '', window.location.pathname);
       toast.success('Cancelled — refunded to wallet');
     } catch { toast.error('Failed to cancel'); }
   };
@@ -449,6 +475,7 @@ export function SMSWall() {
   const reset = () => {
     setPurchase(null); setSmsResult(null); setPolling(false);
     setStep('SELECT'); setSelectedService(''); setPriceInfo(null);
+    window.history.replaceState(null, '', window.location.pathname);
   };
 
   // ─── Rental: load services when tab switches ───
