@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Copy, Clock, RefreshCw, Mail, FileCode, FileText, Trash2, AlertOctagon, Minimize2, Menu, Lock, Unlock, Shield, Maximize2 } from 'lucide-react';
+import { Copy, Clock, RefreshCw, Mail, FileCode, FileText, Trash2, AlertOctagon, Minimize2, Menu, Lock, Unlock, Shield, Maximize2, Download } from 'lucide-react';
 import type { GhostMailSession, InboxResponse } from '../../hooks/useGhostMail';
 import * as openpgp from 'openpgp';
 import { toast } from 'react-hot-toast';
+import { SessionTransferModal } from './SessionTransfer';
 
 interface InboxLayoutProps {
   session: GhostMailSession;
@@ -55,6 +56,7 @@ export function InboxLayout({
   const [showMobileList, setShowMobileList] = useState(false);
   const [showDesktopList, setShowDesktopList] = useState(true);
   const [iframeHeight, setIframeHeight] = useState(600);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Persistence
   const lastProcessedId = useRef<string | null>(null);
@@ -174,17 +176,18 @@ export function InboxLayout({
 
           <button
             onClick={onPgpClick}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-sm border transition-all text-[9px] md:text-[10px] font-black uppercase tracking-widest
+            className={`flex items-center gap-1 md:gap-2 px-1.5 md:px-3 py-1.5 rounded-sm border transition-all text-[9px] md:text-[10px] font-black uppercase tracking-widest shrink-0
               ${pgpEnabled ? 'border-wr-green text-wr-green bg-wr-green/5' : 'border-wr-border text-wr-dim hover:border-wr-green hover:text-wr-green'}
             `}
+            title={pgpEnabled ? 'PGP Active' : 'Encrypt Inbox'}
           >
             <Shield size={12} />
-            {pgpEnabled ? 'PGP ACTIVE' : 'ENCRYPT INBOX'}
+            <span className="hidden sm:inline">{pgpEnabled ? 'PGP ACTIVE' : 'ENCRYPT INBOX'}</span>
           </button>
 
-          <div className="hidden lg:flex flex-col text-left overflow-hidden ml-2">
+          <div className="flex flex-col text-left overflow-hidden ml-1 md:ml-2">
             <div className="flex items-center gap-1 md:gap-2 group cursor-pointer" onClick={() => copyToClipboard(session?.email || '')}>
-              <span className="text-wr-green text-[10px] md:text-xs font-mono tracking-wider truncate group-hover:underline">{session?.email}</span>
+              <span className="text-wr-green text-[9px] md:text-xs font-mono tracking-wider truncate group-hover:underline max-w-[120px] sm:max-w-[200px] md:max-w-none">{session?.email}</span>
               <Copy size={10} className="text-wr-dim group-hover:text-wr-green transition-colors shrink-0" />
             </div>
           </div>
@@ -197,6 +200,7 @@ export function InboxLayout({
           </div>
           <div className="h-6 md:h-8 w-px bg-wr-border/30"></div>
           <button onClick={onExtendClick} className="text-[10px] font-bold bg-wr-green/10 hover:bg-wr-green/20 text-wr-green px-2 md:px-3 py-1 md:py-1.5 rounded-sm border border-wr-green/30 transition-all uppercase tracking-wider">EXTEND</button>
+          <button onClick={() => setShowExportModal(true)} className="text-[10px] font-bold text-wr-dim hover:text-wr-green px-1.5 md:px-2 transition-colors uppercase tracking-wider flex items-center gap-1" title="Export session to use on another device"><Download size={10} />{!isMobile && 'EXPORT'}</button>
           <button onClick={handleBurn} className="text-[10px] font-bold text-wr-dim hover:text-wr-error px-1.5 md:px-2 transition-colors uppercase tracking-wider flex items-center gap-1"><AlertOctagon size={10} />{!isMobile && 'DESTROY'}</button>
           {toggleFullscreen && (
              <button onClick={toggleFullscreen} className="p-2 text-wr-dim hover:text-wr-green transition-colors ml-1" title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
@@ -301,6 +305,9 @@ export function InboxLayout({
           )}
         </div>
       </div>
+      {showExportModal && (
+        <SessionTransferModal mode="export" session={session} onClose={() => setShowExportModal(false)} />
+      )}
     </div>
   );
 }

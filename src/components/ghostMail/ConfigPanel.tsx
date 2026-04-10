@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
-import { RefreshCw, AlertTriangle, ChevronDown, Clock, Dices, ChevronRight, Mail, Zap } from 'lucide-react';
+import { RefreshCw, AlertTriangle, ChevronDown, Clock, Dices, ChevronRight, Mail, Zap, Upload } from 'lucide-react';
 import { TIER_UI_CONFIG } from './constants';
-import type { TierType, DurationConfig, PaymentState, DomainConfig } from '../../hooks/useGhostMail';
+import type { TierType, DurationConfig, PaymentState, DomainConfig, GhostMailSession } from '../../hooks/useGhostMail';
+import { SessionTransferModal } from './SessionTransfer';
 
 interface ConfigPanelProps {
   configLoading: boolean;
@@ -24,6 +25,7 @@ interface ConfigPanelProps {
   startPurchase: (t: TierType, method: 'XMR' | 'LN' | 'USDT', chain?: string) => void;
   getFinalPrice: () => number;
   openToS: () => void;
+  onImportSession?: (session: GhostMailSession) => void;
 }
 
 export function ConfigPanel({
@@ -45,10 +47,12 @@ export function ConfigPanel({
   paymentState,
   startPurchase,
   getFinalPrice,
-  openToS
+  openToS,
+  onImportSession
 }: ConfigPanelProps) {
   const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN' | 'USDT'>('XMR');
   const [usdtChain, setUsdtChain] = useState<'tron' | 'eth'>('tron');
+  const [showImportModal, setShowImportModal] = useState(false);
   const isBasic = selectedTier === 'BASIC';
 
   const validateHandle = (val: string) => {
@@ -94,6 +98,24 @@ export function ConfigPanel({
         <div className="border border-wr-error bg-wr-error/10 p-4 text-center text-wr-error animate-pulse text-xs">
           <AlertTriangle className="inline-block w-4 h-4 mr-2" />
           {error}
+          <div className="mt-2">
+            <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-error/80 hover:text-wr-error hover:underline text-[10px]">
+              Need help? @kyc_rip_bot
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Import Session */}
+      {onImportSession && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 text-xs text-wr-dim hover:text-wr-green transition-colors uppercase tracking-wider"
+          >
+            <Upload size={12} />
+            Have a session key from another device? Restore it
+          </button>
         </div>
       )}
 
@@ -370,6 +392,14 @@ export function ConfigPanel({
           </button>
         </div>
       </div>
+
+      {showImportModal && onImportSession && (
+        <SessionTransferModal
+          mode="import"
+          onClose={() => setShowImportModal(false)}
+          onImport={onImportSession}
+        />
+      )}
     </div>
   );
 }

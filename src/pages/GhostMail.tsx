@@ -171,6 +171,7 @@ export function GhostMail() {
             startPurchase={(tier: TierType, method: 'XMR' | 'LN' | 'USDT', chain?: string) => startPurchase(tier, `${customName}@${selectedDomain}`, method, chain)}
             getFinalPrice={getFinalPrice}
             openToS={() => setShowToS(true)}
+            onImportSession={login}
           />
         ) : (
           <InboxLayout
