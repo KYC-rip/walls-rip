@@ -24,6 +24,10 @@ export default function NotFound() {
             This endpoint doesn't exist. The wall you're looking for may have been destroyed — or never existed.
           </p>
 
+          <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-accent hover:underline text-xs">
+            Need help? @kyc_rip_bot
+          </a>
+
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               to="/"

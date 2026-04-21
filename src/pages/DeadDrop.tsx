@@ -195,6 +195,11 @@ export function DeadDrop() {
                 {status === 'ERROR' && (
                   <div className="p-3 rounded bg-red-500/10 text-red-500 text-xs border border-red-500/30">
                     {errorMsg}
+                    <div className="mt-1">
+                      <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-red-400 hover:underline text-[10px]">
+                        Need help? @kyc_rip_bot
+                      </a>
+                    </div>
                   </div>
                 )}
 
@@ -253,6 +258,9 @@ export function DeadDrop() {
                 <p className="text-wr-dim text-sm max-w-xs mx-auto">
                   {t('drop.not_found_desc')}
                 </p>
+                <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-dim hover:text-orange-400 hover:underline text-xs transition-colors mt-4 inline-block">
+                  Need help? @kyc_rip_bot
+                </a>
                 <button
                   onClick={() => { setSearchParams({}); setMode('CREATE'); setStatus('IDLE'); setSecret(''); }}
                   className="mt-8 text-xs font-bold uppercase text-wr-green hover:underline"
@@ -270,6 +278,11 @@ export function DeadDrop() {
                 {status === 'ERROR' && (
                   <div className="p-3 rounded bg-red-500/10 text-red-500 text-xs border border-red-500/30">
                     {t('drop.decryption_failed')}: {errorMsg}
+                    <div className="mt-1">
+                      <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-red-400 hover:underline text-[10px]">
+                        Need help? @kyc_rip_bot
+                      </a>
+                    </div>
                   </div>
                 )}
 

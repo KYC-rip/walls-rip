@@ -335,6 +335,9 @@ export function PaymentModal({
                   <p className="text-[9px] text-wr-dim/50 text-center">
                     {t('mail.payment_usdt_auto_detect', 'Payment will be detected automatically. Do not close this window.')}
                   </p>
+                  <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-dim hover:text-[#26a17b] hover:underline text-[9px] transition-colors block text-center mt-1">
+                    Need help? @kyc_rip_bot
+                  </a>
                 </>
               )}
 
@@ -390,6 +393,9 @@ export function PaymentModal({
                         * {t('ghostMail.payment.routingNote', 'Lightning payments may take a few moments to route')}
                       </p>
                     )}
+                    <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-dim hover:text-wr-accent hover:underline text-[9px] transition-colors block text-center mt-1">
+                      Need help? @kyc_rip_bot
+                    </a>
                   </div>
                 </>
               )}
@@ -498,6 +504,9 @@ export function PaymentModal({
                       <div className="text-[9px] text-wr-dim/60 leading-relaxed space-y-1">
                         <p>{t('ghostMail.payment.xmr402Instructions', 'Scan the QR code with Ripley Terminal or click "Open in Ripley Terminal". After payment, Ripley will redirect back with the proof automatically.')}</p>
                       </div>
+                      <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-dim hover:text-wr-accent hover:underline text-[9px] transition-colors block text-center mt-2">
+                        Need help? @kyc_rip_bot
+                      </a>
                     </div>
                   )}
 

@@ -707,11 +707,13 @@ export function ESIMWall() {
                     />
                   </div>
                 </div>
-                <button onClick={() => copyText(profileData.qrCode!)}
+                {profileData.activationUrl && (
+                <button onClick={() => copyText(profileData.activationUrl!)}
                   className="w-full p-3 rounded bg-wr-base border border-wr-border text-xs font-mono text-wr-green break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer flex items-center justify-between gap-2">
-                  <span className="truncate">{profileData.qrCode}</span>
+                  <span className="truncate">{profileData.activationUrl}</span>
                   {copied ? <Check size={14} className="text-green-500 shrink-0" /> : <Copy size={14} className="text-wr-dim shrink-0" />}
                 </button>
+                )}
               </div>
             ) : profileData?.activationUrl ? (
               <div className="space-y-4">
@@ -1721,6 +1723,12 @@ export function ESIMWall() {
                           createEndpoint="/v1/tools/esim/payment/create"
                           checkEndpoint="/v1/tools/sms/payment/check"
                           inline={true}
+                          onWalletCreated={(token) => {
+                            if (!walletToken) {
+                              setWalletToken(token);
+                              localStorage.setItem(WALLET_KEY, token);
+                            }
+                          }}
                           onDeposit={(usd) => {
                             handlePaymentDeposit(usd, { planId: plan.id, engine: plan.engine, country: plan.country });
                           }}
@@ -1821,6 +1829,12 @@ export function ESIMWall() {
         presets={[3, 5, 10, 20]}
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
+        onWalletCreated={(token) => {
+          if (!walletToken) {
+            setWalletToken(token);
+            localStorage.setItem(WALLET_KEY, token);
+          }
+        }}
         onDeposit={(usd) => {
           setBalanceUSD(prev => prev + usd);
           toast.success(`$${usd.toFixed(2)} deposited`);

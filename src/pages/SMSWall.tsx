@@ -172,6 +172,7 @@ export function SMSWall() {
   const [restoreToken, setRestoreToken] = useState('');
   const [restoringWallet, setRestoringWallet] = useState(false);
   const [walletStats, setWalletStats] = useState<{ totalDeposited: number; totalSpent: number }>({ totalDeposited: 0, totalSpent: 0 });
+  const [walletExpiresAt, setWalletExpiresAt] = useState<number | null>(null);
   const [walletTokenCopied, setWalletTokenCopied] = useState(false);
 
   // Tabs
@@ -302,12 +303,13 @@ export function SMSWall() {
   // Check wallet balance + stats
   useEffect(() => {
     if (!walletToken) return;
-    apiClient<{ balanceUSD: number; totalDeposited?: number; totalSpent?: number }>(`/v1/tools/sms/balance?token=${walletToken}`)
+    apiClient<{ balanceUSD: number; totalDeposited?: number; totalSpent?: number; expiresAt?: number }>(`/v1/tools/sms/balance?token=${walletToken}`)
       .then(data => {
         setBalanceUSD(data.balanceUSD);
         setWalletStats({ totalDeposited: data.totalDeposited || 0, totalSpent: data.totalSpent || 0 });
+        setWalletExpiresAt(data.expiresAt ?? null);
       })
-      .catch(() => { localStorage.removeItem(WALLET_KEY); setWalletToken(null); setBalanceUSD(0); });
+      .catch(() => { localStorage.removeItem(WALLET_KEY); setWalletToken(null); setBalanceUSD(0); setWalletExpiresAt(null); });
   }, [walletToken]);
 
   // ─── Restore order from ?order= URL param ───
@@ -816,12 +818,24 @@ export function SMSWall() {
                   </div>
 
                   {/* Stats */}
-                  <div className="flex items-center gap-4 text-[10px] font-mono text-wr-dim">
+                  <div className="flex items-center gap-4 text-[10px] font-mono text-wr-dim flex-wrap">
                     <span>{t('sms.deposited')}: <span className="text-green-400">${walletStats.totalDeposited.toFixed(2)}</span></span>
                     <span className="text-wr-border">|</span>
                     <span>{t('sms.spent')}: <span className="text-wr-accent">${walletStats.totalSpent.toFixed(2)}</span></span>
                     <span className="text-wr-border">|</span>
                     <span>{t('sms.balance')}: <span className="text-green-400 font-bold">${balanceUSD.toFixed(2)}</span></span>
+                    {walletExpiresAt && (() => {
+                      const daysLeft = Math.max(0, Math.floor((walletExpiresAt - Date.now()) / 86400000));
+                      const color = daysLeft <= 7 ? 'text-red-400' : daysLeft <= 14 ? 'text-yellow-400' : 'text-wr-dim';
+                      return (
+                        <>
+                          <span className="text-wr-border">|</span>
+                          <span className={color} title="Wallet auto-renews each visit. Resets to 90 days whenever you open this page.">
+                            wallet expires in {daysLeft}d
+                          </span>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1553,6 +1567,12 @@ export function SMSWall() {
         presets={[3, 5, 10, 20]}
         isOpen={showPaymentModal}
         onClose={() => { setShowPaymentModal(false); }}
+        onWalletCreated={(token) => {
+          if (!walletToken) {
+            setWalletToken(token);
+            localStorage.setItem(WALLET_KEY, token);
+          }
+        }}
         onDeposit={(usd, _method, newWalletToken) => {
           setBalanceUSD(prev => prev + usd);
           setShowPaymentModal(false);

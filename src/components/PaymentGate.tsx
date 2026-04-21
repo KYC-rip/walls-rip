@@ -21,6 +21,7 @@ interface PaymentData {
   usd: number;
   chain?: UsdtChain;
   paymentUrl?: string;
+  walletToken?: string;
 }
 
 interface XMR402Challenge {
@@ -43,6 +44,8 @@ export interface PaymentGateProps {
   apiBase?: string;
   /** Called when payment is confirmed and wallet credited (wallet mode) */
   onDeposit?: (usdAmount: number, method: string, walletToken?: string) => void;
+  /** Called immediately when wallet is created upfront (before payment confirms) — save token to localStorage */
+  onWalletCreated?: (walletToken: string) => void;
   /** Called when direct payment is confirmed (Ghost Mail mode) */
   onPaymentConfirmed?: (data: {
     method: string;
@@ -139,6 +142,7 @@ export function PaymentGate({
   walletToken,
   apiBase: apiBaseProp,
   onDeposit,
+  onWalletCreated,
   onPaymentConfirmed,
   createEndpoint = '/v1/tools/sms/payment/create',
   checkEndpoint = '/v1/tools/sms/payment/check',
@@ -175,10 +179,12 @@ export function PaymentGate({
   // Refs for cleanup
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Keep depositAmount in sync with amount prop when presets are off
+  // Sync depositAmount from parent when modal opens or parent's amount changes.
+  // Previously gated on !showPresets, which caused stale $3 on SMS rental 28d/$27:
+  // the modal locked internal state on first mount and ignored later prop updates.
   useEffect(() => {
-    if (!showPresets) setDepositAmount(amount);
-  }, [amount, showPresets]);
+    if (isOpen) setDepositAmount(amount);
+  }, [isOpen, amount]);
 
   // ── Polling ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -276,6 +282,11 @@ export function PaymentGate({
       const data = await res.json() as PaymentData;
       setPaymentData(data);
       setPolling(true);
+
+      // Save wallet token immediately so user doesn't lose it if browser closes
+      if (data.walletToken && onWalletCreated) {
+        onWalletCreated(data.walletToken);
+      }
 
       // Auto-open USDT payment page
       if (data.method === 'USDT' && data.paymentUrl) {
@@ -474,6 +485,9 @@ export function PaymentGate({
           <div className="text-[9px] text-wr-dim/60 leading-relaxed text-center">
             {t('payment.xmr402Instructions', 'Scan the QR with Ripley Terminal or click "Open in Monero Wallet". Challenge expires when timer reaches zero.')}
           </div>
+          <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-dim hover:text-wr-accent hover:underline text-[9px] transition-colors block text-center mt-2">
+            Need help? @kyc_rip_bot
+          </a>
         </div>
       )}
 
@@ -576,6 +590,9 @@ export function PaymentGate({
                   * {t('payment.routingNote', 'Lightning payments may take a few moments to route')}
                 </p>
               )}
+              <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-dim hover:text-wr-accent hover:underline text-[9px] transition-colors block text-center mt-1">
+                Need help? @kyc_rip_bot
+              </a>
             </>
           )}
         </div>

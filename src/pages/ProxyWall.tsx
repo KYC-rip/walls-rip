@@ -451,6 +451,9 @@ export function ProxyWall() {
                   {healthData.length > 0 && healthData[0].message && (
                     <p className="text-[10px] text-wr-dim/60 mt-2 font-mono">{healthData[0].message}</p>
                   )}
+                  <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-warning hover:underline text-[10px] mt-2 inline-block">
+                    Need help? @kyc_rip_bot
+                  </a>
                 </div>
               </div>
             </div>
