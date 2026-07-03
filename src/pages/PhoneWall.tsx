@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Phone, PhoneCall, MessageSquare, Globe, Wallet, Check, Copy, RefreshCw, X, Shield, Database, Clock, AlertTriangle } from 'lucide-react';
+import { Phone, PhoneCall, MessageSquare, Globe, Wallet, Check, Copy, RefreshCw, X, Shield, Database, Clock, AlertTriangle, Zap } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -404,7 +404,10 @@ export default function PhoneWall() {
                   {purchase.orderId.slice(0, 18)}… {copied === 'ord' ? <Check size={11} className="text-green-400" /> : <Copy size={11} />}
                 </button>
               </div>
-              <button onClick={reset} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm border border-wr-border hover:border-wr-accent/50 text-wr-dim hover:text-current transition-all">
+              <a href={`/esim/topup?order=${encodeURIComponent(purchase.orderId)}`} className="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent/10 border border-wr-accent/30 text-wr-accent hover:bg-wr-accent/20 transition-all">
+                <Zap size={13} /> {t('phone.topup', 'Top up this eSIM')}
+              </a>
+              <button onClick={reset} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm border border-wr-border hover:border-wr-border/60 text-wr-dim hover:text-current transition-all">
                 {t('phone.buy_another', 'Buy another plan')}
               </button>
             </div>

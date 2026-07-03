@@ -500,7 +500,8 @@
     "faq_q7": "Why is the IP location different from my country?",
     "faq_a7": "eSIM data is routed through partner networks. The exit IP may be in a different country (often HK or US). Plans marked 'Max Privacy' route through non-HK/China IPs.",
     "faq_q8": "What payment methods are accepted?",
-    "faq_a8": "We accept Monero (XMR) and Bitcoin Lightning for maximum privacy. No credit cards, no bank accounts, no identity verification."
+    "faq_a8": "We accept Monero (XMR) and Bitcoin Lightning for maximum privacy. No credit cards, no bank accounts, no identity verification.",
+    "topup_link": "Top up an existing eSIM"
   },
   "proxy": {
     "title": "Proxy",
@@ -639,7 +640,9 @@
     "or": "or",
     "and": "and",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "done": "Done",
+    "retry": "Retry"
   },
   "deposit": {
     "includeAmount": "Include amount",
@@ -684,6 +687,34 @@
     "scan_activate": "Scan the QR code with your phone to install the eSIM. Your number, voice, SMS and data activate once installed.",
     "awaiting": "Awaiting eSIM provisioning…",
     "order": "Order",
-    "buy_another": "Buy another plan"
+    "buy_another": "Buy another plan",
+    "topup": "Top up this eSIM"
+  },
+  "topup": {
+    "title_a": "Top Up",
+    "title_b": "Your eSIM",
+    "subtitle": "Recharge an existing eSIM — far cheaper than buying a new one. No account, same privacy as your original purchase.",
+    "privacy": "Anonymous & account-free. Enter your order number or ICCID to look up your eSIM — nothing is saved or stored.",
+    "find": "Find your eSIM",
+    "placeholder": "Order number or ICCID (e.g. 8943108…)",
+    "lookup": "Look up",
+    "hint": "Bought from us? Your order number is on the eSIM you purchased (or open its top-up link).",
+    "no_plans": "No recharge options available for this eSIM.",
+    "not_found": "Couldn't find that eSIM. Check your order number or ICCID.",
+    "lookup_failed": "Lookup failed. Try again.",
+    "soon_title": "Recharge coming soon",
+    "soon_desc": "This eSIM's provider doesn't support top-up through us yet. It's on the way — for now you can buy a fresh eSIM.",
+    "options": "Recharge options",
+    "recharge": "Recharge",
+    "data": "Data",
+    "validity": "Validity",
+    "price": "Price",
+    "added_notice": "Data is added to your existing eSIM — no need to reinstall or scan a new QR code.",
+    "confirm": "Confirm recharge",
+    "auto": "Your eSIM is recharged automatically after payment.",
+    "processing": "Recharging…",
+    "success": "eSIM recharged!",
+    "success_desc": "Your data has been added. It may take a minute to reflect on your device.",
+    "failed": "Recharge failed"
   }
 }

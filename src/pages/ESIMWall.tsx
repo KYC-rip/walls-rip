@@ -816,6 +816,9 @@ export function ESIMWall() {
               <span className="text-wr-dim text-lg md:text-2xl ml-3 font-normal">aggregator</span>
             </h1>
             <p className="text-wr-dim text-sm">{t('esim.compare_subtitle')}</p>
+            <a href="/esim/topup" className="inline-flex items-center gap-1.5 mt-3 text-xs text-wr-accent/80 hover:text-wr-accent border border-wr-accent/20 hover:border-wr-accent/50 rounded-full px-4 py-1.5 transition-all">
+              <Zap size={12} /> {t('esim.topup_link', 'Top up an existing eSIM')}
+            </a>
           </div>
 
           {/* COMING SOON / NOT CONFIGURED */}
