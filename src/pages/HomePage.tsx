@@ -86,6 +86,18 @@ export default function HomePage() {
       bgAccent: 'bg-yellow-400',
     },
     {
+      icon: Phone,
+      nameKey: 'home.tool_phone',
+      taglineKey: 'home.tool_phone_tagline',
+      descKey: 'home.tool_phone_desc',
+      path: '/phone',
+      status: 'LIVE' as const,
+      color: 'text-orange-400',
+      borderColor: 'border-orange-400/20 hover:border-orange-400/50',
+      glowColor: 'from-orange-400/20',
+      bgAccent: 'bg-orange-400',
+    },
+    {
       icon: Shield,
       nameKey: 'home.tool_proxy',
       taglineKey: 'home.tool_proxy_tagline',
