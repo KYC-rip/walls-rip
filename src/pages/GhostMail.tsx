@@ -197,6 +197,18 @@ export function GhostMail() {
         {!session && !isFullscreen && (
           <div className="space-y-12 mt-12">
 
+            {/* ═══ GHOST MAIL PRO UPSELL ═══ */}
+            <a href="/mail/pro" className="mx-2 md:mx-0 flex items-center justify-between gap-3 bg-wr-accent/5 border border-wr-accent/25 hover:border-wr-accent/60 rounded-sm p-4 transition-all group">
+              <div className="flex items-center gap-3">
+                <span className="text-wr-accent text-lg">✦</span>
+                <div>
+                  <div className="text-xs font-black uppercase tracking-widest text-wr-accent">{t('mail.pro_cta_title', 'Ghost Mail Pro')}</div>
+                  <div className="text-[11px] text-wr-dim">{t('mail.pro_cta_desc', 'Persistent inbox you can send from — aliases, compose & reply. From $3/mo.')}</div>
+                </div>
+              </div>
+              <span className="text-[11px] uppercase tracking-widest text-wr-dim group-hover:text-wr-accent transition-colors shrink-0">{t('mail.pro_cta_go', 'Go Pro')} →</span>
+            </a>
+
             {/* ═══ WHY CHOOSE GHOST MAIL ═══ */}
             <div className="mx-2 md:mx-0 space-y-6">
               <div className="text-center space-y-2">

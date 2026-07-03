@@ -4,6 +4,7 @@ import { LangRouter } from './i18n/LangRouter';
 import HomePage from './pages/HomePage';
 import { DeadDrop } from './pages/DeadDrop';
 import { GhostMail } from './pages/GhostMail';
+import GhostMailPro from './pages/GhostMailPro';
 import { SMSWall } from './pages/SMSWall';
 import { ESIMWall } from './pages/ESIMWall';
 import PhoneWall from './pages/PhoneWall';
@@ -21,6 +22,7 @@ const PAGES = [
   { path: '/', element: <HomePage /> },
   { path: '/drop', element: <DeadDrop /> },
   { path: '/mail', element: <GhostMail /> },
+  { path: '/mail/pro', element: <GhostMailPro /> },
   { path: '/sms', element: <SMSWall /> },
   { path: '/esim', element: <ESIMWall /> },
   { path: '/esim/topup', element: <TopupWall /> },
