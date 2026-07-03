@@ -513,6 +513,14 @@
     "alias_created": "Alias criado",
     "confirm_del": "Excluir este alias? O e-mail deixará de chegar.",
     "no_aliases": "Sem aliases ainda. Crie um — todo e-mail chega nesta caixa.",
-    "no_sent": "Nada enviado ainda."
+    "no_sent": "Nada enviado ainda.",
+    "renew": "Renovar",
+    "renew_desc": "Estenda sua assinatura Pro por mais um mês. Aliases, envio e caixa continuam.",
+    "renew_now": "Renovar agora",
+    "renewed": "Assinatura renovada +1 mês!",
+    "auto_renew": "Estende automaticamente quando o pagamento confirmar.",
+    "lapsed": "Assinatura expirada — renove para reativar o envio.",
+    "expiring": "A assinatura renova em",
+    "days": "dias"
   }
 }

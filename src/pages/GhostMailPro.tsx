@@ -177,6 +177,7 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('inbox');
   const [acct, setAcct] = useState<AliasesResp | null>(null);
+  const [showRenew, setShowRenew] = useState(false);
 
   const loadAcct = useCallback(() => {
     mailApiClient<AliasesResp>(`/v1/mail/pro/aliases?email=${encodeURIComponent(session.email)}&token=${encodeURIComponent(session.token)}`)
@@ -185,6 +186,9 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
   useEffect(() => { loadAcct(); }, [loadAcct]);
 
   const sendDisabled = acct ? (acct.sendEnabled === false || acct.subStatus !== 'active') : false;
+  const monthlyUSD = acct?.plan === 'PRO_PLUS' ? 5 : 3;
+  const daysLeft = acct?.nextBillingAt ? Math.ceil((acct.nextBillingAt - Date.now()) / 86400000) : null;
+  const expiringSoon = daysLeft != null && daysLeft <= 7;
 
   return (
     <div className="mx-2 md:mx-0 space-y-4">
@@ -198,10 +202,22 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowRenew(true)} className="text-[11px] px-3 py-2 border border-wr-accent/40 text-wr-accent rounded-sm hover:bg-wr-accent/10 flex items-center gap-1"><RefreshCw size={12} /> {t('gmpro.renew', 'Renew')}</button>
           <button onClick={() => { navigator.clipboard.writeText(session.token); toast.success(t('gmpro.token_copied', 'Access token copied — keep it safe to restore your account')); }} className="text-[11px] px-3 py-2 border border-wr-border rounded-sm text-wr-dim hover:text-current">{t('gmpro.copy_token', 'Copy token')}</button>
           <button onClick={onSignOut} className="text-[11px] px-3 py-2 border border-wr-border rounded-sm text-wr-dim hover:text-current flex items-center gap-1"><LogOut size={12} /> {t('gmpro.sign_out', 'Sign out')}</button>
         </div>
       </div>
+
+      {(expiringSoon || sendDisabled) && (
+        <div className={`text-[11px] rounded-sm p-3 flex items-center justify-between gap-2 ${sendDisabled ? 'text-red-400 bg-red-500/5 border border-red-500/20' : 'text-wr-accent bg-wr-accent/5 border border-wr-accent/20'}`}>
+          <span className="flex items-center gap-2"><Clock size={13} />
+            {sendDisabled ? t('gmpro.lapsed', 'Subscription lapsed — renew to re-enable sending.') : `${t('gmpro.expiring', 'Subscription renews in')} ${daysLeft} ${t('gmpro.days', 'days')}.`}
+          </span>
+          <button onClick={() => setShowRenew(true)} className="shrink-0 font-bold uppercase tracking-widest hover:underline">{t('gmpro.renew_now', 'Renew now')} →</button>
+        </div>
+      )}
+
+      {showRenew && <RenewModal session={session} monthlyUSD={monthlyUSD} onClose={() => setShowRenew(false)} onRenewed={() => { setShowRenew(false); loadAcct(); }} />}
 
       {sendDisabled && (
         <div className="text-[11px] text-wr-accent bg-wr-accent/5 border border-wr-accent/20 rounded-sm p-3 flex items-center gap-2">
@@ -222,6 +238,73 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
       {tab === 'compose' && <ComposeTab session={session} acct={acct} disabled={sendDisabled} />}
       {tab === 'aliases' && <AliasesTab session={session} acct={acct} reload={loadAcct} />}
       {tab === 'sent' && <SentTab session={session} />}
+    </div>
+  );
+}
+
+function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Session; monthlyUSD: number; onClose: () => void; onRenewed: () => void }) {
+  const { t } = useTranslation();
+  const [method, setMethod] = useState<'XMR' | 'LN'>('XMR');
+  const [pay, setPay] = useState<{ address: string; amount: number; method: string; usd: number; paymentId: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const start = async () => {
+    setBusy(true);
+    try {
+      const r = await mailApiClient<any>('/v1/mail/pro/renew/create', { method: 'POST', body: { email: session.email, token: session.token, method } });
+      setPay(r);
+    } catch (e: any) { toast.error(e?.data?.error || 'Failed to start renewal'); }
+    finally { setBusy(false); }
+  };
+
+  useEffect(() => {
+    if (!pay) return;
+    let stop = false;
+    const tick = async () => {
+      if (stop) return;
+      try {
+        const r = await mailApiClient<{ status: string }>(`/v1/mail/pro/renew/check?paymentId=${encodeURIComponent(pay.paymentId)}`);
+        if (r.status === 'COMPLETED') { toast.success(t('gmpro.renewed', 'Subscription renewed +1 month!')); onRenewed(); return; }
+        if (r.status === 'EXPIRED' || r.status === 'ERROR') { toast.error('Renewal window expired.'); setPay(null); return; }
+      } catch { /* keep polling */ }
+      if (!stop) setTimeout(tick, 5000);
+    };
+    const id = setTimeout(tick, 4000);
+    return () => { stop = true; clearTimeout(id); };
+  }, [pay, onRenewed, t]);
+
+  const qr = pay ? (pay.method === 'XMR' ? `monero:${pay.address}?tx_amount=${pay.amount}` : pay.address.toUpperCase()) : '';
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-wr-bg border border-wr-border rounded-lg w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-3 border-b border-wr-border flex justify-between items-center">
+          <span className="text-sm font-bold flex items-center gap-2"><RefreshCw size={15} className="text-wr-accent" /> {t('gmpro.renew', 'Renew')} — ${monthlyUSD}/mo</span>
+          <button onClick={onClose} className="text-wr-dim"><X size={17} /></button>
+        </div>
+        <div className="p-5 space-y-3 text-center">
+          {!pay ? (
+            <>
+              <p className="text-xs text-wr-dim">{t('gmpro.renew_desc', 'Extend your Pro subscription by one month. Aliases, sending and inbox all continue.')}</p>
+              <div className="flex gap-2">
+                {(['XMR', 'LN'] as const).map((m) => (
+                  <button key={m} onClick={() => setMethod(m)} className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim'}`}>{m === 'XMR' ? 'Monero' : 'Lightning'}</button>
+                ))}
+              </div>
+              <button onClick={start} disabled={busy} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent text-black disabled:opacity-50 flex items-center justify-center gap-2">
+                {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {t('gmpro.renew_now', 'Renew now')}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-center gap-2 text-xs font-bold text-wr-accent"><Loader2 size={14} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
+              <p className="text-[11px] text-wr-dim">{t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : 'sats'}</b> (${pay.usd})</p>
+              <div className="bg-white p-3 rounded-sm inline-block"><QRCodeCanvas value={qr} size={170} /></div>
+              <button onClick={() => { navigator.clipboard.writeText(pay.address); toast.success('Copied'); }} className="w-full flex items-center justify-between gap-2 bg-wr-surface border border-wr-border rounded-sm px-3 py-2 text-[11px] font-mono"><span className="truncate text-wr-dim">{pay.address}</span><Copy size={12} className="shrink-0 text-wr-dim" /></button>
+              <p className="text-[10px] text-wr-dim">{t('gmpro.auto_renew', 'Extends automatically once the payment confirms.')}</p>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

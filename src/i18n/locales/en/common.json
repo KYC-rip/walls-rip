@@ -765,6 +765,14 @@
     "alias_created": "Alias created",
     "confirm_del": "Delete this alias? Mail to it will stop arriving.",
     "no_aliases": "No aliases yet. Create one — all mail lands in this inbox.",
-    "no_sent": "Nothing sent yet."
+    "no_sent": "Nothing sent yet.",
+    "renew": "Renew",
+    "renew_desc": "Extend your Pro subscription by one month. Aliases, sending and inbox all continue.",
+    "renew_now": "Renew now",
+    "renewed": "Subscription renewed +1 month!",
+    "auto_renew": "Extends automatically once the payment confirms.",
+    "lapsed": "Subscription lapsed — renew to re-enable sending.",
+    "expiring": "Subscription renews in",
+    "days": "days"
   }
 }

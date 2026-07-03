@@ -513,6 +513,14 @@
     "alias_created": "Alias creado",
     "confirm_del": "¿Eliminar este alias? El correo dejará de llegar.",
     "no_aliases": "Sin alias aún. Crea uno — todo el correo llega a este buzón.",
-    "no_sent": "Nada enviado aún."
+    "no_sent": "Nada enviado aún.",
+    "renew": "Renovar",
+    "renew_desc": "Extiende tu suscripción Pro un mes más. Alias, envío y buzón continúan.",
+    "renew_now": "Renovar ahora",
+    "renewed": "¡Suscripción renovada +1 mes!",
+    "auto_renew": "Se extiende automáticamente al confirmarse el pago.",
+    "lapsed": "Suscripción vencida — renueva para reactivar el envío.",
+    "expiring": "La suscripción se renueva en",
+    "days": "días"
   }
 }
