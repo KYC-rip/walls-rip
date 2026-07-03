@@ -90,8 +90,8 @@ export function Footer() {
           <div>
             <h4 className="text-[10px] text-wr-dim uppercase tracking-wider font-bold mb-3">{t('footer.connect')}</h4>
             <ul className="space-y-2 text-[12px]">
-              <li><a href="https://x.com/XBToshi" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors">@XBToshi</a></li>
-              <li><a href="https://x.com/kyc_rip" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors">@kyc_rip</a></li>
+              <li><a href="https://x.com/intent/follow?screen_name=XBToshi" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors">@XBToshi</a></li>
+              <li><a href="https://x.com/intent/follow?screen_name=kyc_rip" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors">@kyc_rip</a></li>
               <li>
                 <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors flex items-center gap-1">
                   {t('footer.support_bot', 'Support Bot')} <span className="text-[10px] text-wr-dim">Telegram</span>

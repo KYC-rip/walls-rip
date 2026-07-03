@@ -20,6 +20,7 @@ const NAV_KEYS = [
   { path: '/mail', key: 'header.ghost_mail' },
   { path: '/sms', key: 'header.sms_wall' },
   { path: '/esim', key: 'header.esim' },
+  { path: '/phone', key: 'header.phone' },
   { path: '/proxy', key: 'header.proxy' },
   { path: '/drop', key: 'header.dead_drop' },
   { path: '/comms', key: 'header.comms' },

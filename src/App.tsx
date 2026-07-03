@@ -6,6 +6,7 @@ import { DeadDrop } from './pages/DeadDrop';
 import { GhostMail } from './pages/GhostMail';
 import { SMSWall } from './pages/SMSWall';
 import { ESIMWall } from './pages/ESIMWall';
+import PhoneWall from './pages/PhoneWall';
 import { ProxyWall } from './pages/ProxyWall';
 import FAQ from './pages/FAQ';
 import { PGPTerminal } from './pages/PGPTerminal';
@@ -21,6 +22,7 @@ const PAGES = [
   { path: '/mail', element: <GhostMail /> },
   { path: '/sms', element: <SMSWall /> },
   { path: '/esim', element: <ESIMWall /> },
+  { path: '/phone', element: <PhoneWall /> },
   { path: '/proxy', element: <ProxyWall /> },
   { path: '/faq', element: <FAQ /> },
   { path: '/comms', element: <PGPTerminal /> },

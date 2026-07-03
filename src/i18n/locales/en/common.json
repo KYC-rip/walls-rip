@@ -4,6 +4,7 @@
     "ghost_mail": "Ghost Mail",
     "sms_wall": "SMS Wall",
     "esim": "eSIM",
+    "phone": "Phone",
     "proxy": "Proxy",
     "dead_drop": "Dead Drop",
     "comms": "Comms",
@@ -247,7 +248,6 @@
     "xmr402_nonce": "CHALLENGE NONCE (tx_description)",
     "xmr402_open_wallet": "OPEN IN MONERO WALLET",
     "xmr402_instructions": "Send the exact amount with the nonce as tx_description. After sending, use the tx proof to verify payment. The challenge expires in ~5 minutes.",
-
     "why_title": "Why Choose SMS Wall",
     "why_anonymous_title": "Anonymous Numbers",
     "why_anonymous_desc": "Receive SMS without revealing your real phone number. No ID, no SIM card needed.",
@@ -261,7 +261,6 @@
     "why_refund_desc": "If no SMS is received within the rental period, you get an automatic refund.",
     "why_providers_title": "Multiple Providers",
     "why_providers_desc": "We aggregate SMS providers for better availability and pricing.",
-
     "how_title": "How It Works",
     "how_step1_title": "Select Service & Country",
     "how_step1_desc": "Choose the service you need verification for and pick a country.",
@@ -269,7 +268,6 @@
     "how_step2_desc": "Pay with crypto and receive a phone number instantly.",
     "how_step3_title": "Receive SMS",
     "how_step3_desc": "Wait for your verification code. It appears automatically — no refresh needed.",
-
     "faq_title": "Frequently Asked Questions",
     "faq_q1": "What is SMS Wall?",
     "faq_a1": "An anonymous SMS receiving service. Get temporary phone numbers to receive verification codes without using your real number.",
@@ -288,7 +286,6 @@
     "title": "Ghost Mail",
     "subtitle": "Burner email that burns",
     "desc": "Disposable encrypted email inboxes. No signup, no identity. PGP encryption, custom domains, auto-destruct timers. Pay with XMR.",
-
     "why_title": "Why Choose Ghost Mail",
     "why_instant_title": "Instant & Disposable",
     "why_instant_desc": "Get a temporary email in seconds. No signup, no personal info required.",
@@ -302,7 +299,6 @@
     "why_domains_desc": "Choose from multiple email domains to bypass domain-specific blocks.",
     "why_api_title": "API Access",
     "why_api_desc": "Programmatic access for automation, bots, and bulk verification workflows.",
-
     "how_title": "How It Works",
     "how_step1_title": "Choose Duration",
     "how_step1_desc": "Select how long you need your inbox. From 1 hour to 7 days.",
@@ -310,7 +306,6 @@
     "how_step2_desc": "Pay with Monero or Lightning. No account needed.",
     "how_step3_title": "Receive Emails",
     "how_step3_desc": "Your inbox is live instantly. Forward to Telegram for push notifications.",
-
     "faq_title": "Frequently Asked Questions",
     "faq_q1": "What is Ghost Mail?",
     "faq_a1": "A disposable, anonymous email service. Create temporary inboxes to receive emails without revealing your real identity.",
@@ -324,7 +319,6 @@
     "faq_a5": "Yes. Ghost Mail is perfect for signing up to services that require email verification without using your real email.",
     "faq_q6": "What payment methods are accepted?",
     "faq_a6": "Monero (XMR), Bitcoin Lightning, USDT, and XMR402. No credit cards or bank accounts — maximum privacy.",
-
     "payment_usdt_pending": "USDT PAYMENT PENDING",
     "payment_usdt_amount": "AMOUNT",
     "payment_usdt_network": "Network: {{network}}",
@@ -465,7 +459,6 @@
     "detail_plan_details": "Plan Details",
     "detail_additional_info": "Additional Info",
     "detail_important_notices": "Important Notices",
-
     "why_title": "Why Choose walls.rip for eSIM",
     "why_instant_title": "Instant Connectivity",
     "why_instant_desc": "Get connected immediately after purchase. No physical SIM needed — scan the QR code and go.",
@@ -481,7 +474,6 @@
     "why_local_desc": "Avoid roaming charges with local rate plans. Pay what locals pay in your destination.",
     "why_speed_title": "4G/5G Speeds",
     "why_speed_desc": "Lightning-fast connections with 4G and 5G network compatibility.",
-
     "how_title": "How to Use eSIM",
     "how_step1_title": "Choose a Plan",
     "how_step1_desc": "Select your destination, data amount, and duration. Compare prices across providers.",
@@ -489,7 +481,6 @@
     "how_step2_desc": "Pay with Monero (XMR) or Lightning. No account needed.",
     "how_step3_title": "Scan & Connect",
     "how_step3_desc": "Receive your QR code instantly. Scan it in your phone settings to activate.",
-
     "faq_title": "Frequently Asked Questions",
     "faq_q1": "What is an eSIM?",
     "faq_a1": "An eSIM (embedded SIM) is a digital SIM card built into your phone. Instead of inserting a physical card, you scan a QR code to activate your data plan. Most modern smartphones support eSIM.",
@@ -653,5 +644,43 @@
     "openApp": "OPEN IN APP",
     "copy": "COPY",
     "tipExactAmount": "Send the exact amount for automatic confirmation"
+  },
+  "phone": {
+    "title_a": "Phone",
+    "title_b": " Plans",
+    "subtitle": "A real phone number with voice, SMS and data — anonymous, no KYC. Number assigned after you activate the eSIM.",
+    "tag_voice": "Voice calling",
+    "tag_sms": "SMS",
+    "tag_data": "Data",
+    "tag_nokyc": "No KYC",
+    "coming_soon": "Coming Soon",
+    "coming_soon_desc": "Anonymous phone plans are being provisioned. Check back shortly.",
+    "balance": "Wallet balance",
+    "restore_wallet": "Restore wallet",
+    "wallet_token": "wallet token",
+    "wallet_restored": "Wallet restored!",
+    "invalid_token": "Invalid wallet token",
+    "number_notice": "The phone number is assigned automatically after you activate the eSIM on your device. Voice + SMS + data are included for the plan duration.",
+    "tab_us": "United States",
+    "tab_global": "Global",
+    "loading": "Loading plans…",
+    "badge_number": "Number",
+    "voice": "Voice",
+    "data": "Data",
+    "buy": "Buy",
+    "none": "No plans in this region.",
+    "plan": "Phone Plan",
+    "validity": "Validity",
+    "price": "Price",
+    "confirm": "Confirm purchase",
+    "auto_purchase": "Your phone plan is purchased automatically after payment.",
+    "confirmed": "Payment confirmed!",
+    "provisioning": "Provisioning your phone plan…",
+    "error": "Purchase failed",
+    "purchased": "Phone plan purchased",
+    "scan_activate": "Scan the QR code with your phone to install the eSIM. Your number, voice, SMS and data activate once installed.",
+    "awaiting": "Awaiting eSIM provisioning…",
+    "order": "Order",
+    "buy_another": "Buy another plan"
   }
 }
