@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Copy, Clock, RefreshCw, Mail, FileCode, FileText, Trash2, AlertOctagon, Minimize2, Menu, Lock, Unlock, Shield, Maximize2, Download } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Copy, Clock, RefreshCw, Mail, Trash2, AlertOctagon, Minimize2, Menu, Lock, Unlock, Shield, Maximize2, Download } from 'lucide-react';
 import type { GhostMailSession, InboxResponse } from '../../hooks/useGhostMail';
 import * as openpgp from 'openpgp';
 import { toast } from 'react-hot-toast';
 import { SessionTransferModal } from './SessionTransfer';
+import { EmailReader } from './EmailReader';
 
 interface InboxLayoutProps {
   session: GhostMailSession;
@@ -51,15 +52,12 @@ export function InboxLayout({
   pgpEnabled,
   onPgpClick
 }: InboxLayoutProps) {
-  const [viewMode, setViewMode] = useState<'text' | 'html'>('text');
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileList, setShowMobileList] = useState(false);
   const [showDesktopList, setShowDesktopList] = useState(true);
-  const [iframeHeight, setIframeHeight] = useState(600);
   const [showExportModal, setShowExportModal] = useState(false);
 
   // Persistence
-  const lastProcessedId = useRef<string | null>(null);
   const [privateKey, setPrivateKey] = useState(() => sessionStorage.getItem(`pgp_key_${session.email}`) || '');
   const [decryptedEmails, setDecryptedEmails] = useState<Record<string, { text: string, html?: string }>>({});
   const [isDecrypting, setIsDecrypting] = useState(false);
@@ -72,41 +70,10 @@ export function InboxLayout({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Listen for iframe height messages
+  // Close the mobile list when an email is opened
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'iframeHeight') {
-        setIframeHeight(event.data.height);
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  // Set default view mode when switching emails
-  useEffect(() => {
-    if (selectedEmailId && inbox) {
-      if (selectedEmailId !== lastProcessedId.current) {
-        const email = inbox.emails.find(e => e.id === selectedEmailId);
-        if (email) {
-          const decrypted = decryptedEmails[email.id];
-          if (decrypted?.html || email.html) {
-             setViewMode('html');
-          } else {
-             setViewMode('text');
-          }
-          lastProcessedId.current = selectedEmailId;
-        }
-      }
-      if (isMobile) setShowMobileList(false);
-    }
-  }, [selectedEmailId, inbox, isMobile, decryptedEmails]);
-
-  const getProcessedHtml = (html: string) => {
-    const responsiveStyles = `<meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body { margin: 0; padding: 15px; font-family: sans-serif; overflow-x: hidden !important; width: 100vw !important; box-sizing: border-box; background: white; color: #1a1a1a; } img, table, div, p { max-width: 100% !important; height: auto !important; overflow-wrap: break-word !important; } table { display: block !important; overflow-x: auto !important; }</style>`;
-    const heightScript = `<script>function sendHeight() { window.parent.postMessage({ type: 'iframeHeight', height: document.documentElement.scrollHeight || document.body.scrollHeight }, '*'); } window.onload = sendHeight; setTimeout(sendHeight, 1000); new ResizeObserver(sendHeight).observe(document.body);</script>`;
-    return responsiveStyles + html + heightScript;
-  };
+    if (selectedEmailId && isMobile) setShowMobileList(false);
+  }, [selectedEmailId, isMobile]);
 
   const handleBurn = () => {
     if (window.confirm('PERMANENTLY DESTROY THIS INBOX? This cannot be undone.')) {
@@ -247,33 +214,22 @@ export function InboxLayout({
               const email = inbox?.emails.find(e => e.id === selectedEmailId);
               if (!email) return null;
               const decrypted = decryptedEmails[email.id];
-              const currentText = decrypted?.text || email.text;
-              const currentHtml = decrypted?.html || email.html;
-              const hasHtml = !!currentHtml;
               const needsDecryption = email.isEncrypted && !decrypted;
-              return (
-                <div className="flex-1 flex flex-col min-h-0">
-                  <div className="p-4 md:p-6 border-b border-wr-border bg-wr-surface backdrop-blur-sm shrink-0 z-20">
-                    <div className="flex items-start justify-between mb-4 gap-4">
-                      <h2 className="text-lg md:text-xl font-bold text-wr-green tracking-wide leading-tight font-mono break-words flex-1 min-w-0">{email.subject}</h2>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button onClick={() => handleDeleteMail(email.id)} className="p-2 text-wr-dim hover:text-wr-error transition-colors rounded-sm hover:bg-wr-error/10" title="Delete Message"><Trash2 size={16} /></button>
-                        {hasHtml && !needsDecryption && (
-                          <div className="flex bg-wr-base border border-wr-border rounded-sm overflow-hidden">
-                            <button onClick={() => setViewMode('text')} className={`px-2 md:px-3 py-1 text-[9px] md:text-[10px] uppercase font-bold flex items-center gap-1 ${viewMode === 'text' ? 'bg-wr-green text-wr-base' : 'text-wr-dim hover:bg-wr-green/5'}`}><FileText size={10} /> TXT</button>
-                            <button onClick={() => setViewMode('html')} className={`px-2 md:px-3 py-1 text-[9px] md:text-[10px] uppercase font-bold flex items-center gap-1 ${viewMode === 'html' ? 'bg-wr-green text-wr-base' : 'text-wr-dim hover:bg-wr-green/5'}`}><FileCode size={10} /> HTML</button>
-                          </div>
-                        )}
+              if (needsDecryption) {
+                return (
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="p-4 md:p-6 border-b border-wr-border bg-wr-surface backdrop-blur-sm shrink-0 z-20">
+                      <div className="flex items-start justify-between mb-4 gap-4">
+                        <h2 className="text-lg md:text-xl font-bold text-wr-green tracking-wide leading-tight font-mono break-words flex-1 min-w-0">{email.subject}</h2>
+                        <button onClick={() => handleDeleteMail(email.id)} className="p-2 text-wr-dim hover:text-wr-error transition-colors rounded-sm hover:bg-wr-error/10 shrink-0" title="Delete Message"><Trash2 size={16} /></button>
+                      </div>
+                      <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[10px] md:text-xs font-mono">
+                        <span className="text-wr-dim uppercase">FROM</span><span className="text-wr-green font-bold truncate">{email.from}</span>
+                        <span className="text-wr-dim uppercase">DATE</span><span className="text-wr-dim">{new Date(email.receivedAt).toLocaleString()}</span>
+                        <span className="text-wr-accent uppercase">SECURITY</span><span className="text-wr-accent flex items-center gap-1"><Lock size={10} /> PGP ENCRYPTED</span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[10px] md:text-xs font-mono">
-                      <span className="text-wr-dim uppercase">FROM</span><span className="text-wr-green font-bold truncate">{email.from}</span>
-                      <span className="text-wr-dim uppercase">DATE</span><span className="text-wr-dim">{new Date(email.receivedAt).toLocaleString()}</span>
-                      {email.isEncrypted && <><span className="text-wr-accent uppercase">SECURITY</span><span className="text-wr-accent flex items-center gap-1">{decrypted ? <Unlock size={10} /> : <Lock size={10} />} {decrypted ? 'DECRYPTED' : 'PGP ENCRYPTED'}</span></>}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-h-0 bg-wr-surface/30 relative overflow-y-auto custom-scrollbar">
-                    {needsDecryption ? (
+                    <div className="flex-1 min-h-0 bg-wr-surface/30 relative overflow-y-auto custom-scrollbar">
                       <div className="p-6 md:p-12 flex flex-col items-center justify-center h-full max-w-lg mx-auto text-center space-y-6">
                         {isDecrypting ? <RefreshCw size={40} className="text-wr-green animate-spin" /> : <Lock size={40} className="text-wr-accent animate-pulse" />}
                         <div className="space-y-2">
@@ -287,17 +243,18 @@ export function InboxLayout({
                           </div>
                         )}
                       </div>
-                    ) : (
-                      viewMode === 'text' || !currentHtml ? (
-                        <div className="p-4 md:p-8 font-mono text-xs md:text-sm leading-relaxed text-wr-dim/90 whitespace-pre-wrap break-words">{currentText}</div>
-                      ) : (
-                        <div className="w-full relative bg-white/95 rounded-xs p-1" style={{ height: isMobile ? `${iframeHeight}px` : '100%' }}>
-                           <iframe srcDoc={getProcessedHtml(currentHtml || '')} className="w-full h-full border-none" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin" title="Email Content" />
-                        </div>
-                      )
-                    )}
+                    </div>
                   </div>
-                </div>
+                );
+              }
+              return (
+                <EmailReader
+                  email={email}
+                  text={decrypted?.text || email.text}
+                  html={decrypted?.html || email.html}
+                  decrypted={!!decrypted}
+                  onDelete={() => handleDeleteMail(email.id)}
+                />
               );
             })()
           ) : (

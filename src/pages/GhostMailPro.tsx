@@ -8,6 +8,7 @@ import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { mailApiClient } from '../services/client';
 import { fetchInbox } from '../services/mail';
+import { EmailReader } from '../components/ghostMail/EmailReader';
 
 // ── Types ──
 type ProPlan = 'PRO' | 'PRO_PLUS';
@@ -346,16 +347,12 @@ function InboxTab({ session }: { session: Session }) {
       ))}
       {open && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setOpen(null)}>
-          <div className="bg-wr-base border border-wr-border rounded-lg w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(ev) => ev.stopPropagation()}>
-            <div className="px-5 py-3 border-b border-wr-border flex justify-between items-center">
-              <span className="text-sm font-bold truncate">{open.subject}</span>
-              <button onClick={() => setOpen(null)} className="text-wr-dim"><X size={17} /></button>
+          <div className="bg-wr-base border border-wr-border rounded-lg w-full max-w-2xl h-[85vh] flex flex-col overflow-hidden" onClick={(ev) => ev.stopPropagation()}>
+            <div className="px-4 py-2.5 border-b border-wr-border flex justify-between items-center shrink-0">
+              <span className="text-[11px] text-wr-dim uppercase tracking-widest">{t('gmpro.reading', 'Reading')}</span>
+              <button onClick={() => setOpen(null)} className="text-wr-dim hover:text-current"><X size={17} /></button>
             </div>
-            <div className="p-5 space-y-2">
-              <div className="text-[11px] text-wr-dim">{t('gmpro.from', 'From')}: {open.from}</div>
-              {open.isEncrypted && <div className="text-[11px] text-wr-accent">🔒 {t('gmpro.encrypted', 'PGP encrypted')}</div>}
-              <div className="text-sm whitespace-pre-wrap break-words pt-2" dangerouslySetInnerHTML={{ __html: open.html || (open.text ? open.text.replace(/</g, '&lt;') : '') }} />
-            </div>
+            <EmailReader email={open} />
           </div>
         </div>
       )}
