@@ -18,6 +18,7 @@ const LANG_LABELS: Record<SupportedLang, string> = {
 const NAV_KEYS = [
   { path: '/', key: 'header.home' },
   { path: '/mail', key: 'header.ghost_mail' },
+  { path: '/mail/pro', key: 'header.ghost_mail_pro' },
   { path: '/sms', key: 'header.sms_wall' },
   { path: '/esim', key: 'header.esim' },
   { path: '/phone', key: 'header.phone' },

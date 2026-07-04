@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Mail, Flame, MessageSquare, Phone, Shield, EyeOff, Zap, Smartphone,
   ArrowRight, ExternalLink, Lock, Globe, CreditCard, CheckCircle,
-  Server, KeyRound, UserX, Clock, ShieldCheck, Layers
+  Server, KeyRound, UserX, Clock, ShieldCheck, Layers, Crown
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +36,18 @@ export default function HomePage() {
       borderColor: 'border-cyan-400/20 hover:border-cyan-400/50',
       glowColor: 'from-cyan-400/20',
       bgAccent: 'bg-cyan-400',
+    },
+    {
+      icon: Crown,
+      nameKey: 'home.tool_ghost_mail_pro',
+      taglineKey: 'home.tool_ghost_mail_pro_tagline',
+      descKey: 'home.tool_ghost_mail_pro_desc',
+      path: '/mail/pro',
+      status: 'PRO' as const,
+      color: 'text-wr-accent',
+      borderColor: 'border-wr-accent/25 hover:border-wr-accent/60',
+      glowColor: 'from-wr-accent/20',
+      bgAccent: 'bg-wr-accent',
     },
     {
       icon: Flame,
@@ -319,8 +331,8 @@ export default function HomePage() {
                         <p className={`text-[10px] font-bold ${tool.color}`}>{t(tool.taglineKey)}</p>
                       </div>
                     </div>
-                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tool.status === 'SOON' ? 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10' : 'text-green-400 border-green-400/30 bg-green-400/10'}`}>
-                      {tool.status === 'SOON' ? t('home.status_soon') : t('home.status_live')}
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tool.status === 'SOON' ? 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10' : tool.status === 'PRO' ? 'text-wr-accent border-wr-accent/30 bg-wr-accent/10' : 'text-green-400 border-green-400/30 bg-green-400/10'}`}>
+                      {tool.status === 'SOON' ? t('home.status_soon') : tool.status === 'PRO' ? t('home.status_pro') : t('home.status_live')}
                     </span>
                   </div>
 
