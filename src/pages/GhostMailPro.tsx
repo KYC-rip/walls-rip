@@ -118,7 +118,7 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
         <div className="flex items-center justify-center gap-2 text-sm font-bold text-wr-accent"><Loader2 size={16} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
         <p className="text-xs text-wr-dim">{pay.email} · {t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : 'sats'}</b> (${pay.usd})</p>
         <div className="bg-white p-4 rounded-sm inline-block"><QRCodeCanvas value={qrValue} size={190} /></div>
-        <button onClick={() => copy(pay.address)} className="w-full flex items-center justify-between gap-2 bg-wr-bg border border-wr-border rounded-sm px-3 py-2.5 text-[11px] font-mono">
+        <button onClick={() => copy(pay.address)} className="w-full flex items-center justify-between gap-2 bg-wr-base border border-wr-border rounded-sm px-3 py-2.5 text-[11px] font-mono">
           <span className="truncate text-wr-dim">{pay.address}</span><Copy size={13} className="text-wr-dim shrink-0" />
         </button>
         {polling && <p className="text-[11px] text-wr-dim">{t('gmpro.auto_activate', 'Activates automatically once the payment confirms. Keep this page open.')}</p>}
@@ -150,9 +150,9 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
       <div className="bg-wr-surface border border-wr-border rounded-sm p-5 space-y-3">
         <label className="text-xs text-wr-dim uppercase tracking-widest font-bold">{t('gmpro.choose_address', 'Choose your address')}</label>
         <div className="flex gap-2">
-          <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="yourname" className="flex-1 px-3 py-2.5 bg-wr-bg border border-wr-border rounded-sm font-mono text-sm outline-none focus:border-wr-accent/50" />
+          <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="yourname" className="flex-1 px-3 py-2.5 bg-wr-base border border-wr-border rounded-sm font-mono text-sm outline-none focus:border-wr-accent/50" />
           <span className="flex items-center text-wr-dim font-mono text-sm">@</span>
-          <select value={domain} onChange={(e) => setDomain(e.target.value)} className="px-2 py-2.5 bg-wr-bg border border-wr-border rounded-sm font-mono text-sm outline-none">
+          <select value={domain} onChange={(e) => setDomain(e.target.value)} className="px-2 py-2.5 bg-wr-base border border-wr-border rounded-sm font-mono text-sm outline-none">
             {(plans?.domains || ['vigilpro.xyz', 'vigilplus.xyz']).map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
@@ -276,7 +276,7 @@ function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Sess
   const qr = pay ? (pay.method === 'XMR' ? `monero:${pay.address}?tx_amount=${pay.amount}` : pay.address.toUpperCase()) : '';
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-wr-bg border border-wr-border rounded-lg w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-wr-base border border-wr-border rounded-lg w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-3 border-b border-wr-border flex justify-between items-center">
           <span className="text-sm font-bold flex items-center gap-2"><RefreshCw size={15} className="text-wr-accent" /> {t('gmpro.renew', 'Renew')} — ${monthlyUSD}/mo</span>
           <button onClick={onClose} className="text-wr-dim"><X size={17} /></button>
@@ -335,7 +335,7 @@ function InboxTab({ session }: { session: Session }) {
       ))}
       {open && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setOpen(null)}>
-          <div className="bg-wr-bg border border-wr-border rounded-lg w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(ev) => ev.stopPropagation()}>
+          <div className="bg-wr-base border border-wr-border rounded-lg w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(ev) => ev.stopPropagation()}>
             <div className="px-5 py-3 border-b border-wr-border flex justify-between items-center">
               <span className="text-sm font-bold truncate">{open.subject}</span>
               <button onClick={() => setOpen(null)} className="text-wr-dim"><X size={17} /></button>
@@ -374,16 +374,16 @@ function ComposeTab({ session, acct, disabled }: { session: Session; acct: Alias
     <div className="bg-wr-surface border border-wr-border rounded-sm p-4 space-y-3">
       <div className="flex items-center gap-2">
         <span className="text-[11px] text-wr-dim uppercase w-12">{t('gmpro.from', 'From')}</span>
-        <select value={from} onChange={(e) => setFrom(e.target.value)} className="flex-1 px-2 py-2 bg-wr-bg border border-wr-border rounded-sm font-mono text-xs outline-none">
+        <select value={from} onChange={(e) => setFrom(e.target.value)} className="flex-1 px-2 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none">
           {froms.map((f) => <option key={f} value={f}>{f}</option>)}
         </select>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-[11px] text-wr-dim uppercase w-12">{t('gmpro.to', 'To')}</span>
-        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="someone@example.com" className="flex-1 px-3 py-2 bg-wr-bg border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-accent/50" />
+        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="someone@example.com" className="flex-1 px-3 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-accent/50" />
       </div>
-      <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t('gmpro.subject', 'Subject')} className="w-full px-3 py-2 bg-wr-bg border border-wr-border rounded-sm text-sm outline-none focus:border-wr-accent/50" />
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} placeholder={t('gmpro.write', 'Write your message…')} className="w-full px-3 py-2 bg-wr-bg border border-wr-border rounded-sm text-sm outline-none focus:border-wr-accent/50 resize-y" />
+      <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t('gmpro.subject', 'Subject')} className="w-full px-3 py-2 bg-wr-base border border-wr-border rounded-sm text-sm outline-none focus:border-wr-accent/50" />
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} placeholder={t('gmpro.write', 'Write your message…')} className="w-full px-3 py-2 bg-wr-base border border-wr-border rounded-sm text-sm outline-none focus:border-wr-accent/50 resize-y" />
       <button onClick={send} disabled={busy || disabled} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent text-black hover:bg-wr-accent/90 disabled:opacity-50 flex items-center justify-center gap-2">
         {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {disabled ? t('gmpro.send_soon', 'Sending activates after onboarding') : t('gmpro.send', 'Send')}
       </button>
@@ -416,9 +416,9 @@ function AliasesTab({ session, acct, reload }: { session: Session; acct: Aliases
       <div className="bg-wr-surface border border-wr-border rounded-sm p-4 space-y-3">
         <div className="text-[11px] text-wr-dim uppercase tracking-widest">{t('gmpro.new_alias', 'New alias')} · {acct ? `${acct.aliasesRemaining}/${acct.aliasLimit} ${t('gmpro.free', 'free')}` : ''}</div>
         <div className="flex gap-2">
-          <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="alias" className="flex-1 px-3 py-2 bg-wr-bg border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-accent/50" />
+          <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="alias" className="flex-1 px-3 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-accent/50" />
           <span className="flex items-center text-wr-dim text-xs">@</span>
-          <select value={domain} onChange={(e) => setDomain(e.target.value)} className="px-2 py-2 bg-wr-bg border border-wr-border rounded-sm font-mono text-xs outline-none">
+          <select value={domain} onChange={(e) => setDomain(e.target.value)} className="px-2 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none">
             {(acct?.domains || ['vigilpro.xyz', 'vigilplus.xyz']).map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>

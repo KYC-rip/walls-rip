@@ -14,6 +14,7 @@ interface PhonePlan {
   id: string; name: string; country: string; dataGB: number;
   durationDays: number; price: number; currency: string; engine: string;
   planType?: 'data' | 'phone'; hasVoice?: boolean; hasSms?: boolean;
+  voiceMinutes?: number; smsCount?: number;
   coverageCount?: number;
 }
 interface PurchaseResult {
@@ -233,7 +234,7 @@ export default function PhoneWall() {
                     )}
                     {showRestore && (
                       <div className="flex items-center gap-2">
-                        <input value={restoreToken} onChange={(e) => setRestoreToken(e.target.value)} placeholder={t('phone.wallet_token', 'wallet token')} className="text-xs px-2 py-2 bg-wr-bg border border-wr-border rounded-sm font-mono w-40" />
+                        <input value={restoreToken} onChange={(e) => setRestoreToken(e.target.value)} placeholder={t('phone.wallet_token', 'wallet token')} className="text-xs px-2 py-2 bg-wr-base border border-wr-border rounded-sm font-mono w-40" />
                         <button disabled={restoring} onClick={handleRestore} className="text-xs px-3 py-2 bg-green-500 text-black rounded-sm font-bold disabled:opacity-50">{restoring ? '…' : 'OK'}</button>
                         <button onClick={() => { setShowRestore(false); setRestoreToken(''); }} className="text-wr-dim"><X size={16} /></button>
                       </div>
@@ -277,10 +278,10 @@ export default function PhoneWall() {
                         <span className="text-2xl font-black text-current">{p.dataGB}<span className="text-sm font-bold text-wr-dim">GB</span></span>
                         <span className="text-xs text-wr-dim flex items-center gap-1"><Clock size={11} /> {p.durationDays}d</span>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] text-green-400/80 mb-3">
-                        <span className="inline-flex items-center gap-1"><PhoneCall size={10} /> {t('phone.voice', 'Voice')}</span>
-                        <span className="inline-flex items-center gap-1"><MessageSquare size={10} /> SMS</span>
-                        <span className="inline-flex items-center gap-1"><Database size={10} /> {t('phone.data', 'Data')}</span>
+                      <div className="flex items-center gap-2 text-[10px] text-green-400/90 mb-3 font-semibold">
+                        <span className="inline-flex items-center gap-1"><PhoneCall size={10} /> {p.voiceMinutes != null ? `${p.voiceMinutes} min` : t('phone.voice', 'Voice')}</span>
+                        <span className="inline-flex items-center gap-1"><MessageSquare size={10} /> {p.smsCount != null ? `${p.smsCount} SMS` : 'SMS'}</span>
+                        <span className="inline-flex items-center gap-1"><Database size={10} /> {p.dataGB}GB</span>
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t border-wr-border/40">
                         <span className="text-lg font-black text-wr-accent">${p.price.toFixed(2)}</span>
@@ -299,8 +300,8 @@ export default function PhoneWall() {
       {/* ═══ PLAN DETAIL / PURCHASE MODAL ═══ */}
       {selected && step === 'SELECT' && (
         <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm p-0 md:p-4" onClick={closeModal}>
-          <div className="bg-wr-bg border border-wr-border rounded-t-lg md:rounded-lg w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-wr-bg border-b border-wr-border px-5 py-4 flex items-center justify-between z-10">
+          <div className="bg-wr-base border border-wr-border rounded-t-lg md:rounded-lg w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-wr-base border-b border-wr-border px-5 py-4 flex items-center justify-between z-10">
               <div className="flex items-center gap-2 text-sm font-bold"><Phone size={16} className="text-wr-accent" /> {selected.country === 'US' ? '🇺🇸 US' : '🌐 Global'} {t('phone.plan', 'Phone Plan')}</div>
               <button onClick={closeModal} className="text-wr-dim hover:text-current"><X size={18} /></button>
             </div>
@@ -313,10 +314,10 @@ export default function PhoneWall() {
                     <div className="bg-wr-surface border border-wr-border rounded-sm py-3"><div className="text-lg font-black">{selected.durationDays}d</div><div className="text-[10px] text-wr-dim uppercase">{t('phone.validity', 'Validity')}</div></div>
                     <div className="bg-wr-surface border border-wr-border rounded-sm py-3"><div className="text-lg font-black text-wr-accent">${selected.price.toFixed(2)}</div><div className="text-[10px] text-wr-dim uppercase">{t('phone.price', 'Price')}</div></div>
                   </div>
-                  <div className="flex items-center justify-center gap-3 text-xs text-green-400/90 py-1">
-                    <span className="inline-flex items-center gap-1"><PhoneCall size={12} /> {t('phone.voice', 'Voice')}</span>
-                    <span className="inline-flex items-center gap-1"><MessageSquare size={12} /> SMS</span>
-                    <span className="inline-flex items-center gap-1"><Database size={12} /> {t('phone.data', 'Data')}</span>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-green-500/5 border border-green-500/20 rounded-sm py-2.5"><div className="text-sm font-black text-green-400 inline-flex items-center gap-1"><PhoneCall size={13} /> {selected.voiceMinutes != null ? selected.voiceMinutes : '✓'}</div><div className="text-[10px] text-wr-dim uppercase">{selected.voiceMinutes != null ? t('phone.voice_min', 'Voice min') : t('phone.voice', 'Voice')}</div></div>
+                    <div className="bg-green-500/5 border border-green-500/20 rounded-sm py-2.5"><div className="text-sm font-black text-green-400 inline-flex items-center gap-1"><MessageSquare size={13} /> {selected.smsCount != null ? selected.smsCount : '✓'}</div><div className="text-[10px] text-wr-dim uppercase">{selected.smsCount != null ? t('phone.texts', 'Texts') : 'SMS'}</div></div>
+                    <div className="bg-green-500/5 border border-green-500/20 rounded-sm py-2.5"><div className="text-sm font-black text-green-400 inline-flex items-center gap-1"><Phone size={13} /> ✓</div><div className="text-[10px] text-wr-dim uppercase">{t('phone.number', 'Number')}</div></div>
                   </div>
                   <div className="flex items-start gap-2 text-[11px] text-wr-dim bg-wr-accent/5 border border-wr-accent/20 rounded-sm p-3">
                     <AlertTriangle size={14} className="text-wr-accent shrink-0 mt-0.5" />
@@ -380,7 +381,7 @@ export default function PhoneWall() {
       {/* ═══ PURCHASED — QR / ACTIVATION ═══ */}
       {step === 'PURCHASED' && purchase && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={reset}>
-          <div className="bg-wr-bg border border-green-500/40 rounded-lg w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-wr-base border border-green-500/40 rounded-lg w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-wr-border flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-bold text-green-400"><Check size={16} /> {t('phone.purchased', 'Phone plan purchased')}</div>
               <button onClick={reset} className="text-wr-dim hover:text-current"><X size={18} /></button>
@@ -405,7 +406,7 @@ export default function PhoneWall() {
                 </button>
               </div>
               <a href={`/esim/topup?order=${encodeURIComponent(purchase.orderId)}`} className="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent/10 border border-wr-accent/30 text-wr-accent hover:bg-wr-accent/20 transition-all">
-                <Zap size={13} /> {t('phone.topup', 'Top up this eSIM')}
+                <Zap size={13} /> {t('phone.topup', 'Top up / add data')}
               </a>
               <button onClick={reset} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm border border-wr-border hover:border-wr-border/60 text-wr-dim hover:text-current transition-all">
                 {t('phone.buy_another', 'Buy another plan')}

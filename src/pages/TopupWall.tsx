@@ -129,7 +129,7 @@ export default function TopupWall() {
                 value={query} onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') lookup(); }}
                 placeholder={t('topup.placeholder', 'Order number or ICCID (e.g. 8943108…)')}
-                className="flex-1 px-3 py-3 bg-wr-bg border border-wr-border rounded-sm font-mono text-sm focus:border-wr-accent/50 outline-none"
+                className="flex-1 px-3 py-3 bg-wr-base border border-wr-border rounded-sm font-mono text-sm focus:border-wr-accent/50 outline-none"
               />
               <button onClick={() => lookup()} disabled={looking || !query.trim()}
                 className="px-6 py-3 bg-wr-accent text-black rounded-sm text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50">
@@ -183,8 +183,8 @@ export default function TopupWall() {
       {/* BUY MODAL */}
       {selected && (
         <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm p-0 md:p-4" onClick={closeModal}>
-          <div className="bg-wr-bg border border-wr-border rounded-t-lg md:rounded-lg w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-wr-bg border-b border-wr-border px-5 py-4 flex items-center justify-between z-10">
+          <div className="bg-wr-base border border-wr-border rounded-t-lg md:rounded-lg w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-wr-base border-b border-wr-border px-5 py-4 flex items-center justify-between z-10">
               <div className="flex items-center gap-2 text-sm font-bold"><Zap size={16} className="text-wr-accent" /> {t('topup.recharge', 'Recharge')} · {selected.dataGB}GB</div>
               <button onClick={closeModal} className="text-wr-dim hover:text-current"><X size={18} /></button>
             </div>
