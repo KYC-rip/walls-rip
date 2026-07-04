@@ -1329,10 +1329,10 @@ export function ESIMWall() {
                       ) : tabPlans.length > 0 ? (
                         <>
                           {/* Filter toolbar */}
-                          <div className="flex flex-col md:flex-row gap-3 md:items-center">
+                          <div className="flex flex-col md:flex-row md:flex-wrap gap-3 md:items-center">
                             <div className="flex items-center gap-1.5">
                               <SlidersHorizontal size={10} className="text-wr-dim shrink-0" />
-                              <div className="flex gap-1">
+                              <div className="flex gap-1 flex-wrap">
                                 {DATA_FILTERS.map((df, i) => (
                                   <button key={df.label} onClick={() => setDataFilter(i)}
                                     className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${dataFilter === i ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
@@ -1340,6 +1340,26 @@ export function ESIMWall() {
                                   </button>
                                 ))}
                               </div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Clock size={10} className="text-wr-dim shrink-0" />
+                              <div className="flex gap-1 flex-wrap">
+                                {DURATION_FILTERS.map((durf, i) => (
+                                  <button key={durf.label} onClick={() => setDurationFilter(i)}
+                                    className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${durationFilter === i ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
+                                    {durf.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <ArrowUpDown size={10} className="text-wr-dim shrink-0" />
+                              {(['price', 'data', 'duration'] as SortKey[]).map(key => (
+                                <button key={key} onClick={() => { if (sortKey === key) setSortAsc(!sortAsc); else { setSortKey(key); setSortAsc(true); } }}
+                                  className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${sortKey === key ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
+                                  {key === 'price' ? 'Price' : key === 'data' ? 'Data' : 'Duration'} {sortKey === key ? (sortAsc ? '↑' : '↓') : ''}
+                                </button>
+                              ))}
                             </div>
                           </div>
 
