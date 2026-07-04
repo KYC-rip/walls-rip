@@ -15,7 +15,9 @@ type ProPlan = 'PRO' | 'PRO_PLUS';
 interface PlanDef { label: string; monthlyUSD: number; aliasLimit: number; domains: string[] }
 interface PlansResp { plans: Record<ProPlan, PlanDef>; domains: string[] }
 interface Session { email: string; token: string; plan: ProPlan }
-interface SubCreateResp { method: 'XMR' | 'LN' | 'USDT'; address: string; paymentId: string; amount: number; usd: number; email: string; paymentUrl?: string }
+interface SubCreateResp { method: 'XMR' | 'LN' | 'USDT'; address: string; paymentId: string; amount: number; usd: number; email: string; paymentUrl?: string; chain?: string }
+type UsdtChain = 'tron' | 'eth';
+const CHAIN_LABEL: Record<UsdtChain, string> = { tron: 'Tron · TRC-20', eth: 'Ethereum · ERC-20' };
 interface AliasesResp { primary: string; plan: ProPlan; aliases: string[]; aliasLimit: number; aliasesRemaining: number; domains: string[]; subStatus?: string; sendEnabled?: boolean; nextBillingAt?: number }
 interface SentItem { id: string; from: string; to: string; subject: string; text: string; sentAt: string }
 
@@ -66,6 +68,7 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
   const [domain, setDomain] = useState('vigilpro.xyz');
   const [username, setUsername] = useState('');
   const [method, setMethod] = useState<'XMR' | 'LN' | 'USDT'>('XMR');
+  const [chain, setChain] = useState<UsdtChain>('tron');
   const [pay, setPay] = useState<SubCreateResp | null>(null);
   const [busy, setBusy] = useState(false);
   const [polling, setPolling] = useState(false);
@@ -86,7 +89,7 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
     if (!/^[a-z0-9]([a-z0-9._-]{2,30})[a-z0-9]$/.test(username)) { toast.error(t('gmpro.bad_username', 'Username: 4-32 chars a-z 0-9 . _ - (not at the ends)')); return; }
     setBusy(true);
     try {
-      const r = await mailApiClient<SubCreateResp>('/v1/mail/pro/subscribe/create', { method: 'POST', body: { plan, username, domain, method } });
+      const r = await mailApiClient<SubCreateResp>('/v1/mail/pro/subscribe/create', { method: 'POST', body: { plan, username, domain, method, ...(method === 'USDT' ? { chain } : {}) } });
       setPay(r);
     } catch (e: any) { toast.error(e?.data?.error || e?.message || 'Failed to start subscription'); }
     finally { setBusy(false); }
@@ -119,6 +122,7 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
       <div className="max-w-md w-full mx-auto bg-wr-surface border border-wr-border rounded-sm p-6 text-center space-y-4">
         <div className="flex items-center justify-center gap-2 text-sm font-bold text-wr-accent"><Loader2 size={16} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
         <p className="text-xs text-wr-dim">{pay.email} · {t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
+        {pay.method === 'USDT' && <p className="text-[11px] text-wr-accent font-bold uppercase tracking-wider">{CHAIN_LABEL[(pay.chain as UsdtChain)] || pay.chain} {t('gmpro.network_only', '— send on this network only')}</p>}
         <div className="bg-white p-4 rounded-sm inline-block"><QRCodeCanvas value={qrValue} size={190} /></div>
         <button onClick={() => copy(pay.address)} className="w-full flex items-center justify-between gap-2 bg-wr-base border border-wr-border rounded-sm px-3 py-2.5 text-[11px] font-mono">
           <span className="truncate text-wr-dim">{pay.address}</span><Copy size={13} className="text-wr-dim shrink-0" />
@@ -170,6 +174,15 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
             </button>
           ))}
         </div>
+        {method === 'USDT' && (
+          <div className="flex gap-2">
+            {(['tron', 'eth'] as const).map((ch) => (
+              <button key={ch} onClick={() => setChain(ch)} className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider rounded-sm border transition-all ${chain === ch ? 'border-wr-accent text-wr-accent bg-wr-accent/5' : 'border-wr-border text-wr-dim hover:text-current'}`}>
+                {CHAIN_LABEL[ch]}
+              </button>
+            ))}
+          </div>
+        )}
         <button onClick={start} disabled={busy || !username} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent text-black hover:bg-wr-accent/90 disabled:opacity-50 flex items-center justify-center gap-2">
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Crown size={14} />} {t('gmpro.subscribe', 'Subscribe')} — ${plans?.plans[plan].monthlyUSD}/mo
         </button>
@@ -252,13 +265,14 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
 function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Session; monthlyUSD: number; onClose: () => void; onRenewed: () => void }) {
   const { t } = useTranslation();
   const [method, setMethod] = useState<'XMR' | 'LN' | 'USDT'>('XMR');
-  const [pay, setPay] = useState<{ address: string; amount: number; method: string; usd: number; paymentId: string; paymentUrl?: string } | null>(null);
+  const [chain, setChain] = useState<UsdtChain>('tron');
+  const [pay, setPay] = useState<{ address: string; amount: number; method: string; usd: number; paymentId: string; paymentUrl?: string; chain?: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const start = async () => {
     setBusy(true);
     try {
-      const r = await mailApiClient<any>('/v1/mail/pro/renew/create', { method: 'POST', body: { email: session.email, token: session.token, method } });
+      const r = await mailApiClient<any>('/v1/mail/pro/renew/create', { method: 'POST', body: { email: session.email, token: session.token, method, ...(method === 'USDT' ? { chain } : {}) } });
       setPay(r);
     } catch (e: any) { toast.error(e?.data?.error || 'Failed to start renewal'); }
     finally { setBusy(false); }
@@ -297,6 +311,13 @@ function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Sess
                   <button key={m} onClick={() => setMethod(m)} className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim'}`}>{m === 'XMR' ? 'Monero' : m === 'LN' ? 'Lightning' : 'USDT'}</button>
                 ))}
               </div>
+              {method === 'USDT' && (
+                <div className="flex gap-2">
+                  {(['tron', 'eth'] as const).map((ch) => (
+                    <button key={ch} onClick={() => setChain(ch)} className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider rounded-sm border ${chain === ch ? 'border-wr-accent text-wr-accent bg-wr-accent/5' : 'border-wr-border text-wr-dim'}`}>{CHAIN_LABEL[ch]}</button>
+                  ))}
+                </div>
+              )}
               <button onClick={start} disabled={busy} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent text-black disabled:opacity-50 flex items-center justify-center gap-2">
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {t('gmpro.renew_now', 'Renew now')}
               </button>
@@ -305,6 +326,7 @@ function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Sess
             <>
               <div className="flex items-center justify-center gap-2 text-xs font-bold text-wr-accent"><Loader2 size={14} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
               <p className="text-[11px] text-wr-dim">{t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
+              {pay.method === 'USDT' && <p className="text-[11px] text-wr-accent font-bold uppercase tracking-wider">{CHAIN_LABEL[(pay.chain as UsdtChain)] || pay.chain} {t('gmpro.network_only', '— send on this network only')}</p>}
               <div className="bg-white p-3 rounded-sm inline-block"><QRCodeCanvas value={qr} size={170} /></div>
               <button onClick={() => { navigator.clipboard.writeText(pay.address); toast.success('Copied'); }} className="w-full flex items-center justify-between gap-2 bg-wr-surface border border-wr-border rounded-sm px-3 py-2 text-[11px] font-mono"><span className="truncate text-wr-dim">{pay.address}</span><Copy size={12} className="shrink-0 text-wr-dim" /></button>
               {(pay.method === 'XMR' ? qr : pay.method === 'LN' ? `lightning:${pay.address}` : pay.paymentUrl) && (
