@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Mail, Crown, Send, Plus, Trash2, Copy, Check, RefreshCw, X, Inbox, LogOut, AtSign, Clock, Loader2, ShieldCheck } from 'lucide-react';
+import { Mail, Crown, Send, Plus, Trash2, Copy, Check, RefreshCw, X, Inbox, LogOut, AtSign, Clock, Loader2, ShieldCheck, Wallet } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +14,7 @@ type ProPlan = 'PRO' | 'PRO_PLUS';
 interface PlanDef { label: string; monthlyUSD: number; aliasLimit: number; domains: string[] }
 interface PlansResp { plans: Record<ProPlan, PlanDef>; domains: string[] }
 interface Session { email: string; token: string; plan: ProPlan }
-interface SubCreateResp { method: 'XMR' | 'LN' | 'USDT'; address: string; paymentId: string; amount: number; usd: number; email: string }
+interface SubCreateResp { method: 'XMR' | 'LN' | 'USDT'; address: string; paymentId: string; amount: number; usd: number; email: string; paymentUrl?: string }
 interface AliasesResp { primary: string; plan: ProPlan; aliases: string[]; aliasLimit: number; aliasesRemaining: number; domains: string[]; subStatus?: string; sendEnabled?: boolean; nextBillingAt?: number }
 interface SentItem { id: string; from: string; to: string; subject: string; text: string; sentAt: string }
 
@@ -112,15 +112,21 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
   const copy = (s: string) => { navigator.clipboard.writeText(s); toast.success('Copied'); };
   const qrValue = pay ? (pay.method === 'XMR' ? `monero:${pay.address}?tx_amount=${pay.amount}` : pay.method === 'LN' ? pay.address.toUpperCase() : pay.address) : '';
 
+  const walletUri = pay ? (pay.method === 'XMR' ? qrValue : pay.method === 'LN' ? `lightning:${pay.address}` : (pay.paymentUrl || '')) : '';
   if (pay) {
     return (
-      <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-border rounded-sm p-6 text-center space-y-4 max-w-md w-full mx-auto">
+      <div className="max-w-md w-full mx-auto bg-wr-surface border border-wr-border rounded-sm p-6 text-center space-y-4">
         <div className="flex items-center justify-center gap-2 text-sm font-bold text-wr-accent"><Loader2 size={16} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
         <p className="text-xs text-wr-dim">{pay.email} · {t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
         <div className="bg-white p-4 rounded-sm inline-block"><QRCodeCanvas value={qrValue} size={190} /></div>
         <button onClick={() => copy(pay.address)} className="w-full flex items-center justify-between gap-2 bg-wr-base border border-wr-border rounded-sm px-3 py-2.5 text-[11px] font-mono">
           <span className="truncate text-wr-dim">{pay.address}</span><Copy size={13} className="text-wr-dim shrink-0" />
         </button>
+        {walletUri && (
+          <a href={walletUri} className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm bg-wr-accent text-black hover:bg-wr-accent/90 transition-all">
+            <Wallet size={14} /> {pay.method === 'USDT' ? t('gmpro.open_pay', 'Open payment page') : t('gmpro.open_wallet', 'Open in wallet')}
+          </a>
+        )}
         {polling && <p className="text-[11px] text-wr-dim">{t('gmpro.auto_activate', 'Activates automatically once the payment confirms. Keep this page open.')}</p>}
         <button onClick={() => setPay(null)} className="text-xs text-wr-dim hover:text-current uppercase tracking-widest">{t('common.cancel', 'Cancel')}</button>
       </div>
@@ -245,7 +251,7 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
 function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Session; monthlyUSD: number; onClose: () => void; onRenewed: () => void }) {
   const { t } = useTranslation();
   const [method, setMethod] = useState<'XMR' | 'LN' | 'USDT'>('XMR');
-  const [pay, setPay] = useState<{ address: string; amount: number; method: string; usd: number; paymentId: string } | null>(null);
+  const [pay, setPay] = useState<{ address: string; amount: number; method: string; usd: number; paymentId: string; paymentUrl?: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const start = async () => {
@@ -300,6 +306,11 @@ function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Sess
               <p className="text-[11px] text-wr-dim">{t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
               <div className="bg-white p-3 rounded-sm inline-block"><QRCodeCanvas value={qr} size={170} /></div>
               <button onClick={() => { navigator.clipboard.writeText(pay.address); toast.success('Copied'); }} className="w-full flex items-center justify-between gap-2 bg-wr-surface border border-wr-border rounded-sm px-3 py-2 text-[11px] font-mono"><span className="truncate text-wr-dim">{pay.address}</span><Copy size={12} className="shrink-0 text-wr-dim" /></button>
+              {(pay.method === 'XMR' ? qr : pay.method === 'LN' ? `lightning:${pay.address}` : pay.paymentUrl) && (
+                <a href={pay.method === 'XMR' ? qr : pay.method === 'LN' ? `lightning:${pay.address}` : pay.paymentUrl} className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm bg-wr-accent text-black hover:bg-wr-accent/90 transition-all">
+                  <Wallet size={13} /> {pay.method === 'USDT' ? t('gmpro.open_pay', 'Open payment page') : t('gmpro.open_wallet', 'Open in wallet')}
+                </a>
+              )}
               <p className="text-[10px] text-wr-dim">{t('gmpro.auto_renew', 'Extends automatically once the payment confirms.')}</p>
             </>
           )}
