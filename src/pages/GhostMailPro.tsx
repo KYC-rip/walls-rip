@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Mail, Crown, Send, Plus, Trash2, Copy, Check, RefreshCw, X, Inbox, LogOut, AtSign, Clock, Loader2, ShieldCheck, Wallet } from 'lucide-react';
+import { Mail, Crown, Send, Plus, Trash2, Copy, Check, RefreshCw, X, Inbox, LogOut, AtSign, Clock, Loader2, ShieldCheck, Wallet, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -321,30 +321,86 @@ function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Sess
   );
 }
 
+// Strip leading Re:/Fwd:/Aw: etc. so replies collapse into one thread.
+function threadKey(subject: string): string {
+  return (subject || '').replace(/^\s*((re|fwd?|aw|sv|vs)\s*:\s*)+/i, '').trim().toLowerCase() || '(no subject)';
+}
+
 function InboxTab({ session }: { session: Session }) {
   const { t } = useTranslation();
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<any | null>(null);
+  const [search, setSearch] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const load = useCallback(() => {
     setLoading(true);
     fetchInbox(session.email, session.token).then((r: any) => setEmails(r.emails || [])).catch(() => {}).finally(() => setLoading(false));
   }, [session]);
   useEffect(() => { load(); }, [load]);
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return emails;
+    return emails.filter((e) =>
+      (e.subject || '').toLowerCase().includes(q) ||
+      (e.from || '').toLowerCase().includes(q) ||
+      (e.fromName || '').toLowerCase().includes(q) ||
+      (e.text || '').toLowerCase().includes(q));
+  }, [emails, search]);
+
+  // Group into threads; emails arrive newest-first so each group's [0] is newest.
+  const threads = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const e of filtered) {
+      const k = threadKey(e.subject);
+      const arr = map.get(k);
+      if (arr) arr.push(e); else map.set(k, [e]);
+    }
+    return Array.from(map.entries()).sort((a, b) => new Date(b[1][0].receivedAt).getTime() - new Date(a[1][0].receivedAt).getTime());
+  }, [filtered]);
+
+  const toggle = (k: string) => setExpanded((prev) => {
+    const n = new Set(prev);
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
+
+  const Row = ({ e, nested }: { e: any; nested?: boolean }) => (
+    <button onClick={() => setOpen(e)} className={`w-full text-left border border-wr-border hover:border-wr-accent/40 rounded-sm p-3 transition-all ${nested ? 'bg-wr-base/40' : 'bg-wr-surface'}`}>
+      <div className="flex justify-between gap-2"><span className="text-xs font-bold truncate">{e.fromName || e.from}</span><span className="text-[10px] text-wr-dim shrink-0">{new Date(e.receivedAt).toLocaleString()}</span></div>
+      <div className="text-xs text-wr-dim truncate mt-0.5">{e.subject}</div>
+    </button>
+  );
+
   return (
     <div className="space-y-2">
-      <div className="flex justify-between items-center">
-        <span className="text-[11px] text-wr-dim uppercase tracking-widest">{emails.length} {t('gmpro.messages', 'messages')}</span>
-        <button onClick={load} className="text-[11px] text-wr-dim hover:text-current flex items-center gap-1"><RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> {t('gmpro.refresh', 'Refresh')}</button>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-wr-dim" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('gmpro.search', 'Search mail…')} className="w-full pl-8 pr-3 py-2 bg-wr-base border border-wr-border rounded-sm text-xs outline-none focus:border-wr-accent/50" />
+        </div>
+        <button onClick={load} className="text-[11px] text-wr-dim hover:text-current flex items-center gap-1 px-2 py-2 shrink-0"><RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> {t('gmpro.refresh', 'Refresh')}</button>
       </div>
-      {emails.length === 0 && !loading && <div className="text-center py-10 text-wr-dim text-sm">{t('gmpro.empty_inbox', 'No mail yet. Give your address (or an alias) to someone.')}</div>}
-      {emails.map((e) => (
-        <button key={e.id} onClick={() => setOpen(e)} className="w-full text-left bg-wr-surface border border-wr-border hover:border-wr-accent/40 rounded-sm p-3 transition-all">
-          <div className="flex justify-between gap-2"><span className="text-xs font-bold truncate">{e.fromName || e.from}</span><span className="text-[10px] text-wr-dim shrink-0">{new Date(e.receivedAt).toLocaleString()}</span></div>
-          <div className="text-xs text-wr-dim truncate mt-0.5">{e.subject}</div>
-        </button>
-      ))}
+      <div className="text-[11px] text-wr-dim uppercase tracking-widest px-0.5">
+        {filtered.length} {t('gmpro.messages', 'messages')}{threads.length !== filtered.length ? ` · ${threads.length} ${t('gmpro.threads', 'threads')}` : ''}
+      </div>
+      {filtered.length === 0 && !loading && <div className="text-center py-10 text-wr-dim text-sm">{search ? t('gmpro.no_match', 'No mail matches your search.') : t('gmpro.empty_inbox', 'No mail yet. Give your address (or an alias) to someone.')}</div>}
+      {threads.map(([k, msgs]) => {
+        if (msgs.length === 1) return <Row key={msgs[0].id} e={msgs[0]} />;
+        const isOpen = expanded.has(k);
+        return (
+          <div key={k} className="space-y-1">
+            <div className="flex items-stretch gap-1">
+              <div className="flex-1 min-w-0"><Row e={msgs[0]} /></div>
+              <button onClick={() => toggle(k)} className="shrink-0 px-2 rounded-sm border border-wr-border text-[10px] font-bold text-wr-dim hover:text-wr-accent hover:border-wr-accent/40 flex items-center gap-1" title={t('gmpro.thread_toggle', 'Show thread')}>
+                {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />} {msgs.length}
+              </button>
+            </div>
+            {isOpen && <div className="pl-4 space-y-1 border-l border-wr-border/50 ml-1">{msgs.slice(1).map((e) => <Row key={e.id} e={e} nested />)}</div>}
+          </div>
+        );
+      })}
       {open && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setOpen(null)}>
           <div className="bg-wr-base border border-wr-border rounded-lg w-full max-w-2xl h-[85vh] flex flex-col overflow-hidden" onClick={(ev) => ev.stopPropagation()}>
