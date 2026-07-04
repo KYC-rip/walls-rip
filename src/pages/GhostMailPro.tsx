@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Mail, Crown, Send, Plus, Trash2, Copy, Check, RefreshCw, X, Inbox, LogOut, AtSign, Clock, Loader2, ShieldCheck, Wallet, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Mail, Crown, Send, Plus, Trash2, Copy, Check, RefreshCw, X, Inbox, LogOut, AtSign, Clock, Loader2, ShieldCheck, Wallet, Search, ChevronDown, ChevronUp, Paperclip } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -391,7 +391,14 @@ function InboxTab({ session }: { session: Session }) {
   const Row = ({ e, nested }: { e: any; nested?: boolean }) => (
     <button onClick={() => setOpen(e)} className={`w-full text-left border border-wr-border hover:border-wr-accent/40 rounded-sm p-3 transition-all ${nested ? 'bg-wr-base/40' : 'bg-wr-surface'}`}>
       <div className="flex justify-between gap-2"><span className="text-xs font-bold truncate">{e.fromName || e.from}</span><span className="text-[10px] text-wr-dim shrink-0">{new Date(e.receivedAt).toLocaleString()}</span></div>
-      <div className="text-xs text-wr-dim truncate mt-0.5">{e.subject}</div>
+      <div className="flex items-center gap-1.5 mt-0.5">
+        {!!e.attachments?.length && (
+          <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-wr-accent" title={`${e.attachments.length} attachment${e.attachments.length > 1 ? 's' : ''}`}>
+            <Paperclip size={11} />{e.attachments.length > 1 ? e.attachments.length : ''}
+          </span>
+        )}
+        <span className="text-xs text-wr-dim truncate">{e.subject}</span>
+      </div>
     </button>
   );
 
