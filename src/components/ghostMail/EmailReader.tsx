@@ -1,7 +1,9 @@
 /* Shared email reader — used by both disposable Ghost Mail (InboxLayout) and Ghost Mail Pro.
    Pure presentational: subject header, FROM/DATE grid, TXT/HTML toggle, sandboxed iframe. */
 import { useState, useEffect } from 'react';
-import { Trash2, FileText, FileCode, Unlock } from 'lucide-react';
+import { Trash2, FileText, FileCode, Unlock, Paperclip, Download } from 'lucide-react';
+
+export interface ReaderAttachment { id: string; filename: string; mimeType: string; size: number }
 
 export interface ReaderEmail {
   id: string;
@@ -12,6 +14,7 @@ export interface ReaderEmail {
   html?: string;
   receivedAt: string;
   isEncrypted?: boolean;
+  attachments?: ReaderAttachment[];
 }
 
 interface EmailReaderProps {
@@ -23,6 +26,14 @@ interface EmailReaderProps {
   onDelete?: () => void;
   /** show the DECRYPTED badge (email was PGP and is now unlocked) */
   decrypted?: boolean;
+  /** build a download URL for an attachment (Pro only); omit to hide attachments */
+  attachmentHref?: (att: ReaderAttachment) => string;
+}
+
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function getProcessedHtml(html: string) {
@@ -31,7 +42,7 @@ function getProcessedHtml(html: string) {
   return responsiveStyles + html + heightScript;
 }
 
-export function EmailReader({ email, text, html, onDelete, decrypted }: EmailReaderProps) {
+export function EmailReader({ email, text, html, onDelete, decrypted, attachmentHref }: EmailReaderProps) {
   const currentText = text ?? email.text;
   const currentHtml = html ?? email.html;
   const hasHtml = !!currentHtml;
@@ -78,6 +89,24 @@ export function EmailReader({ email, text, html, onDelete, decrypted }: EmailRea
           <span className="text-wr-dim uppercase">DATE</span><span className="text-wr-dim">{new Date(email.receivedAt).toLocaleString()}</span>
           {email.isEncrypted && decrypted && <><span className="text-wr-accent uppercase">SECURITY</span><span className="text-wr-accent flex items-center gap-1"><Unlock size={10} /> DECRYPTED</span></>}
         </div>
+        {attachmentHref && !!email.attachments?.length && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {email.attachments.map((att) => (
+              <a
+                key={att.id}
+                href={attachmentHref(att)}
+                download={att.filename}
+                className="flex items-center gap-2 max-w-full bg-wr-base border border-wr-border hover:border-wr-green rounded-sm px-2.5 py-1.5 text-[11px] text-wr-dim hover:text-wr-green transition-colors group"
+                title={`${att.filename} · ${fmtBytes(att.size)}`}
+              >
+                <Paperclip size={11} className="shrink-0" />
+                <span className="truncate font-mono">{att.filename}</span>
+                <span className="shrink-0 text-wr-dim/60">{fmtBytes(att.size)}</span>
+                <Download size={11} className="shrink-0 opacity-60 group-hover:opacity-100" />
+              </a>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex-1 min-h-0 bg-wr-surface/30 relative overflow-y-auto custom-scrollbar">
         {viewMode === 'text' || !currentHtml ? (

@@ -6,9 +6,9 @@ import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
-import { mailApiClient } from '../services/client';
+import { mailApiClient, getMailApiBase } from '../services/client';
 import { fetchInbox } from '../services/mail';
-import { EmailReader } from '../components/ghostMail/EmailReader';
+import { EmailReader, type ReaderAttachment } from '../components/ghostMail/EmailReader';
 
 // ── Types ──
 type ProPlan = 'PRO' | 'PRO_PLUS';
@@ -430,7 +430,11 @@ function InboxTab({ session }: { session: Session }) {
               <span className="text-[11px] text-wr-dim uppercase tracking-widest">{t('gmpro.reading', 'Reading')}</span>
               <button onClick={() => setOpen(null)} className="text-wr-dim hover:text-current"><X size={17} /></button>
             </div>
-            <EmailReader email={open} />
+            <EmailReader
+              email={open}
+              attachmentHref={(att: ReaderAttachment) =>
+                `${getMailApiBase()}/v1/mail/pro/attachment?email=${encodeURIComponent(session.email)}&token=${encodeURIComponent(session.token)}&emailId=${encodeURIComponent(open.id)}&attId=${encodeURIComponent(att.id)}`}
+            />
           </div>
         </div>
       )}

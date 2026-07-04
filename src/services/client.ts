@@ -18,7 +18,7 @@ const getApiBase = () => {
   return import.meta.env.VITE_API_URL || 'https://api.kyc.rip';
 };
 
-const getMailApiBase = () => {
+export const getMailApiBase = () => {
   return import.meta.env.VITE_MAIL_API_URL || 'https://mail-api.kyc.rip';
 };
 
