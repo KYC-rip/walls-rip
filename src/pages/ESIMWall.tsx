@@ -117,11 +117,6 @@ function isGlobalPlan(plan: { country: string; name: string }): boolean {
   return plan.country === 'GLOBAL' || plan.country.toLowerCase() === 'global' || plan.name.toLowerCase().includes('global');
 }
 
-/** Check if a plan is multi-country (regional or global — not single ISO code) */
-function isMultiCountryPlan(plan: { country: string; name: string }): boolean {
-  return !isSingleCountryPlan(plan.country);
-}
-
 /** Check if a plan is a regional plan (multi-country, not global) */
 function isRegionalPlan(plan: { country: string; name: string }): boolean {
   if (isGlobalPlan(plan)) return false;
@@ -580,7 +575,9 @@ export function ESIMWall() {
 
   // ─── Global plans ───
   const globalPlans = useMemo(() => {
-    return allPlans.filter(p => isMultiCountryPlan(p));
+    // GLOBAL tab = true global plans only (isGlobalPlan). Was isMultiCountryPlan,
+    // which also swept in every REGIONAL plan (~285) — that's the "too many".
+    return allPlans.filter(p => isGlobalPlan(p));
   }, [allPlans]);
 
   // ─── Active tab plans for filter/sort (regional or global) ───
@@ -1348,7 +1345,7 @@ export function ESIMWall() {
 
                           {/* Plan cards grid */}
                           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3">
-                            {tabPlans.map((plan) => {
+                            {tabPlans.slice(0, visiblePlans).map((plan) => {
                               const isCheapest = plan.id === tabCheapestId;
                               const pricePerGB = plan.dataGB > 0 ? +(plan.price / plan.dataGB).toFixed(2) : plan.price;
 
