@@ -14,7 +14,7 @@ type ProPlan = 'PRO' | 'PRO_PLUS';
 interface PlanDef { label: string; monthlyUSD: number; aliasLimit: number; domains: string[] }
 interface PlansResp { plans: Record<ProPlan, PlanDef>; domains: string[] }
 interface Session { email: string; token: string; plan: ProPlan }
-interface SubCreateResp { method: 'XMR' | 'LN'; address: string; paymentId: string; amount: number; usd: number; email: string }
+interface SubCreateResp { method: 'XMR' | 'LN' | 'USDT'; address: string; paymentId: string; amount: number; usd: number; email: string }
 interface AliasesResp { primary: string; plan: ProPlan; aliases: string[]; aliasLimit: number; aliasesRemaining: number; domains: string[]; subStatus?: string; sendEnabled?: boolean; nextBillingAt?: number }
 interface SentItem { id: string; from: string; to: string; subject: string; text: string; sentAt: string }
 
@@ -64,7 +64,7 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
   const [plan, setPlan] = useState<ProPlan>('PRO');
   const [domain, setDomain] = useState('vigilpro.xyz');
   const [username, setUsername] = useState('');
-  const [method, setMethod] = useState<'XMR' | 'LN'>('XMR');
+  const [method, setMethod] = useState<'XMR' | 'LN' | 'USDT'>('XMR');
   const [pay, setPay] = useState<SubCreateResp | null>(null);
   const [busy, setBusy] = useState(false);
   const [polling, setPolling] = useState(false);
@@ -110,13 +110,13 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
   }, [pay, onActivated]);
 
   const copy = (s: string) => { navigator.clipboard.writeText(s); toast.success('Copied'); };
-  const qrValue = pay ? (pay.method === 'XMR' ? `monero:${pay.address}?tx_amount=${pay.amount}` : pay.address.toUpperCase()) : '';
+  const qrValue = pay ? (pay.method === 'XMR' ? `monero:${pay.address}?tx_amount=${pay.amount}` : pay.method === 'LN' ? pay.address.toUpperCase() : pay.address) : '';
 
   if (pay) {
     return (
       <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-border rounded-sm p-6 text-center space-y-4 max-w-md w-full mx-auto">
         <div className="flex items-center justify-center gap-2 text-sm font-bold text-wr-accent"><Loader2 size={16} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
-        <p className="text-xs text-wr-dim">{pay.email} · {t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : 'sats'}</b> (${pay.usd})</p>
+        <p className="text-xs text-wr-dim">{pay.email} · {t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
         <div className="bg-white p-4 rounded-sm inline-block"><QRCodeCanvas value={qrValue} size={190} /></div>
         <button onClick={() => copy(pay.address)} className="w-full flex items-center justify-between gap-2 bg-wr-base border border-wr-border rounded-sm px-3 py-2.5 text-[11px] font-mono">
           <span className="truncate text-wr-dim">{pay.address}</span><Copy size={13} className="text-wr-dim shrink-0" />
@@ -157,9 +157,9 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
           </select>
         </div>
         <div className="flex gap-2">
-          {(['XMR', 'LN'] as const).map((m) => (
+          {(['XMR', 'LN', 'USDT'] as const).map((m) => (
             <button key={m} onClick={() => setMethod(m)} className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border transition-all ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim hover:text-current'}`}>
-              {m === 'XMR' ? 'Monero' : 'Lightning'}
+              {m === 'XMR' ? 'Monero' : m === 'LN' ? 'Lightning' : 'USDT'}
             </button>
           ))}
         </div>
@@ -244,7 +244,7 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
 
 function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Session; monthlyUSD: number; onClose: () => void; onRenewed: () => void }) {
   const { t } = useTranslation();
-  const [method, setMethod] = useState<'XMR' | 'LN'>('XMR');
+  const [method, setMethod] = useState<'XMR' | 'LN' | 'USDT'>('XMR');
   const [pay, setPay] = useState<{ address: string; amount: number; method: string; usd: number; paymentId: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -273,7 +273,7 @@ function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Sess
     return () => { stop = true; clearTimeout(id); };
   }, [pay, onRenewed, t]);
 
-  const qr = pay ? (pay.method === 'XMR' ? `monero:${pay.address}?tx_amount=${pay.amount}` : pay.address.toUpperCase()) : '';
+  const qr = pay ? (pay.method === 'XMR' ? `monero:${pay.address}?tx_amount=${pay.amount}` : pay.method === 'LN' ? pay.address.toUpperCase() : pay.address) : '';
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="bg-wr-base border border-wr-border rounded-lg w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
@@ -286,8 +286,8 @@ function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Sess
             <>
               <p className="text-xs text-wr-dim">{t('gmpro.renew_desc', 'Extend your Pro subscription by one month. Aliases, sending and inbox all continue.')}</p>
               <div className="flex gap-2">
-                {(['XMR', 'LN'] as const).map((m) => (
-                  <button key={m} onClick={() => setMethod(m)} className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim'}`}>{m === 'XMR' ? 'Monero' : 'Lightning'}</button>
+                {(['XMR', 'LN', 'USDT'] as const).map((m) => (
+                  <button key={m} onClick={() => setMethod(m)} className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim'}`}>{m === 'XMR' ? 'Monero' : m === 'LN' ? 'Lightning' : 'USDT'}</button>
                 ))}
               </div>
               <button onClick={start} disabled={busy} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent text-black disabled:opacity-50 flex items-center justify-center gap-2">
@@ -297,7 +297,7 @@ function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Sess
           ) : (
             <>
               <div className="flex items-center justify-center gap-2 text-xs font-bold text-wr-accent"><Loader2 size={14} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
-              <p className="text-[11px] text-wr-dim">{t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : 'sats'}</b> (${pay.usd})</p>
+              <p className="text-[11px] text-wr-dim">{t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
               <div className="bg-white p-3 rounded-sm inline-block"><QRCodeCanvas value={qr} size={170} /></div>
               <button onClick={() => { navigator.clipboard.writeText(pay.address); toast.success('Copied'); }} className="w-full flex items-center justify-between gap-2 bg-wr-surface border border-wr-border rounded-sm px-3 py-2 text-[11px] font-mono"><span className="truncate text-wr-dim">{pay.address}</span><Copy size={12} className="shrink-0 text-wr-dim" /></button>
               <p className="text-[10px] text-wr-dim">{t('gmpro.auto_renew', 'Extends automatically once the payment confirms.')}</p>
