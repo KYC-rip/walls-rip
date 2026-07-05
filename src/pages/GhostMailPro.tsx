@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Mail, Crown, Send, Plus, Trash2, Copy, Check, RefreshCw, X, Inbox, LogOut, AtSign, Clock, Loader2, ShieldCheck, Wallet, Search, ChevronDown, ChevronUp, Paperclip } from 'lucide-react';
+import { Crown, Send, Plus, Trash2, Copy, Check, RefreshCw, X, Inbox, LogOut, AtSign, Clock, Loader2, ShieldCheck, Wallet, Search, ChevronDown, ChevronUp, ChevronLeft, Paperclip, KeyRound, ShieldHalf, Zap, MailPlus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +20,7 @@ type UsdtChain = 'tron' | 'eth';
 const CHAIN_LABEL: Record<UsdtChain, string> = { tron: 'Tron · TRC-20', eth: 'Ethereum · ERC-20' };
 interface AliasesResp { primary: string; plan: ProPlan; aliases: string[]; aliasLimit: number; aliasesRemaining: number; domains: string[]; subStatus?: string; sendEnabled?: boolean; nextBillingAt?: number }
 interface SentItem { id: string; from: string; to: string; subject: string; text: string; sentAt: string }
+interface ComposePrefill { from?: string; to?: string; subject?: string }
 
 const SESSION_KEY = 'ghost_pro_session';
 type Tab = 'inbox' | 'compose' | 'aliases' | 'sent';
@@ -43,17 +44,26 @@ export default function GhostMailPro() {
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />
       <Header />
-      <main className="w-full max-w-4xl px-4 md:px-6 relative z-10 pb-12">
-        <div className="max-w-4xl mx-auto space-y-6 pb-8 md:pb-12">
-          <div className="text-center py-8 scale-90 md:scale-100 origin-top">
-            <div className="mx-auto w-16 h-16 rounded-full bg-wr-accent/10 flex items-center justify-center text-wr-accent border border-wr-accent/20 mb-4"><Crown size={34} /></div>
-            <h1 className="font-display text-3xl md:text-5xl font-black tracking-tight mb-2">
-              {t('gmpro.title_a', 'Ghost Mail')} <span className="text-wr-accent">{t('gmpro.title_b', 'Pro')}</span>
-            </h1>
-            <p className="text-wr-dim text-sm max-w-md mx-auto">{t('gmpro.subtitle', 'A persistent private inbox you can send from — fixed address, aliases, compose & reply. No KYC, pay monthly in Monero or Lightning.')}</p>
+      <main className="w-full max-w-6xl px-4 md:px-6 relative z-10 pb-12">
+        {session ? (
+          <div className="pt-4 md:pt-6">
+            <Dashboard session={session} onSignOut={() => saveSession(null)} />
           </div>
-          {session ? <Dashboard session={session} onSignOut={() => saveSession(null)} /> : <Subscribe onActivated={saveSession} />}
-        </div>
+        ) : (
+          <div className="max-w-5xl mx-auto pb-8 md:pb-12">
+            {/* Hero */}
+            <div className="text-center py-8 md:py-10 scale-90 md:scale-100 origin-top">
+              <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-wr-accent/30 bg-wr-accent/10 text-wr-accent px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] mb-5">
+                <Crown size={13} /> {t('gmpro.premium_tier', 'Premium Tier')}
+              </div>
+              <h1 className="font-display text-4xl md:text-6xl font-black tracking-tight mb-3">
+                {t('gmpro.title_a', 'Ghost Mail')} <span className="text-wr-accent">{t('gmpro.title_b', 'Pro')}</span>
+              </h1>
+              <p className="text-wr-dim text-sm md:text-base max-w-xl mx-auto leading-relaxed">{t('gmpro.subtitle', 'A persistent private inbox you can send from — fixed address, aliases, compose & reply. No KYC, pay monthly in Monero or Lightning.')}</p>
+            </div>
+            <Subscribe onActivated={saveSession} />
+          </div>
+        )}
       </main>
       <Footer />
     </div>
@@ -119,7 +129,7 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
   const walletUri = pay ? (pay.method === 'XMR' ? qrValue : pay.method === 'LN' ? `lightning:${pay.address}` : (pay.paymentUrl || '')) : '';
   if (pay) {
     return (
-      <div className="max-w-md w-full mx-auto bg-wr-surface border border-wr-border rounded-sm p-6 text-center space-y-4">
+      <div className="max-w-md w-full mx-auto bg-wr-surface border border-wr-border rounded-lg p-6 text-center space-y-4">
         <div className="flex items-center justify-center gap-2 text-sm font-bold text-wr-accent"><Loader2 size={16} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
         <p className="text-xs text-wr-dim">{pay.email} · {t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
         {pay.method === 'USDT' && <p className="text-[11px] text-wr-accent font-bold uppercase tracking-wider">{CHAIN_LABEL[(pay.chain as UsdtChain)] || pay.chain} {t('gmpro.network_only', '— send on this network only')}</p>}
@@ -138,55 +148,93 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
     );
   }
 
+  const monthlyUSD = plans?.plans[plan].monthlyUSD;
+  const methodName = method === 'XMR' ? 'Monero (XMR)' : method === 'LN' ? 'Lightning' : 'USDT';
+
+  const features = [
+    { icon: ShieldHalf, title: t('gmpro.feat_fixed_title', 'Fixed address'), body: t('gmpro.feat_fixed_body', "A permanent inbox that's yours — not a burner that vanishes in 10 minutes.") },
+    { icon: Send, title: t('gmpro.feat_send_title', 'Send & reply'), body: t('gmpro.feat_send_body', 'Full two-way mail. Compose, reply and thread from your address or any alias.') },
+    { icon: AtSign, title: t('gmpro.feat_alias_title', 'Unlimited aliases'), body: t('gmpro.feat_alias_body', 'Spin up per-service aliases; every one lands in the same inbox. Kill any at will.') },
+  ];
+
   return (
-    <div className="mx-2 md:mx-0 space-y-5">
-      {/* Plans */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {plans && (Object.keys(plans.plans) as ProPlan[]).map((p) => {
-          const d = plans.plans[p]; const active = plan === p;
-          return (
-            <button key={p} onClick={() => setPlan(p)} className={`text-left rounded-sm p-5 border transition-all ${active ? 'border-wr-accent bg-wr-accent/5' : 'border-wr-border bg-wr-surface hover:border-wr-accent/40'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-black tracking-wide">{d.label}</span>
-                {active && <Check size={16} className="text-wr-accent" />}
-              </div>
-              <div className="text-2xl font-black text-wr-accent">${d.monthlyUSD}<span className="text-xs text-wr-dim font-bold">/mo</span></div>
-              <div className="text-[11px] text-wr-dim mt-1">{d.aliasLimit} {t('gmpro.aliases', 'aliases')} · {t('gmpro.send_recv', 'send + receive')} · {t('gmpro.persistent', 'persistent')}</div>
-            </button>
-          );
-        })}
+    <div className="space-y-6">
+      {/* Feature strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {features.map((f) => (
+          <div key={f.title} className="border border-wr-border bg-wr-surface rounded-lg p-5">
+            <div className="text-wr-accent mb-3"><f.icon size={20} /></div>
+            <div className="text-sm font-bold mb-1">{f.title}</div>
+            <div className="text-xs text-wr-dim leading-relaxed">{f.body}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Address + method */}
-      <div className="bg-wr-surface border border-wr-border rounded-sm p-5 space-y-3">
-        <label className="text-xs text-wr-dim uppercase tracking-widest font-bold">{t('gmpro.choose_address', 'Choose your address')}</label>
-        <div className="flex gap-2">
-          <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="yourname" className="flex-1 px-3 py-2.5 bg-wr-base border border-wr-border rounded-sm font-mono text-sm outline-none focus:border-wr-accent/50" />
-          <span className="flex items-center text-wr-dim font-mono text-sm">@</span>
-          <select value={domain} onChange={(e) => setDomain(e.target.value)} className="px-2 py-2.5 bg-wr-base border border-wr-border rounded-sm font-mono text-sm outline-none">
-            {(plans?.domains || ['vigilpro.xyz', 'vigilplus.xyz']).map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </div>
-        <div className="flex gap-2">
-          {(['XMR', 'LN', 'USDT'] as const).map((m) => (
-            <button key={m} onClick={() => setMethod(m)} className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border transition-all ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim hover:text-current'}`}>
-              {m === 'XMR' ? 'Monero' : m === 'LN' ? 'Lightning' : 'USDT'}
-            </button>
-          ))}
-        </div>
-        {method === 'USDT' && (
-          <div className="flex gap-2">
-            {(['tron', 'eth'] as const).map((ch) => (
-              <button key={ch} onClick={() => setChain(ch)} className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider rounded-sm border transition-all ${chain === ch ? 'border-wr-accent text-wr-accent bg-wr-accent/5' : 'border-wr-border text-wr-dim hover:text-current'}`}>
-                {CHAIN_LABEL[ch]}
-              </button>
-            ))}
+      <div className="grid lg:grid-cols-[1fr_360px] gap-5 items-start">
+        {/* Left: plan + address + method */}
+        <div className="space-y-4">
+          <div className="text-[11px] text-wr-dim uppercase tracking-widest font-bold">{t('gmpro.choose_plan', 'Choose your plan')}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {plans && (Object.keys(plans.plans) as ProPlan[]).map((p) => {
+              const d = plans.plans[p]; const active = plan === p; const popular = p === 'PRO_PLUS';
+              return (
+                <button key={p} onClick={() => setPlan(p)} className={`text-left rounded-lg p-5 border transition-all ${active ? 'border-wr-accent bg-wr-accent/5' : 'border-wr-border bg-wr-surface hover:border-wr-accent/40'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-black tracking-wide flex items-center gap-2">{d.label}{popular && <span className="text-[9px] px-1.5 py-0.5 rounded-xs bg-wr-accent/15 text-wr-accent tracking-widest">{t('gmpro.popular', 'POPULAR')}</span>}</span>
+                    {active && <Check size={16} className="text-wr-accent" />}
+                  </div>
+                  <div className="text-3xl font-black text-wr-accent leading-none">${d.monthlyUSD}<span className="text-xs text-wr-dim font-bold">/mo</span></div>
+                  <div className="text-[11px] text-wr-dim mt-2">{d.aliasLimit} {t('gmpro.aliases', 'aliases')} · {t('gmpro.send_recv', 'send + receive')} · {t('gmpro.persistent', 'persistent')}</div>
+                </button>
+              );
+            })}
           </div>
-        )}
-        <button onClick={start} disabled={busy || !username} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent text-black hover:bg-wr-accent/90 disabled:opacity-50 flex items-center justify-center gap-2">
-          {busy ? <Loader2 size={14} className="animate-spin" /> : <Crown size={14} />} {t('gmpro.subscribe', 'Subscribe')} — ${plans?.plans[plan].monthlyUSD}/mo
-        </button>
-        <button onClick={restore} className="w-full text-[11px] text-wr-dim hover:text-current">{t('gmpro.have_account', 'Already have a Pro account? Restore it →')}</button>
+
+          <div className="bg-wr-surface border border-wr-border rounded-lg p-5 space-y-4">
+            <label className="text-[11px] text-wr-dim uppercase tracking-widest font-bold">{t('gmpro.choose_address', 'Choose your address')}</label>
+            <div className="flex gap-2">
+              <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="yourname" className="flex-1 px-3 py-2.5 bg-wr-base border border-wr-border rounded-sm font-mono text-sm outline-none focus:border-wr-accent/50" />
+              <span className="flex items-center text-wr-dim font-mono text-sm">@</span>
+              <select value={domain} onChange={(e) => setDomain(e.target.value)} className="px-2 py-2.5 bg-wr-base border border-wr-border rounded-sm font-mono text-sm outline-none">
+                {(plans?.domains || ['vigilpro.xyz', 'vigilplus.xyz']).map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div className="text-[11px] text-wr-dim uppercase tracking-widest font-bold pt-1">{t('gmpro.payment_method', 'Payment method')}</div>
+            <div className="flex gap-2">
+              {(['XMR', 'LN', 'USDT'] as const).map((m) => (
+                <button key={m} onClick={() => setMethod(m)} className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border transition-all ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim hover:text-current'}`}>
+                  {m === 'XMR' ? 'Monero' : m === 'LN' ? 'Lightning' : 'USDT'}
+                </button>
+              ))}
+            </div>
+            {method === 'USDT' && (
+              <div className="flex gap-2">
+                {(['tron', 'eth'] as const).map((ch) => (
+                  <button key={ch} onClick={() => setChain(ch)} className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider rounded-sm border transition-all ${chain === ch ? 'border-wr-accent text-wr-accent bg-wr-accent/5' : 'border-wr-border text-wr-dim hover:text-current'}`}>
+                    {CHAIN_LABEL[ch]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: summary + subscribe */}
+        <div className="border border-wr-accent/25 rounded-xl bg-wr-surface p-6 space-y-5 lg:sticky lg:top-6">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-wr-accent"><Crown size={15} /> {t('gmpro.your_subscription', 'Your subscription')}</div>
+          <div className="space-y-2.5 text-sm">
+            <div className="flex justify-between gap-3"><span className="text-wr-dim">{t('gmpro.address', 'Address')}</span><span className="font-mono truncate">{username || 'yourname'}@{domain}</span></div>
+            <div className="flex justify-between"><span className="text-wr-dim">{t('gmpro.plan', 'Plan')}</span><span className="font-bold">{plans?.plans[plan].label || (plan === 'PRO_PLUS' ? 'Ghost Pro+' : 'Ghost Pro')}</span></div>
+            <div className="flex justify-between"><span className="text-wr-dim">{t('gmpro.pay_with', 'Pay with')}</span><span className="font-bold">{methodName}</span></div>
+            <div className="h-px bg-wr-border my-1" />
+            <div className="flex justify-between items-baseline"><span className="text-wr-dim">{t('gmpro.billed_monthly', 'Billed monthly')}</span><span className="text-2xl font-black text-wr-accent">{monthlyUSD != null ? `$${monthlyUSD}` : '—'}</span></div>
+          </div>
+          <button onClick={start} disabled={busy || !username} className="w-full py-3.5 text-xs font-black uppercase tracking-widest rounded-md bg-wr-accent text-black hover:bg-wr-accent/90 disabled:opacity-50 flex items-center justify-center gap-2">
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Crown size={14} />} {t('gmpro.subscribe', 'Subscribe')} — ${monthlyUSD ?? ''}/mo
+          </button>
+          <div className="flex items-center justify-center gap-2 text-[11px] text-wr-dim"><ShieldCheck size={13} /> {t('gmpro.auto_activate_short', 'Activates automatically once payment confirms')}</div>
+          <button onClick={restore} className="w-full text-[11px] text-wr-dim hover:text-current">{t('gmpro.have_account', 'Already have a Pro account? Restore it →')}</button>
+        </div>
       </div>
     </div>
   );
@@ -198,6 +246,7 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
   const [tab, setTab] = useState<Tab>('inbox');
   const [acct, setAcct] = useState<AliasesResp | null>(null);
   const [showRenew, setShowRenew] = useState(false);
+  const [prefill, setPrefill] = useState<ComposePrefill | null>(null);
 
   const loadAcct = useCallback(() => {
     mailApiClient<AliasesResp>(`/v1/mail/pro/aliases?email=${encodeURIComponent(session.email)}&token=${encodeURIComponent(session.token)}`)
@@ -210,26 +259,23 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
   const daysLeft = acct?.nextBillingAt ? Math.ceil((acct.nextBillingAt - Date.now()) / 86400000) : null;
   const expiringSoon = daysLeft != null && daysLeft <= 7;
 
-  return (
-    <div className="mx-2 md:mx-0 space-y-4">
-      {/* Account header */}
-      <div className="bg-wr-surface border border-wr-border rounded-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-black"><Crown size={15} className="text-wr-accent" /> {session.email}</div>
-          <div className="text-[11px] text-wr-dim mt-0.5">
-            {acct ? `${acct.plan === 'PRO_PLUS' ? 'GHOST PRO+' : 'GHOST PRO'} · ${acct.aliasesRemaining}/${acct.aliasLimit} ${t('gmpro.aliases_left', 'aliases free')}` : '…'}
-            {acct?.nextBillingAt && ` · ${t('gmpro.renews', 'renews')} ${new Date(acct.nextBillingAt).toLocaleDateString()}`}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setShowRenew(true)} className="text-[11px] px-3 py-2 border border-wr-accent/40 text-wr-accent rounded-sm hover:bg-wr-accent/10 flex items-center gap-1"><RefreshCw size={12} /> {t('gmpro.renew', 'Renew')}</button>
-          <button onClick={() => { navigator.clipboard.writeText(session.token); toast.success(t('gmpro.token_copied', 'Access token copied — keep it safe to restore your account')); }} className="text-[11px] px-3 py-2 border border-wr-border rounded-sm text-wr-dim hover:text-current">{t('gmpro.copy_token', 'Copy token')}</button>
-          <button onClick={onSignOut} className="text-[11px] px-3 py-2 border border-wr-border rounded-sm text-wr-dim hover:text-current flex items-center gap-1"><LogOut size={12} /> {t('gmpro.sign_out', 'Sign out')}</button>
-        </div>
-      </div>
+  const startReply = (e: any) => {
+    const base = (e.subject || '').replace(/^\s*re:\s*/i, '');
+    setPrefill({ to: e.from, subject: `Re: ${base}` });
+    setTab('compose');
+  };
 
+  const navItems: [Tab, any, string][] = [
+    ['inbox', Inbox, t('gmpro.tab_inbox', 'Inbox')],
+    ['compose', MailPlus, t('gmpro.tab_compose', 'Compose')],
+    ['sent', Send, t('gmpro.tab_sent', 'Sent')],
+    ['aliases', AtSign, t('gmpro.tab_aliases', 'Aliases')],
+  ];
+
+  return (
+    <div className="space-y-3">
       {(expiringSoon || sendDisabled) && (
-        <div className={`text-[11px] rounded-sm p-3 flex items-center justify-between gap-2 ${sendDisabled ? 'text-red-400 bg-red-500/5 border border-red-500/20' : 'text-wr-accent bg-wr-accent/5 border border-wr-accent/20'}`}>
+        <div className={`text-[11px] rounded-md p-3 flex items-center justify-between gap-2 ${sendDisabled ? 'text-wr-error bg-wr-error/5 border border-wr-error/20' : 'text-wr-accent bg-wr-accent/5 border border-wr-accent/20'}`}>
           <span className="flex items-center gap-2"><Clock size={13} />
             {sendDisabled ? t('gmpro.lapsed', 'Subscription lapsed — renew to re-enable sending.') : `${t('gmpro.expiring', 'Subscription renews in')} ${daysLeft} ${t('gmpro.days', 'days')}.`}
           </span>
@@ -239,25 +285,52 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
 
       {showRenew && <RenewModal session={session} monthlyUSD={monthlyUSD} onClose={() => setShowRenew(false)} onRenewed={() => { setShowRenew(false); loadAcct(); }} />}
 
-      {sendDisabled && (
-        <div className="text-[11px] text-wr-accent bg-wr-accent/5 border border-wr-accent/20 rounded-sm p-3 flex items-center gap-2">
-          <ShieldCheck size={14} /> {t('gmpro.send_gated', 'Sending activates once the send-domain finishes onboarding. Receiving works now.')}
-        </div>
-      )}
+      <div className="grid md:grid-cols-[236px_1fr] gap-0 border border-wr-border rounded-lg overflow-hidden bg-wr-surface h-[calc(100dvh-190px)] min-h-[560px]">
+        {/* Rail */}
+        <aside className="border-b md:border-b-0 md:border-r border-wr-border bg-wr-base/40 flex flex-col min-h-0">
+          <div className="p-4">
+            <div className="border border-wr-border rounded-lg bg-wr-surface p-3.5">
+              <div className="flex items-center gap-2 mb-1"><Crown size={15} className="text-wr-accent" /><span className="text-xs font-bold tracking-wide">{acct?.plan === 'PRO_PLUS' ? 'GHOST PRO+' : 'GHOST PRO'}</span></div>
+              <div className="font-mono text-xs text-wr-info truncate" title={session.email}>{session.email}</div>
+              <div className="text-[10px] text-wr-dim mt-1.5 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-wr-accent" />
+                {acct ? `${acct.aliasesRemaining}/${acct.aliasLimit} ${t('gmpro.aliases_left', 'aliases free')}` : '…'}
+                {acct?.nextBillingAt ? ` · ${t('gmpro.renews', 'renews')} ${new Date(acct.nextBillingAt).toLocaleDateString()}` : ''}
+              </div>
+            </div>
+          </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-wr-border">
-        {([['inbox', Inbox, 'Inbox'], ['compose', Send, 'Compose'], ['aliases', AtSign, 'Aliases'], ['sent', Mail, 'Sent']] as const).map(([id, Icon, label]) => (
-          <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold uppercase tracking-widest border-b-2 -mb-px transition-all ${tab === id ? 'border-wr-accent text-wr-accent' : 'border-transparent text-wr-dim hover:text-current'}`}>
-            <Icon size={13} /> {t(`gmpro.tab_${id}`, label)}
-          </button>
-        ))}
+          <nav className="px-3 flex flex-row md:flex-col gap-1 overflow-x-auto">
+            {navItems.map(([id, Icon, label]) => {
+              const active = tab === id;
+              return (
+                <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md text-[13px] font-semibold transition-all shrink-0 ${active ? 'bg-wr-accent/12 text-wr-accent' : 'text-wr-dim hover:text-current'}`}>
+                  <Icon size={16} /><span className="flex-1 text-left">{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto p-3 flex flex-col gap-1 border-t border-wr-border/60">
+            <button onClick={() => setShowRenew(true)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-xs font-semibold text-wr-accent hover:bg-wr-accent/10 transition-all"><RefreshCw size={15} /> {t('gmpro.renew_sub', 'Renew subscription')}</button>
+            <button onClick={() => { navigator.clipboard.writeText(session.token); toast.success(t('gmpro.token_copied', 'Access token copied — keep it safe to restore your account')); }} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-xs font-semibold text-wr-dim hover:text-current transition-all"><KeyRound size={15} /> {t('gmpro.copy_token', 'Copy token')}</button>
+            <button onClick={onSignOut} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-xs font-semibold text-wr-dim hover:text-current transition-all"><LogOut size={15} /> {t('gmpro.sign_out', 'Sign out')}</button>
+          </div>
+        </aside>
+
+        {/* Content */}
+        <section className="min-h-0 flex flex-col bg-wr-base/10">
+          {sendDisabled && tab === 'compose' && (
+            <div className="text-[11px] text-wr-accent bg-wr-accent/5 border-b border-wr-accent/20 p-3 flex items-center gap-2">
+              <ShieldCheck size={14} /> {t('gmpro.send_gated', 'Sending activates once the send-domain finishes onboarding. Receiving works now.')}
+            </div>
+          )}
+          {tab === 'inbox' && <InboxTab session={session} onReply={startReply} />}
+          {tab === 'compose' && <ComposeTab session={session} acct={acct} disabled={sendDisabled} prefill={prefill} />}
+          {tab === 'aliases' && <AliasesTab session={session} acct={acct} reload={loadAcct} />}
+          {tab === 'sent' && <SentTab session={session} />}
+        </section>
       </div>
-
-      {tab === 'inbox' && <InboxTab session={session} />}
-      {tab === 'compose' && <ComposeTab session={session} acct={acct} disabled={sendDisabled} />}
-      {tab === 'aliases' && <AliasesTab session={session} acct={acct} reload={loadAcct} />}
-      {tab === 'sent' && <SentTab session={session} />}
     </div>
   );
 }
@@ -348,7 +421,7 @@ function threadKey(subject: string): string {
   return (subject || '').replace(/^\s*((re|fwd?|aw|sv|vs)\s*:\s*)+/i, '').trim().toLowerCase() || '(no subject)';
 }
 
-function InboxTab({ session }: { session: Session }) {
+function InboxTab({ session, onReply }: { session: Session; onReply: (e: any) => void }) {
   const { t } = useTranslation();
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -388,74 +461,95 @@ function InboxTab({ session }: { session: Session }) {
     return n;
   });
 
-  const Row = ({ e, nested }: { e: any; nested?: boolean }) => (
-    <button onClick={() => setOpen(e)} className={`w-full text-left border border-wr-border hover:border-wr-accent/40 rounded-sm p-3 transition-all ${nested ? 'bg-wr-base/40' : 'bg-wr-surface'}`}>
-      <div className="flex justify-between gap-2"><span className="text-xs font-bold truncate">{e.fromName || e.from}</span><span className="text-[10px] text-wr-dim shrink-0">{new Date(e.receivedAt).toLocaleString()}</span></div>
-      <div className="flex items-center gap-1.5 mt-0.5">
-        {!!e.attachments?.length && (
-          <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-wr-accent" title={`${e.attachments.length} attachment${e.attachments.length > 1 ? 's' : ''}`}>
-            <Paperclip size={11} />{e.attachments.length > 1 ? e.attachments.length : ''}
-          </span>
-        )}
-        <span className="text-xs text-wr-dim truncate">{e.subject}</span>
-      </div>
-    </button>
-  );
+  const Row = ({ e, nested }: { e: any; nested?: boolean }) => {
+    const selected = open?.id === e.id;
+    return (
+      <button onClick={() => setOpen(e)} className={`w-full text-left px-3.5 py-3 border-l-2 border-b border-wr-border/60 transition-colors ${selected ? 'border-l-wr-accent bg-wr-accent/8' : `border-l-transparent hover:bg-wr-accent/5 ${nested ? 'bg-wr-base/30' : ''}`}`}>
+        <div className="flex justify-between gap-2 items-baseline"><span className={`text-[13px] font-bold truncate ${selected ? 'text-wr-accent' : ''}`}>{e.fromName || e.from}</span><span className="text-[10px] text-wr-dim shrink-0">{new Date(e.receivedAt).toLocaleString()}</span></div>
+        <div className="flex items-center gap-1.5 mt-1">
+          {!!e.attachments?.length && (
+            <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-wr-accent" title={`${e.attachments.length} attachment${e.attachments.length > 1 ? 's' : ''}`}>
+              <Paperclip size={11} />{e.attachments.length > 1 ? e.attachments.length : ''}
+            </span>
+          )}
+          <span className="text-xs text-wr-dim truncate">{e.subject}</span>
+        </div>
+      </button>
+    );
+  };
 
+  // Reading a message: it takes over the whole content pane (rail + content = 2 cols).
+  if (open) {
+    return (
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="px-4 py-2.5 border-b border-wr-border flex items-center gap-3 shrink-0">
+          <button onClick={() => setOpen(null)} className="flex items-center gap-1.5 text-xs font-semibold text-wr-dim hover:text-wr-accent"><ChevronLeft size={16} /> {t('gmpro.back_to_inbox', 'Back to inbox')}</button>
+        </div>
+        <EmailReader
+          key={open.id}
+          email={open}
+          onReply={() => onReply(open)}
+          attachmentHref={(att: ReaderAttachment) =>
+            `${getMailApiBase()}/v1/mail/pro/attachment?email=${encodeURIComponent(session.email)}&token=${encodeURIComponent(session.token)}&emailId=${encodeURIComponent(open.id)}&attId=${encodeURIComponent(att.id)}`}
+        />
+      </div>
+    );
+  }
+
+  // Inbox list — fills the content pane.
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-wr-dim" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('gmpro.search', 'Search mail…')} className="w-full pl-8 pr-3 py-2 bg-wr-base border border-wr-border rounded-sm text-xs outline-none focus:border-wr-accent/50" />
-        </div>
-        <button onClick={load} className="text-[11px] text-wr-dim hover:text-current flex items-center gap-1 px-2 py-2 shrink-0"><RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> {t('gmpro.refresh', 'Refresh')}</button>
-      </div>
-      <div className="text-[11px] text-wr-dim uppercase tracking-widest px-0.5">
-        {filtered.length} {t('gmpro.messages', 'messages')}{threads.length !== filtered.length ? ` · ${threads.length} ${t('gmpro.threads', 'threads')}` : ''}
-      </div>
-      {filtered.length === 0 && !loading && <div className="text-center py-10 text-wr-dim text-sm">{search ? t('gmpro.no_match', 'No mail matches your search.') : t('gmpro.empty_inbox', 'No mail yet. Give your address (or an alias) to someone.')}</div>}
-      {threads.map(([k, msgs]) => {
-        if (msgs.length === 1) return <Row key={msgs[0].id} e={msgs[0]} />;
-        const isOpen = expanded.has(k);
-        return (
-          <div key={k} className="space-y-1">
-            <div className="flex items-stretch gap-1">
-              <div className="flex-1 min-w-0"><Row e={msgs[0]} /></div>
-              <button onClick={() => toggle(k)} className="shrink-0 px-2 rounded-sm border border-wr-border text-[10px] font-bold text-wr-dim hover:text-wr-accent hover:border-wr-accent/40 flex items-center gap-1" title={t('gmpro.thread_toggle', 'Show thread')}>
-                {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />} {msgs.length}
-              </button>
-            </div>
-            {isOpen && <div className="pl-4 space-y-1 border-l border-wr-border/50 ml-1">{msgs.slice(1).map((e) => <Row key={e.id} e={e} nested />)}</div>}
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="p-3.5 border-b border-wr-border/60 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-wr-dim" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('gmpro.search', 'Search mail…')} className="w-full pl-8 pr-3 py-2 bg-wr-base border border-wr-border rounded-sm text-xs outline-none focus:border-wr-accent/50" />
           </div>
-        );
-      })}
-      {open && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setOpen(null)}>
-          <div className="bg-wr-base border border-wr-border rounded-lg w-full max-w-2xl h-[85vh] flex flex-col overflow-hidden" onClick={(ev) => ev.stopPropagation()}>
-            <div className="px-4 py-2.5 border-b border-wr-border flex justify-between items-center shrink-0">
-              <span className="text-[11px] text-wr-dim uppercase tracking-widest">{t('gmpro.reading', 'Reading')}</span>
-              <button onClick={() => setOpen(null)} className="text-wr-dim hover:text-current"><X size={17} /></button>
-            </div>
-            <EmailReader
-              email={open}
-              attachmentHref={(att: ReaderAttachment) =>
-                `${getMailApiBase()}/v1/mail/pro/attachment?email=${encodeURIComponent(session.email)}&token=${encodeURIComponent(session.token)}&emailId=${encodeURIComponent(open.id)}&attId=${encodeURIComponent(att.id)}`}
-            />
-          </div>
+          <button onClick={load} className="p-2 border border-wr-border rounded-sm text-wr-dim hover:text-wr-accent hover:border-wr-accent/40 shrink-0" title={t('gmpro.refresh', 'Refresh')}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
         </div>
-      )}
+        <div className="mt-2.5 text-[10px] text-wr-dim uppercase tracking-widest">
+          {filtered.length} {t('gmpro.messages', 'messages')}{threads.length !== filtered.length ? ` · ${threads.length} ${t('gmpro.threads', 'threads')}` : ''}
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+        {filtered.length === 0 && !loading && <div className="text-center py-10 px-4 text-wr-dim text-sm">{search ? t('gmpro.no_match', 'No mail matches your search.') : t('gmpro.empty_inbox', 'No mail yet. Give your address (or an alias) to someone.')}</div>}
+        {threads.map(([k, msgs]) => {
+          if (msgs.length === 1) return <Row key={msgs[0].id} e={msgs[0]} />;
+          const isOpen = expanded.has(k);
+          return (
+            <div key={k}>
+              <div className="flex items-stretch">
+                <div className="flex-1 min-w-0"><Row e={msgs[0]} /></div>
+                <button onClick={() => toggle(k)} className="shrink-0 px-2 border-b border-wr-border/60 text-[10px] font-bold text-wr-dim hover:text-wr-accent flex items-center gap-1" title={t('gmpro.thread_toggle', 'Show thread')}>
+                  {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />} {msgs.length}
+                </button>
+              </div>
+              {isOpen && <div>{msgs.slice(1).map((e) => <Row key={e.id} e={e} nested />)}</div>}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function ComposeTab({ session, acct, disabled }: { session: Session; acct: AliasesResp | null; disabled: boolean }) {
+function ComposeTab({ session, acct, disabled, prefill }: { session: Session; acct: AliasesResp | null; disabled: boolean; prefill?: ComposePrefill | null }) {
   const { t } = useTranslation();
   const froms = useMemo(() => acct ? [acct.primary, ...acct.aliases] : [session.email], [acct, session]);
-  const [from, setFrom] = useState(session.email);
-  const [to, setTo] = useState(''); const [subject, setSubject] = useState(''); const [text, setText] = useState('');
+  const [from, setFrom] = useState(prefill?.from || session.email);
+  const [to, setTo] = useState(prefill?.to || '');
+  const [subject, setSubject] = useState(prefill?.subject || '');
+  const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setFrom(session.email); }, [session]);
+  useEffect(() => { if (!prefill) setFrom(session.email); }, [session, prefill]);
+  // Apply a reply prefill when it arrives.
+  useEffect(() => {
+    if (prefill) {
+      if (prefill.from) setFrom(prefill.from);
+      if (prefill.to != null) setTo(prefill.to);
+      if (prefill.subject != null) setSubject(prefill.subject);
+    }
+  }, [prefill]);
 
   const send = async () => {
     if (!to || !text) { toast.error(t('gmpro.fill_fields', 'Recipient and message required')); return; }
@@ -468,22 +562,36 @@ function ComposeTab({ session, acct, disabled }: { session: Session; acct: Alias
   };
 
   return (
-    <div className="bg-wr-surface border border-wr-border rounded-sm p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-wr-dim uppercase w-12">{t('gmpro.from', 'From')}</span>
-        <select value={from} onChange={(e) => setFrom(e.target.value)} className="flex-1 px-2 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none">
-          {froms.map((f) => <option key={f} value={f}>{f}</option>)}
-        </select>
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="px-6 py-4 border-b border-wr-border flex items-center justify-between gap-4 shrink-0">
+        <h2 className="text-base font-bold flex items-center gap-2.5"><MailPlus size={17} className="text-wr-accent" /> {t('gmpro.new_message', 'New message')}</h2>
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-wr-dim uppercase w-12">{t('gmpro.to', 'To')}</span>
-        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="someone@example.com" className="flex-1 px-3 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-accent/50" />
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 flex flex-col">
+        <div className="flex items-center gap-4 px-6 py-3 border-b border-wr-border/60">
+          <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-widest text-wr-dim">{t('gmpro.from', 'From')}</span>
+          <select value={from} onChange={(e) => setFrom(e.target.value)} className="flex-1 px-3 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-[13px] text-wr-accent outline-none focus:border-wr-accent/50">
+            {froms.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+          <span className="hidden sm:flex items-center gap-1.5 text-[10px] text-wr-dim"><AtSign size={12} /> {t('gmpro.send_from_alias', 'Send from alias')}</span>
+        </div>
+        <div className="flex items-center gap-4 px-6 py-3 border-b border-wr-border/60">
+          <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-widest text-wr-dim">{t('gmpro.to', 'To')}</span>
+          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="someone@example.com" className="flex-1 bg-transparent font-mono text-[13px] outline-none" />
+        </div>
+        <div className="flex items-center gap-4 px-6 py-3 border-b border-wr-border/60">
+          <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-widest text-wr-dim">{t('gmpro.subject', 'Subject')}</span>
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t('gmpro.subject', 'Subject')} className="flex-1 bg-transparent text-sm font-semibold outline-none" />
+        </div>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={t('gmpro.write', 'Write your message…')} className="flex-1 min-h-[200px] w-full resize-none px-6 py-5 bg-transparent font-mono text-[13px] leading-relaxed text-wr-dim/90 outline-none" />
       </div>
-      <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t('gmpro.subject', 'Subject')} className="w-full px-3 py-2 bg-wr-base border border-wr-border rounded-sm text-sm outline-none focus:border-wr-accent/50" />
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} placeholder={t('gmpro.write', 'Write your message…')} className="w-full px-3 py-2 bg-wr-base border border-wr-border rounded-sm text-sm outline-none focus:border-wr-accent/50 resize-y" />
-      <button onClick={send} disabled={busy || disabled} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent text-black hover:bg-wr-accent/90 disabled:opacity-50 flex items-center justify-center gap-2">
-        {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {disabled ? t('gmpro.send_soon', 'Sending activates after onboarding') : t('gmpro.send', 'Send')}
-      </button>
+
+      <div className="border-t border-wr-border px-6 py-3.5 flex items-center justify-between gap-3 shrink-0">
+        <button onClick={send} disabled={busy || disabled} className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-wr-accent text-black text-xs font-black uppercase tracking-widest hover:bg-wr-accent/90 disabled:opacity-50">
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {disabled ? t('gmpro.send_soon', 'Sending activates after onboarding') : t('gmpro.send', 'Send')}
+        </button>
+        <span className="flex items-center gap-1.5 text-[10px] text-wr-dim uppercase tracking-wider"><Zap size={12} className="text-wr-accent" /> {t('gmpro.relayed', 'Routed through the relay')}</span>
+      </div>
     </div>
   );
 }
@@ -509,9 +617,9 @@ function AliasesTab({ session, acct, reload }: { session: Session; acct: Aliases
   const copy = (s: string) => { navigator.clipboard.writeText(s); setCopied(s); setTimeout(() => setCopied(''), 1500); };
 
   return (
-    <div className="space-y-3">
-      <div className="bg-wr-surface border border-wr-border rounded-sm p-4 space-y-3">
-        <div className="text-[11px] text-wr-dim uppercase tracking-widest">{t('gmpro.new_alias', 'New alias')} · {acct ? `${acct.aliasesRemaining}/${acct.aliasLimit} ${t('gmpro.free', 'free')}` : ''}</div>
+    <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 p-4 md:p-6 space-y-3">
+      <div className="bg-wr-surface border border-wr-border rounded-lg p-4 space-y-3">
+        <div className="text-[11px] text-wr-dim uppercase tracking-widest font-bold">{t('gmpro.new_alias', 'New alias')} · {acct ? `${acct.aliasesRemaining}/${acct.aliasLimit} ${t('gmpro.free', 'free')}` : ''}</div>
         <div className="flex gap-2">
           <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="alias" className="flex-1 px-3 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-accent/50" />
           <span className="flex items-center text-wr-dim text-xs">@</span>
@@ -526,9 +634,9 @@ function AliasesTab({ session, acct, reload }: { session: Session; acct: Aliases
       </div>
       <div className="space-y-2">
         {acct?.aliases.map((a) => (
-          <div key={a} className="flex items-center justify-between bg-wr-surface border border-wr-border rounded-sm px-3 py-2.5">
-            <button onClick={() => copy(a)} className="text-xs font-mono flex items-center gap-1.5 hover:text-wr-accent truncate">{a} {copied === a ? <Check size={12} className="text-green-400" /> : <Copy size={11} className="text-wr-dim" />}</button>
-            <button onClick={() => del(a)} className="text-wr-dim hover:text-red-400 shrink-0"><Trash2 size={14} /></button>
+          <div key={a} className="flex items-center justify-between bg-wr-surface border border-wr-border rounded-md px-3 py-2.5">
+            <button onClick={() => copy(a)} className="text-xs font-mono flex items-center gap-1.5 hover:text-wr-accent truncate">{a} {copied === a ? <Check size={12} className="text-wr-green" /> : <Copy size={11} className="text-wr-dim" />}</button>
+            <button onClick={() => del(a)} className="text-wr-dim hover:text-wr-error shrink-0"><Trash2 size={14} /></button>
           </div>
         ))}
         {acct && acct.aliases.length === 0 && <div className="text-center py-8 text-wr-dim text-sm">{t('gmpro.no_aliases', 'No aliases yet. Create one — all mail lands in this inbox.')}</div>}
@@ -542,13 +650,13 @@ function SentTab({ session }: { session: Session }) {
   const [sent, setSent] = useState<SentItem[]>([]);
   useEffect(() => { mailApiClient<{ sent: SentItem[] }>(`/v1/mail/pro/sent?email=${encodeURIComponent(session.email)}&token=${encodeURIComponent(session.token)}`).then((r) => setSent(r.sent || [])).catch(() => {}); }, [session]);
   return (
-    <div className="space-y-2">
+    <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 p-4 md:p-6 space-y-2">
       {sent.length === 0 && <div className="text-center py-10 text-wr-dim text-sm">{t('gmpro.no_sent', 'Nothing sent yet.')}</div>}
       {sent.map((s) => (
-        <div key={s.id} className="bg-wr-surface border border-wr-border rounded-sm p-3">
-          <div className="flex justify-between gap-2"><span className="text-xs font-bold truncate">→ {s.to}</span><span className="text-[10px] text-wr-dim shrink-0 flex items-center gap-1"><Clock size={10} /> {new Date(s.sentAt).toLocaleString()}</span></div>
-          <div className="text-xs text-wr-dim truncate mt-0.5">{s.subject}</div>
-          <div className="text-[10px] text-wr-dim mt-0.5">{t('gmpro.from', 'From')}: {s.from}</div>
+        <div key={s.id} className="bg-wr-surface border border-wr-border rounded-md p-3">
+          <div className="flex justify-between gap-2"><span className="text-xs font-bold font-mono truncate">→ {s.to}</span><span className="text-[10px] text-wr-dim shrink-0 flex items-center gap-1"><Clock size={10} /> {new Date(s.sentAt).toLocaleString()}</span></div>
+          <div className="text-xs text-wr-dim truncate mt-1">{s.subject}</div>
+          <div className="text-[10px] text-wr-dim mt-1 font-mono">{t('gmpro.from', 'From')}: {s.from}</div>
         </div>
       ))}
     </div>
