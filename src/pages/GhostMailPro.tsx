@@ -327,7 +327,7 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
           )}
           {tab === 'inbox' && <InboxTab session={session} onReply={startReply} />}
           {tab === 'compose' && <ComposeTab session={session} acct={acct} disabled={sendDisabled} prefill={prefill} />}
-          {tab === 'aliases' && <AliasesTab session={session} acct={acct} reload={loadAcct} />}
+          {tab === 'aliases' && <AliasesTab session={session} acct={acct} reload={loadAcct} onDeleted={onSignOut} />}
           {tab === 'sent' && <SentTab session={session} />}
         </section>
       </div>
@@ -428,11 +428,25 @@ function InboxTab({ session, onReply }: { session: Session; onReply: (e: any) =>
   const [open, setOpen] = useState<any | null>(null);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const load = useCallback(() => {
     setLoading(true);
     fetchInbox(session.email, session.token).then((r: any) => setEmails(r.emails || [])).catch(() => {}).finally(() => setLoading(false));
   }, [session]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { setConfirmDel(false); }, [open?.id]);
+
+  // Pro message delete — also purges the message's stored attachment blobs
+  // server-side (mailatt: keys), unlike the disposable-tier delete.
+  const deleteMsg = useCallback(async (id: string) => {
+    setDeleting(true);
+    try {
+      await mailApiClient('/v1/mail/pro/email/delete', { method: 'POST', body: { email: session.email, token: session.token, emailId: id } });
+      setEmails((prev) => prev.filter((e) => e.id !== id));
+      setOpen(null);
+    } catch { /* leave the message; user can retry */ } finally { setDeleting(false); }
+  }, [session]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -482,8 +496,17 @@ function InboxTab({ session, onReply }: { session: Session; onReply: (e: any) =>
   if (open) {
     return (
       <div className="flex flex-col flex-1 min-h-0">
-        <div className="px-4 py-2.5 border-b border-wr-border flex items-center gap-3 shrink-0">
+        <div className="px-4 py-2.5 border-b border-wr-border flex items-center justify-between gap-3 shrink-0">
           <button onClick={() => setOpen(null)} className="flex items-center gap-1.5 text-xs font-semibold text-wr-dim hover:text-wr-accent"><ChevronLeft size={16} /> {t('gmpro.back_to_inbox', 'Back to inbox')}</button>
+          {confirmDel ? (
+            <span className="flex items-center gap-2.5 text-xs">
+              <span className="text-wr-dim">{t('gmpro.delete_msg_confirm', 'Delete this message?')}</span>
+              <button onClick={() => deleteMsg(open.id)} disabled={deleting} className="font-bold text-red-400 hover:text-red-300 disabled:opacity-50 flex items-center gap-1">{deleting && <Loader2 size={12} className="animate-spin" />}{t('gmpro.yes_delete', 'Delete')}</button>
+              <button onClick={() => setConfirmDel(false)} disabled={deleting} className="text-wr-dim hover:text-current">{t('gmpro.cancel', 'Cancel')}</button>
+            </span>
+          ) : (
+            <button onClick={() => setConfirmDel(true)} className="flex items-center gap-1.5 text-xs font-semibold text-wr-dim hover:text-red-400" title={t('gmpro.delete_msg', 'Delete message')}><Trash2 size={14} /> {t('gmpro.delete', 'Delete')}</button>
+          )}
         </div>
         <EmailReader
           key={open.id}
@@ -596,10 +619,22 @@ function ComposeTab({ session, acct, disabled, prefill }: { session: Session; ac
   );
 }
 
-function AliasesTab({ session, acct, reload }: { session: Session; acct: AliasesResp | null; reload: () => void }) {
+function AliasesTab({ session, acct, reload, onDeleted }: { session: Session; acct: AliasesResp | null; reload: () => void; onDeleted: () => void }) {
   const { t } = useTranslation();
   const [username, setUsername] = useState(''); const [domain, setDomain] = useState('vigilpro.xyz');
   const [busy, setBusy] = useState(false); const [copied, setCopied] = useState('');
+  const [dangerOpen, setDangerOpen] = useState(false);
+  const [confirmAddr, setConfirmAddr] = useState('');
+  const [wiping, setWiping] = useState(false);
+
+  const deleteAccount = async () => {
+    setWiping(true);
+    try {
+      await mailApiClient('/v1/mail/pro/account/delete', { method: 'POST', body: { email: session.email, token: session.token, confirm: confirmAddr.trim().toLowerCase() } });
+      toast.success(t('gmpro.account_deleted', 'Account and all data deleted.'));
+      onDeleted();
+    } catch (e: any) { toast.error(e?.data?.error || e?.message || 'Failed'); setWiping(false); }
+  };
 
   const create = async (random: boolean) => {
     setBusy(true);
@@ -640,6 +675,30 @@ function AliasesTab({ session, acct, reload }: { session: Session; acct: Aliases
           </div>
         ))}
         {acct && acct.aliases.length === 0 && <div className="text-center py-8 text-wr-dim text-sm">{t('gmpro.no_aliases', 'No aliases yet. Create one — all mail lands in this inbox.')}</div>}
+      </div>
+
+      {/* Danger zone — full account + data deletion */}
+      <div className="border border-wr-error/30 bg-wr-error/5 rounded-lg p-4 mt-4">
+        <button onClick={() => setDangerOpen((v) => !v)} className="w-full flex items-center justify-between text-[11px] uppercase tracking-widest font-bold text-wr-error/90">
+          <span className="flex items-center gap-1.5"><Trash2 size={13} /> {t('gmpro.danger_zone', 'Delete account')}</span>
+          {dangerOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+        {dangerOpen && (
+          <div className="mt-3 space-y-3">
+            <p className="text-xs text-wr-dim leading-relaxed">
+              {t('gmpro.delete_account_warn', 'Permanently erases this account and everything in it — all messages and attachments, every alias, and your sent history. This cannot be undone.')}
+            </p>
+            <label className="block text-[10px] text-wr-dim uppercase tracking-wider">{t('gmpro.type_to_confirm', 'Type your address to confirm')}</label>
+            <input value={confirmAddr} onChange={(e) => setConfirmAddr(e.target.value.toLowerCase())} placeholder={session.email} className="w-full px-3 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-error/50" />
+            <button
+              onClick={deleteAccount}
+              disabled={wiping || confirmAddr.trim().toLowerCase() !== session.email.toLowerCase()}
+              className="w-full py-2.5 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-error text-black disabled:opacity-40 flex items-center justify-center gap-1.5"
+            >
+              {wiping ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} {t('gmpro.delete_forever', 'Delete forever')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
