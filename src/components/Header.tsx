@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Sun, Moon, Monitor, Eye, EyeOff, ALargeSmall, Palette, Menu, X, Globe } from 'lucide-react';
+import { Sun, Moon, Monitor, Eye, EyeOff, ALargeSmall, Palette, Menu, X, Globe, ChevronDown } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../hooks/useTheme';
@@ -22,12 +22,16 @@ const NAV_KEYS = [
   { path: '/sms', key: 'header.sms_wall' },
   { path: '/esim', key: 'header.esim' },
   { path: '/phone', key: 'header.phone' },
+  { path: '/uk-sim', key: 'header.uk_esim' },
+  { path: '/vpn', key: 'header.vpn' },
   { path: '/proxy', key: 'header.proxy' },
   { path: '/drop', key: 'header.dead_drop' },
   { path: '/comms', key: 'header.comms' },
   { path: '/faq', key: 'header.faq' },
   { path: '/api', key: 'header.api' },
 ];
+const PRIMARY_NAV = NAV_KEYS.filter(item => ['/', '/mail', '/sms', '/esim', '/phone', '/vpn'].includes(item.path));
+const MORE_NAV = NAV_KEYS.filter(item => !PRIMARY_NAV.includes(item));
 
 function stripLangPrefix(path: string): string {
   const segments = path.split('/');
@@ -60,7 +64,9 @@ export function Header() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   const currentLang = (SUPPORTED_LANGS as readonly string[]).includes(i18n.language)
     ? i18n.language
@@ -74,6 +80,7 @@ export function Header() {
       if (langRef.current && !langRef.current.contains(e.target as Node)) {
         setLangOpen(false);
       }
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -99,8 +106,8 @@ export function Header() {
           <span className="text-sm font-extrabold tracking-tight text-wr-dim">.RIP</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1">
-          {NAV_KEYS.map((item) => (
+        <nav className="hidden xl:flex items-center gap-1" aria-label="Main navigation">
+          {PRIMARY_NAV.map((item) => (
             <Link
               key={item.path}
               to={navLinkPath(item.path, currentLang)}
@@ -113,6 +120,19 @@ export function Header() {
               {t(item.key)}
             </Link>
           ))}
+          <div className="relative" ref={moreRef}>
+            <button type="button" aria-haspopup="menu" aria-expanded={moreOpen} onClick={() => setMoreOpen(open => !open)}
+              onKeyDown={e => { if (e.key === 'Escape') setMoreOpen(false); }}
+              className={`text-[11px] font-bold px-2.5 py-1.5 rounded-sm transition-colors inline-flex items-center gap-1 ${MORE_NAV.some(item => strippedPath === item.path) ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}>
+              {t('header.more', 'More')} <ChevronDown size={12} className={`transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {moreOpen && <div className="absolute right-0 top-full mt-1 min-w-44 py-1 bg-wr-surface border border-wr-border rounded-sm shadow-xl z-50">
+              {MORE_NAV.map(item => <Link key={item.path} to={navLinkPath(item.path, currentLang)} onClick={() => setMoreOpen(false)}
+                className={`block px-3 py-2 text-[11px] font-bold transition-colors ${strippedPath === item.path ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}>
+                {t(item.key)}
+              </Link>)}
+            </div>}
+          </div>
         </nav>
       </div>
 
@@ -191,7 +211,7 @@ export function Header() {
         {/* Mobile menu */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current"
+          className="xl:hidden p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current"
         >
           {menuOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
@@ -199,9 +219,9 @@ export function Header() {
 
       {/* Mobile nav overlay */}
       {menuOpen && (
-        <div className="absolute top-full left-0 right-0 bg-wr-surface border-b border-wr-border p-4 md:hidden z-50">
-          <nav className="flex flex-col gap-1">
-            {NAV_KEYS.map((item) => (
+        <div className="absolute top-full left-0 right-0 bg-wr-surface border-b border-wr-border p-4 xl:hidden z-50">
+          <nav className="flex flex-col gap-1" aria-label="Mobile navigation">
+            {PRIMARY_NAV.map((item) => (
               <Link
                 key={item.path}
                 to={navLinkPath(item.path, currentLang)}
@@ -215,6 +235,17 @@ export function Header() {
                 {t(item.key)}
               </Link>
             ))}
+            <details className="group border-t border-wr-border/50 mt-2 pt-2">
+              <summary className="list-none cursor-pointer text-sm font-bold px-3 py-2 text-wr-dim hover:text-current flex items-center justify-between">
+                {t('header.more', 'More')} <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="flex flex-col gap-1 pl-3">
+                {MORE_NAV.map(item => <Link key={item.path} to={navLinkPath(item.path, currentLang)} onClick={() => setMenuOpen(false)}
+                  className={`text-sm font-bold px-3 py-2 rounded-sm transition-colors ${strippedPath === item.path ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}>
+                  {t(item.key)}
+                </Link>)}
+              </div>
+            </details>
           </nav>
         </div>
       )}

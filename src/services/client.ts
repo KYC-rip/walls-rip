@@ -25,6 +25,12 @@ export const getMailApiBase = () => {
 type APIType = 'api' | 'mail-api';
 
 export async function apiClient<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {
+  if (config.body && !endpoint.startsWith('/v1/tools/walls/')) {
+    const { quotedCheckout } = await import('./quotedCheckout');
+    const result = await quotedCheckout<T>(endpoint, config.body, config.headers as Record<string, string> | undefined,
+      (path, options) => client('api', path, options));
+    if (result.handled) return result.value!;
+  }
   return client<T>('api', endpoint, config);
 }
 

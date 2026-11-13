@@ -3,6 +3,26 @@
 const SITE = 'https://walls.rip';
 
 const OG_META: Record<string, { title: string; description: string; image: string; schemas?: Record<string, unknown>[] }> = {
+  '/vpn': {
+    title: 'Private VPN — walls.rip',
+    description: 'Prepaid VPN access with WireGuard, OpenVPN and VLESS configuration downloads. Pay from your shared walls wallet.',
+    image: '/og-image.jpg',
+  },
+  '/phone': {
+    title: 'Phone Plans — walls.rip',
+    description: 'Compare US and global phone eSIM plans with voice, SMS and data coverage.',
+    image: '/og-image.jpg',
+  },
+  '/uk-sim': {
+    title: 'Long-term UK number — walls.rip',
+    description: 'A UK +44 phone eSIM for receiving SMS on your own phone. Prepaid terms and renewals, paid from your walls wallet.',
+    image: '/og-image.jpg',
+  },
+  '/topup': {
+    title: 'Renew a UK number — walls.rip',
+    description: 'Extend a UK +44 line bought through walls.rip by 6, 12 or 24 months from the same wallet. Keep the same eSIM and QR.',
+    image: '/og-image.jpg',
+  },
   '/': {
     title: 'walls.rip — Break walls for anonymous communication',
     description: 'Anonymous communication toolkit. Ghost Mail, Dead Drop, SMS Wall, eSIM, Proxy, Ghost Chat — no identity, no logs, no walls.',

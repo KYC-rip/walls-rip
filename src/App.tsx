@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { LangRouter } from './i18n/LangRouter';
 import HomePage from './pages/HomePage';
@@ -10,12 +10,14 @@ import { ESIMWall } from './pages/ESIMWall';
 import PhoneWall from './pages/PhoneWall';
 import TopupWall from './pages/TopupWall';
 import { ProxyWall } from './pages/ProxyWall';
+import { ConnectivityWall } from './pages/ConnectivityWall';
 import FAQ from './pages/FAQ';
 import { PGPTerminal } from './pages/PGPTerminal';
 import { InvitePage } from './pages/InvitePage';
 import APIPage from './pages/APIPage';
 import NotFound from './pages/NotFound';
 import { InstallPrompt } from './components/InstallPrompt';
+import { QuoteConfirmation } from './components/QuoteConfirmation';
 
 // Routes without the language prefix
 const PAGES = [
@@ -28,6 +30,12 @@ const PAGES = [
   { path: '/esim/topup', element: <TopupWall /> },
   { path: '/phone', element: <PhoneWall /> },
   { path: '/proxy', element: <ProxyWall /> },
+  { path: '/vpn', element: <ConnectivityWall key="vpn" kind="vpn" /> },
+  { path: '/uk-sim', element: <ConnectivityWall key="uk-sim" kind="phone" /> },
+  { path: '/topup', element: <ConnectivityWall key="topup" kind="phone" mode="topup" /> },
+  { path: '/phone/topup', element: <Navigate to="/topup" replace /> },
+  { path: '/uk-esim', element: <Navigate to="/uk-sim" replace /> },
+  { path: '/phone/uk-esim', element: <Navigate to="/uk-sim" replace /> },
   { path: '/faq', element: <FAQ /> },
   { path: '/comms', element: <PGPTerminal /> },
   { path: '/comms/invite', element: <InvitePage /> },
@@ -72,6 +80,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
         <InstallPrompt />
+        <QuoteConfirmation />
       </LangRouter>
     </BrowserRouter>
   );

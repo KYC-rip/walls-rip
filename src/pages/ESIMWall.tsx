@@ -14,7 +14,7 @@ import { PaymentGate } from '../components/PaymentGate';
 interface MergedCountry { code: string; name: string; regions: string[]; engines: string[] }
 interface ComparePlan {
   id: string; name: string; country: string; dataGB: number;
-  durationDays: number; costPrice: number; price: number;
+  durationDays: number; price: number;
   currency: string; engine: string;
 }
 interface CompareResponse {
@@ -378,9 +378,8 @@ export function ESIMWall() {
       setPurchase(data);
       setBalanceUSD(data.balanceUSD);
       setStep('PURCHASED');
-      // Persist order ID in URL (raw ID without engine prefix)
-      const rawId = data.orderId.includes(':') ? data.orderId.split(':').slice(1).join(':') : data.orderId;
-      window.history.replaceState(null, '', `${window.location.pathname}?id=${rawId}`);
+      // Keep the provider prefix: numeric IDs overlap across eSIM engines.
+      window.history.replaceState(null, '', `${window.location.pathname}?id=${encodeURIComponent(data.orderId)}`);
       if (data.qrCode || data.activationUrl) {
         setProfileData({ qrCode: data.qrCode, activationUrl: data.activationUrl });
       } else {
@@ -1372,7 +1371,7 @@ export function ESIMWall() {
                               return (
                                 <div
                                   key={plan.id}
-                                  className={`group relative flex flex-col p-4 rounded-sm border transition-all hover:shadow-lg ${
+                                  className={`group relative flex flex-col p-4 rounded-lg border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
                                     isCheapest
                                       ? 'border-wr-green/60 bg-wr-green/5 shadow-[0_0_20px_rgba(0,255,65,0.08)]'
                                       : 'border-wr-border/50 bg-wr-base hover:border-wr-accent/30'
@@ -1404,7 +1403,7 @@ export function ESIMWall() {
 
                                   <button
                                     onClick={() => setSelectedPlanDetail(plan)}
-                                    className={`w-full mt-3 py-2 text-xs font-bold tracking-widest uppercase rounded-sm border transition-all flex items-center justify-center ${
+                                    className={`w-full mt-3 py-2 text-xs font-bold tracking-widest uppercase rounded-md border transition-all flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-wr-accent ${
                                         isCheapest
                                           ? 'border-wr-green text-wr-green hover:bg-wr-green hover:text-black shadow-[0_0_10px_rgba(0,255,65,0.15)]'
                                           : 'border-wr-accent/40 text-wr-accent hover:bg-wr-accent hover:text-black'
@@ -1694,6 +1693,10 @@ export function ESIMWall() {
                           <AlertTriangle size={10} className="shrink-0 mt-0.5 text-wr-warning/50" />
                           {t('esim.detail_notice_no_refund')}
                         </li>
+                        {plan.engine === 'buyukesim' && <li className="text-xs text-wr-dim/70 flex items-start gap-1.5">
+                          <AlertTriangle size={10} className="shrink-0 mt-0.5 text-wr-warning/50" />
+                          {t('esim.detail_notice_buyuk_refund')}
+                        </li>}
                         <li className="text-xs text-wr-dim/70 flex items-start gap-1.5">
                           <AlertTriangle size={10} className="shrink-0 mt-0.5 text-wr-warning/50" />
                           {t('esim.detail_notice_compatibility')}

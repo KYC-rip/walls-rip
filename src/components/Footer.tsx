@@ -42,6 +42,10 @@ export function Footer() {
               <li><Link to={navLinkPath('/drop', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.dead_drop')}</Link></li>
               <li><Link to={navLinkPath('/sms', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.sms_wall')}</Link></li>
               <li><Link to={navLinkPath('/esim', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.esim')}</Link></li>
+              <li><Link to={navLinkPath('/phone', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.phone')}</Link></li>
+              <li><Link to={navLinkPath('/uk-sim', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.uk_esim', 'UK eSIM')}</Link></li>
+              <li><Link to={navLinkPath('/topup', currentLang)} className="hover:text-wr-accent transition-colors">Renew UK number</Link></li>
+              <li><Link to={navLinkPath('/vpn', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.vpn')}</Link></li>
             </ul>
           </div>
 

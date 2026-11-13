@@ -3,11 +3,15 @@ import { Phone, PhoneCall, MessageSquare, Globe, Wallet, Check, Copy, RefreshCw,
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import { SUPPORTED_LANGS } from '../i18n/config';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
 import { PaymentGate } from '../components/PaymentGate';
+
+const displayOrderId = (id: string): string => (id.includes(':') ? id.split(':').slice(1).join(':') : id);
 
 // ─── Types ───
 interface PhonePlan {
@@ -33,13 +37,13 @@ function initialFromUrl() {
 }
 
 export default function PhoneWall() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const initial = useMemo(initialFromUrl, []);
 
   const [plans, setPlans] = useState<PhonePlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [notConfigured, setNotConfigured] = useState(false);
-  const [region, setRegion] = useState<RegionTab>('US');
+  const [region, setRegion] = useState<RegionTab>(() => new URLSearchParams(window.location.search).get('region') === 'GLOBAL' ? 'GLOBAL' : 'US');
 
   const [walletToken, setWalletToken] = useState<string | null>(() => localStorage.getItem(WALLET_KEY));
   const [balanceUSD, setBalanceUSD] = useState(0);
@@ -249,15 +253,17 @@ export default function PhoneWall() {
                 <span>{t('phone.number_notice', 'The phone number is assigned automatically after you activate the eSIM on your device. Voice + SMS + data are included for the plan duration.')}</span>
               </div>
 
-              {/* REGION TOGGLE */}
-              <div className="flex justify-center gap-2">
+              {/* REGION / PRODUCT TOGGLE */}
+              <div className="flex justify-center gap-2 flex-wrap">
                 {(['US', 'GLOBAL'] as RegionTab[]).map((r) => (
-                  <button key={r} onClick={() => setRegion(r)}
+                  <button key={r} onClick={() => { setRegion(r); const url = new URL(window.location.href); if (r === 'US') url.searchParams.delete('region'); else url.searchParams.set('region', r); window.history.replaceState(null, '', `${url.pathname}${url.search}`); }}
                     className={`inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border transition-all ${region === r ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim hover:text-current'}`}>
                     {r === 'US' ? '🇺🇸' : <Globe size={13} />} {r === 'US' ? t('phone.tab_us', 'United States') : t('phone.tab_global', 'Global')}
                     <span className="opacity-60">({plans.filter((p) => (r === 'US' ? p.country === 'US' : p.country === 'GLOBAL')).length})</span>
                   </button>
                 ))}
+                <Link to={`${i18n.language !== 'en' && (SUPPORTED_LANGS as readonly string[]).includes(i18n.language) ? `/${i18n.language}` : ''}/uk-sim`}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border transition-all border-wr-border text-wr-dim hover:text-current">🇬🇧 United Kingdom</Link>
               </div>
 
               {/* PLAN GRID */}
@@ -401,8 +407,8 @@ export default function PhoneWall() {
               )}
               <div className="flex items-center justify-between text-[11px] text-wr-dim pt-1">
                 <span>{t('phone.order', 'Order')}</span>
-                <button onClick={() => copy(purchase.orderId, 'ord')} className="font-mono flex items-center gap-1 hover:text-current">
-                  {purchase.orderId.slice(0, 18)}… {copied === 'ord' ? <Check size={11} className="text-green-400" /> : <Copy size={11} />}
+                <button onClick={() => copy(displayOrderId(purchase.orderId), 'ord')} className="font-mono flex items-center gap-1 hover:text-current">
+                  {displayOrderId(purchase.orderId).slice(0, 18)} {copied === 'ord' ? <Check size={11} className="text-green-400" /> : <Copy size={11} />}
                 </button>
               </div>
               <a href={`/esim/topup?order=${encodeURIComponent(purchase.orderId)}`} className="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent/10 border border-wr-accent/30 text-wr-accent hover:bg-wr-accent/20 transition-all">
