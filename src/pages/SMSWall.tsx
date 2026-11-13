@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand, Shield, Layers } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
@@ -12,14 +13,13 @@ interface CountryRaw { id: string; name: string; shortName: string; engine: stri
 interface UnifiedService { id: string; name: string; category?: string; engines: string[] } // id = canonical slug (from alias map) or lowercase name
 interface Country { id: string; name: string; shortName: string; engines: string[] } // id = ISO (shortName), dedupped
 interface Service { id: string; name: string; category?: string; engines: string[] }
-interface PriceInfo { price: string; cost_price: string; success_rate: number; engine: string; pool?: string }
-interface PoolOption { pool: string; poolName: string; price: number; costPrice: number; successRate: number }
+interface PriceInfo { price: string; success_rate: number; engine: string; pool?: string }
+interface PoolOption { pool: string; poolName: string; price: number; successRate: number }
 interface CompareResult {
   engine: string; // e.g. "fivesim", "smspool"
   countryId: string; // engine-specific ID
   serviceId: string; // engine-specific ID
   price: number;
-  costPrice: number;
   successRate: number;
   pool?: string;
   available: boolean;
@@ -31,7 +31,6 @@ interface PurchaseResult {
   phoneNumber: string;
   country: string;
   service: string;
-  costPrice: number;
   engine: string;
   createdAt: number;
   balanceUSD: number;
@@ -117,7 +116,7 @@ function updateSmsUrlParams(country: string, service: string) {
 }
 
 export function SMSWall() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const smsInitial = useMemo(getSmsInitialParams, []);
   const [countries, setCountries] = useState<Country[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -320,7 +319,7 @@ export function SMSWall() {
     const orderId = smsInitial.order;
 
     // Restore into WAITING state and start polling
-    setPurchase({ orderId, phoneNumber: '', country: '', service: '', costPrice: 0, engine: orderId.split(':')[0] || '', createdAt: 0, balanceUSD: 0, charged: 0 });
+    setPurchase({ orderId, phoneNumber: '', country: '', service: '', engine: orderId.split(':')[0] || '', createdAt: 0, balanceUSD: 0, charged: 0 });
     setStep('WAITING'); setPolling(true); setLoading(false);
 
     // Check immediately
@@ -352,7 +351,6 @@ export function SMSWall() {
         setSelectedProvider(top.engine);
         setPriceInfo({
           price: top.price.toFixed(2),
-          cost_price: top.costPrice.toFixed(2),
           success_rate: top.successRate,
           engine: top.engine,
         });
@@ -420,8 +418,7 @@ export function SMSWall() {
       });
       if (data.orderId) {
         setPurchase(data); setBalanceUSD(data.balanceUSD); setPolling(true); setStep('WAITING');
-        const rawId = data.orderId.includes(':') ? data.orderId.split(':').slice(1).join(':') : data.orderId;
-        window.history.replaceState(null, '', `${window.location.pathname}?id=${rawId}`);
+        window.history.replaceState(null, '', `${window.location.pathname}?id=${encodeURIComponent(data.orderId)}`);
       } else {
         toast.error('Failed to get number');
       }
@@ -534,7 +531,7 @@ export function SMSWall() {
     setPurchasingRental(true);
     try {
       const data = await apiClient<RentalOrder>('/v1/tools/sms/rentals/order', {
-        method: 'POST', body: { service: serviceId, days, token: walletToken },
+        method: 'POST', body: { service: serviceId, days, token: walletToken, engine: rentalServices.find(s => s.id === serviceId)?.engine },
       });
       if (data.orderId) {
         toast.success(`Rental started: ${data.phoneNumber}`);
@@ -1003,7 +1000,6 @@ export function SMSWall() {
                           setSelectedProvider(r.engine);
                           setPriceInfo({
                             price: r.price.toFixed(2),
-                            cost_price: r.costPrice.toFixed(2),
                             success_rate: r.successRate,
                             engine: r.engine,
                             pool: r.pool,
@@ -1062,7 +1058,6 @@ export function SMSWall() {
                           setSelectedPool('');
                           setPriceInfo({
                             price: route.price.toFixed(2),
-                            cost_price: route.costPrice.toFixed(2),
                             success_rate: route.successRate,
                             engine: route.engine,
                           });
@@ -1088,7 +1083,7 @@ export function SMSWall() {
                         key={p.pool}
                         onClick={() => {
                           setSelectedPool(p.pool);
-                          setPriceInfo({ ...priceInfo, price: p.price.toFixed(2), cost_price: p.costPrice.toFixed(2), pool: p.pool, success_rate: p.successRate });
+                          setPriceInfo({ ...priceInfo, price: p.price.toFixed(2), pool: p.pool, success_rate: p.successRate });
                         }}
                         className={`py-3 px-3 rounded-sm border text-xs font-mono transition-all text-left ${
                           isSelected
@@ -1171,6 +1166,11 @@ export function SMSWall() {
           {/* ═══ RENTALS TAB ═══ */}
           {activeTab === 'rentals' && (
           <div className="space-y-6 mx-2 md:mx-0 animate-in fade-in duration-500">
+
+            <div className="p-4 bg-wr-surface border border-wr-border text-sm rounded-sm">
+              Want a UK +44 line on your own phone for 6–24 months?{' '}
+              <Link className="text-wr-accent underline" to={`${i18n.language === 'en' ? '' : `/${i18n.language}`}/uk-sim`}>Browse long-term phone eSIMs</Link>.
+            </div>
 
             {/* ─── Active Rentals ─── */}
             {walletToken && (
@@ -1302,7 +1302,7 @@ export function SMSWall() {
             )}
 
             {/* ─── Browse Rental Services ─── */}
-            <div className="bg-wr-surface border border-wr-border p-4 md:p-10 relative overflow-hidden shadow-2xl rounded-sm">
+            <div className="bg-wr-surface border border-wr-border p-4 md:p-10 relative overflow-hidden shadow-xl rounded-lg">
               <div className="relative z-10 space-y-6">
                 <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
                   <Calendar size={12} className="text-wr-accent" /> {t('sms.browse_rental_services')}
@@ -1365,7 +1365,7 @@ export function SMSWall() {
                             key={i}
                             onClick={() => handleRentalPurchase(selectedRentalService, tier.days)}
                             disabled={purchasingRental}
-                            className="relative p-4 md:p-5 border-2 border-wr-border bg-wr-surface/50 hover:border-wr-accent hover:bg-wr-accent/5 cursor-pointer transition-all duration-300 group overflow-hidden rounded-sm disabled:opacity-30 disabled:cursor-wait text-center"
+                            className="relative p-4 md:p-5 border border-wr-border bg-wr-surface/50 hover:border-wr-accent hover:bg-wr-accent/5 cursor-pointer transition-all duration-200 group overflow-hidden rounded-lg disabled:opacity-30 disabled:cursor-wait text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-wr-accent"
                           >
                             <div className="text-2xl font-bold font-mono text-wr-accent mb-1">
                               {tier.days}d

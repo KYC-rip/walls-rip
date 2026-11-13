@@ -8,7 +8,10 @@
     "dead_drop": "Dead Drop",
     "comms": "Comms",
     "faq": "FAQ",
-    "api": "API"
+    "api": "API",
+    "phone": "Phone",
+    "uk_esim": "UK eSIM",
+    "vpn": "VPN"
   },
   "footer": {
     "cta": "Communication is a right, not a privilege.",
@@ -456,8 +459,9 @@
     "detail_coverage": "Coverage",
     "detail_countries": "countries",
     "detail_confirm_purchase": "Confirm Purchase",
-    "detail_notice_data_only": "eSIMs are non-refundable and non-transferable. These are data-only SIMs. The eSIM can only be redeemed in the country of the eSIM. Due to roaming, the eSIM IP might not always match the country.",
+    "detail_notice_data_only": "These are data-only SIMs. The eSIM can only be redeemed in the selected country or region. Due to roaming, its IP might not match that location.",
     "detail_notice_no_refund": "We cannot refund your eSIM if your device does not support eSIM. Please check device compatibility before purchasing.",
+    "detail_notice_buyuk_refund": "Travel plans have no routine refund after provisioning. If the plan fails to work, contact support so the fault can be reviewed.",
     "detail_notice_compatibility": "Supported devices: iPhone XS and later, Google Pixel 3 and later, Samsung Galaxy S20 and later, and most modern smartphones with eSIM support.",
     "detail_max_privacy": "Max Privacy",
     "detail_standard_privacy": "Standard",

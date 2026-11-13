@@ -24,7 +24,7 @@ export function ToSModal({ isOpen, onClose }: ToSModalProps) {
         <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-wr-dim font-mono leading-relaxed custom-scrollbar text-left">
           <section>
             <h3 className="text-wr-green font-bold mb-2">1. Acceptance of Terms</h3>
-            <p>By accessing or using GHOST MAIL (the "Service"), you agree to be bound by these Terms. The Service is operated by GV Labs LLC ("Company", "we", or "us"), a Wyoming limited liability company. If you do not agree, please do not use the Service.</p>
+            <p>By accessing or using GHOST MAIL (the "Service"), you agree to be bound by these Terms. The Service is operated by kyc.rip ("Company", "we", or "us"), a Wyoming limited liability company. If you do not agree, please do not use the Service.</p>
           </section>
 
           <section>
@@ -68,7 +68,7 @@ export function ToSModal({ isOpen, onClose }: ToSModalProps) {
           <section>
             <h3 className="text-wr-green font-bold mb-2">6. Disclaimers & Limitation of Liability</h3>
             <p>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE."</p>
-            <p className="mt-2">TO THE FULLEST EXTENT PERMITTED BY LAW, GV LABS LLC SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF DATA, LOSS OF CRYPTOCURRENCY, OR LOSS OF PROFITS, ARISING OUT OF YOUR USE OF THE SERVICE.</p>
+            <p className="mt-2">TO THE FULLEST EXTENT PERMITTED BY LAW, kyc.rip SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF DATA, LOSS OF CRYPTOCURRENCY, OR LOSS OF PROFITS, ARISING OUT OF YOUR USE OF THE SERVICE.</p>
             <p className="mt-2">We do not guarantee that our domains will be accepted by all third-party services (e.g., some websites may block disposable email domains).</p>
           </section>
 

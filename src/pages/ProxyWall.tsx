@@ -24,7 +24,6 @@ interface ProxyPlan {
   bandwidthGB: number;
   durationDays: number;
   price: number;
-  costPrice: number;
   engine: string;
 }
 

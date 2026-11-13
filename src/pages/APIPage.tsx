@@ -32,6 +32,28 @@ interface APIGroup {
 
 // ─── API Data ───
 
+const CONNECTIVITY_APIS: APIGroup[] = [
+  { title: 'Private VPN', base: 'https://api.kyc.rip/v1/tools/vpn',
+    description: 'Prepaid VPN access. /plans is public; all other endpoints require Authorization: Bearer <your walls wallet token>. Reuse the SMS wallet payment endpoints to fund it. Keep the same clientRef when a purchase response is uncertain.',
+    endpoints: [
+      { method: 'GET', path: '/plans', description: 'Live prices, protocols, and server locations.', response: '{ "available": true, "plans": [{ "id": "30d", "name": "30 days", "days": 30, "price": 14.98 }], "protocols": ["wireguard", "openvpn", "vless"], "servers": [] }' },
+      { method: 'POST', path: '/purchase', description: 'Reserve the live price from your wallet and provision one VPN order. Send { planId, clientRef }. A PENDING order is already paid; poll it instead of purchasing again.', response: '{ "orderId": "<provider>:98423", "status": "PENDING", "charged": 14.98, "balanceUSD": 5.02 }' },
+      { method: 'GET', path: '/orders', description: 'List your saved orders. Use the returned cursor as ?cursor=… to retrieve another page.', response: '{ "orders": [], "cursor": null }' },
+      { method: 'GET', path: '/status?order_id=<provider>:98423', description: 'Retrieve provisioning status. Active orders include username, password and expiresAt (milliseconds).', response: '{ "orderId": "<provider>:98423", "status": "ACTIVE", "username": "…", "password": "…", "expiresAt": 4099766400000 }' },
+      { method: 'GET', path: '/config?order_id=<provider>:98423&protocol=wireguard&server_id=42', description: 'Get configuration content and optional QR payload for an owned order. Take server_id from /plans. Supported protocols: wireguard, openvpn, vless.', response: '{ "name": "vpn.conf", "content": "[Interface]…", "qrPayload": "…" }' },
+    ] },
+  { title: 'Long-term UK number', base: 'https://api.kyc.rip/v1/tools/phone/rentals',
+    description: 'A UK phone eSIM installed on your device. SMS arrives on that device. /plans is public; private endpoints require Authorization: Bearer <your walls wallet token>. This product uses the shared SMS wallet and is separate from web-inbox SMS rentals.',
+    endpoints: [
+      { method: 'GET', path: '/plans', description: 'Live 6-, 12-, and 24-month prepaid packages. Live prices are shown per plan in USD.', response: '{ "available": true, "plans": [{ "id": "uk-6m", "name": "UK +44 number · 6 months", "months": 6, "price": 25 }] }' },
+      { method: 'POST', path: '/purchase', description: 'Buy one phone eSIM with { planId, clientRef }. Reuse the same clientRef after an uncertain response.', response: '{ "orderId": "<provider>:98421", "status": "PENDING", "charged": 25, "balanceUSD": 25 }' },
+      { method: 'GET', path: '/orders', description: 'List your saved phone orders. Supports ?cursor=… pagination.', response: '{ "orders": [], "cursor": null }' },
+      { method: 'GET', path: '/status?order_id=<provider>:98421', description: 'Poll until ACTIVE (ready to install). Includes qrCode and available activationUrl, smdpAddress and activationCode.', response: '{ "orderId": "<provider>:98421", "status": "ACTIVE", "qrCode": "https://…", "activationUrl": "LPA:1$…" }' },
+      { method: 'GET', path: '/renewal-plans?order_id=<provider>:98421', description: 'Live renewal options for your owned line. One period is 180 days.', response: '{ "available": true, "plans": [{ "periods": 1, "days": 180, "price": 15 }] }' },
+      { method: 'POST', path: '/renew', description: 'Renew with { orderId, phone: "+447…", periods: 1|2|4, clientRef }. Phone must belong to that order. Reserve and charge use the live renewal price.', response: '{ "ok": true, "renewalId": "<provider>:98500", "charged": 15, "balanceUSD": 10 }' },
+    ] },
+];
+
 const SMS_API: APIGroup = {
   title: 'SMS Wall',
   base: 'https://api.kyc.rip/v1/tools/sms',
@@ -69,7 +91,7 @@ const SMS_API: APIGroup = {
   "price": "0.50",
   "cost_price": "0.25",
   "success_rate": 0.85,
-  "engine": "smspool"
+  "engine": "<provider>"
 }`,
     },
     {
@@ -158,7 +180,7 @@ const SMS_API: APIGroup = {
         { name: 'token', type: 'string', required: true, description: 'Wallet token' },
       ],
       response: `{
-  "orderId": "smspool_123456",
+  "orderId": "<provider>_123456",
   "phone": "+12025551234",
   "country": "US",
   "service": "telegram",
@@ -221,7 +243,7 @@ const SMS_API: APIGroup = {
       description: 'Check SMS engine availability and health.',
       response: `[
   {
-    "engine": "smspool",
+    "engine": "<provider>",
     "status": "OK",
     "latency": 120
   }
@@ -277,8 +299,8 @@ const ESIM_API: APIGroup = {
       path: '/countries',
       description: 'List all countries with eSIM availability.',
       response: `[
-  { "code": "US", "name": "United States", "engine": "smspool" },
-  { "code": "DE", "name": "Germany", "engine": "smspool" },
+  { "code": "US", "name": "United States", "engine": "<provider>" },
+  { "code": "DE", "name": "Germany", "engine": "<provider>" },
   ...
 ]`,
     },
@@ -291,7 +313,7 @@ const ESIM_API: APIGroup = {
       ],
       response: `[
   {
-    "id": "smspool:975",
+    "id": "<provider>:975",
     "name": "0.1GB / 7d",
     "country": "US",
     "dataGB": 0.1,
@@ -311,8 +333,8 @@ const ESIM_API: APIGroup = {
         { name: 'token', type: 'string', required: true, description: 'Wallet token' },
       ],
       response: `{
-  "orderId": "smspool:ABCDEF123",
-  "planId": "smspool:975",
+  "orderId": "<provider>:ABCDEF123",
+  "planId": "<provider>:975",
   "status": "PENDING",
   "balanceUSD": 4.20,
   "charged": 0.80
@@ -340,7 +362,7 @@ const ESIM_API: APIGroup = {
         { name: 'token', type: 'string', required: true, description: 'Wallet token' },
       ],
       response: `{
-  "orderId": "smspool:ABCDEF123",
+  "orderId": "<provider>:ABCDEF123",
   "status": "ACTIVE",
   "dataRemainingMB": 512,
   "expiresAt": 1711929600000
@@ -350,7 +372,7 @@ const ESIM_API: APIGroup = {
       method: 'GET',
       path: '/health',
       description: 'Check eSIM engine health status.',
-      response: `[{ "name": "smspool", "status": "ONLINE", "latency": 120 }]`,
+      response: `[{ "name": "<provider>", "status": "ONLINE", "latency": 120 }]`,
     },
   ],
 };
@@ -765,6 +787,7 @@ export default function APIPage() {
         <div className="space-y-8">
           <APISection group={SMS_API} />
           <APISection group={ESIM_API} />
+          {CONNECTIVITY_APIS.map(group => <APISection key={group.title} group={group} />)}
           <APISection group={PROXY_API} />
           <APISection group={DEAD_DROP_API} />
 
