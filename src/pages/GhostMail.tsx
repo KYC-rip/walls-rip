@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { Zap, Shield, Wallet, Bell, Globe, Code, Clock, ChevronDown, Mail } from 'lucide-react';
+import { Zap, Shield, Wallet, Bell, Globe, Code, Clock, ChevronDown, Mail, Crown, ArrowRight } from 'lucide-react';
 import { useGhostMail } from '../hooks/useGhostMail';
 import { SEO } from '../components/SEO';
 import { Header } from '../components/Header';
@@ -112,6 +112,14 @@ export function GhostMail() {
     toast.success('COPIED');
   };
 
+  // Small shared section header: mono kicker + display heading.
+  const SectionHead = ({ kicker, title }: { kicker: string; title: string }) => (
+    <div className="border-b border-wr-border/70 pb-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] font-bold text-wr-accent mb-2">{kicker}</div>
+      <h2 className="font-display text-xl md:text-2xl font-black tracking-tight text-current">{title}</h2>
+    </div>
+  );
+
   return (
     <div className={`flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased bg-wr-base text-current transition-colors duration-300 ${isFullscreen ? 'p-0' : ''}`}>
       <SEO
@@ -128,7 +136,6 @@ export function GhostMail() {
             applicationCategory: 'CommunicationApplication',
             operatingSystem: 'Web',
             description: 'Disposable encrypted email inboxes with PGP support, custom domains, and auto-destruct timers.',
-            offers: { '@type': 'Offer', price: '0.15', priceCurrency: 'USD', description: 'Starting price for burner email inbox' },
             featureList: 'PGP encryption, Custom domains, Auto-destruct timers, No signup required, XMR/Lightning/USDT payments',
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
           },
@@ -149,7 +156,7 @@ export function GhostMail() {
 
       {!isFullscreen && <Header />}
 
-      <main className={`w-full flex-grow relative z-10 transition-all duration-300 ${isFullscreen ? 'max-w-none h-screen p-0' : 'max-w-5xl px-4 md:px-6 pb-12'}`}>
+      <main className={`w-full flex-grow relative z-10 transition-all duration-300 ${isFullscreen ? 'max-w-none h-screen p-0' : 'max-w-6xl px-4 md:px-6 pb-12'}`}>
         {!session ? (
           <ConfigPanel
             configLoading={configLoading}
@@ -195,41 +202,41 @@ export function GhostMail() {
 
         {/* ═══ INFO SECTIONS (below main content, hidden in inbox view) ═══ */}
         {!session && !isFullscreen && (
-          <div className="space-y-12 mt-12">
+          <div className="space-y-12 md:space-y-16 mt-12 md:mt-16">
 
-            {/* ═══ GHOST MAIL PRO UPSELL ═══ */}
-            <a href="/mail/pro" className="mx-2 md:mx-0 flex items-center justify-between gap-3 bg-wr-accent/5 border border-wr-accent/25 hover:border-wr-accent/60 rounded-sm p-4 transition-all group">
-              <div className="flex items-center gap-3">
-                <span className="text-wr-accent text-lg">✦</span>
+            {/* ═══ GHOST MAIL PRO UPSELL — violet secondary band ═══ */}
+            <a
+              href="/mail/pro"
+              className="mx-2 md:mx-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-wr-secondary/30 bg-wr-secondary/[0.06] hover:border-wr-secondary/60 hover:bg-wr-secondary/10 rounded-sm p-4 md:p-5 transition-colors group"
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-wr-secondary shrink-0 mt-0.5"><Crown size={16} /></span>
                 <div>
-                  <div className="text-xs font-black uppercase tracking-widest text-wr-accent">{t('mail.pro_cta_title', 'Ghost Mail Pro')}</div>
-                  <div className="text-[11px] text-wr-dim">{t('mail.pro_cta_desc', 'Persistent inbox you can send from — aliases, compose & reply. From $3/mo.')}</div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-wr-secondary">{t('mail.pro_cta_title', 'Ghost Mail Pro')}</div>
+                  <div className="text-xs text-wr-dim mt-1 leading-relaxed max-w-lg">{t('mail.pro_cta_desc', 'Persistent inbox you can send from — aliases, compose & reply. Prepaid monthly in crypto.')}</div>
                 </div>
               </div>
-              <span className="text-[11px] uppercase tracking-widest text-wr-dim group-hover:text-wr-accent transition-colors shrink-0">{t('mail.pro_cta_go', 'Go Pro')} →</span>
+              <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-wr-secondary group-hover:brightness-125 transition-all shrink-0 self-start sm:self-auto">
+                {t('mail.pro_cta_go', 'Go Pro')} <ArrowRight size={13} />
+              </span>
             </a>
 
             {/* ═══ WHY CHOOSE GHOST MAIL ═══ */}
             <div className="mx-2 md:mx-0 space-y-6">
-              <div className="text-center space-y-2">
-                <h2 className="font-mono text-sm md:text-base font-bold uppercase tracking-widest text-current">
-                  {t('mail.why_title')}
-                </h2>
-                <div className="mx-auto w-12 h-px bg-wr-accent" />
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <SectionHead kicker={t('mail.v2_capabilities', '#01 // Capabilities')} title={t('mail.why_title')} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {([
-                  { icon: <Zap size={18} />, title: t('mail.why_instant_title'), desc: t('mail.why_instant_desc') },
-                  { icon: <Shield size={18} />, title: t('mail.why_zero_logs_title'), desc: t('mail.why_zero_logs_desc') },
-                  { icon: <Wallet size={18} />, title: t('mail.why_crypto_title'), desc: t('mail.why_crypto_desc') },
-                  { icon: <Bell size={18} />, title: t('mail.why_telegram_title'), desc: t('mail.why_telegram_desc') },
-                  { icon: <Globe size={18} />, title: t('mail.why_domains_title'), desc: t('mail.why_domains_desc') },
-                  { icon: <Code size={18} />, title: t('mail.why_api_title'), desc: t('mail.why_api_desc') },
+                  { icon: <Zap size={15} />, title: t('mail.why_instant_title'), desc: t('mail.why_instant_desc') },
+                  { icon: <Shield size={15} />, title: t('mail.why_zero_logs_title'), desc: t('mail.why_zero_logs_desc') },
+                  { icon: <Wallet size={15} />, title: t('mail.why_crypto_title'), desc: t('mail.why_crypto_desc') },
+                  { icon: <Bell size={15} />, title: t('mail.why_telegram_title'), desc: t('mail.why_telegram_desc') },
+                  { icon: <Globe size={15} />, title: t('mail.why_domains_title'), desc: t('mail.why_domains_desc') },
+                  { icon: <Code size={15} />, title: t('mail.why_api_title'), desc: t('mail.why_api_desc') },
                 ]).map((card) => (
-                  <div key={card.title} className="p-4 rounded-sm border border-wr-border bg-wr-surface space-y-2 hover:border-wr-accent/30 transition-colors">
+                  <div key={card.title} className="p-4 border border-wr-border bg-wr-surface space-y-2.5 hover:border-wr-accent/40 transition-colors">
                     <div className="text-wr-accent">{card.icon}</div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-current">{card.title}</h3>
-                    <p className="text-xs text-wr-dim leading-relaxed">{card.desc}</p>
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-current">{card.title}</h3>
+                    <p className="text-[11px] text-wr-dim leading-relaxed">{card.desc}</p>
                   </div>
                 ))}
               </div>
@@ -237,29 +244,20 @@ export function GhostMail() {
 
             {/* ═══ HOW IT WORKS ═══ */}
             <div className="mx-2 md:mx-0 space-y-6">
-              <div className="text-center space-y-2">
-                <h2 className="font-mono text-sm md:text-base font-bold uppercase tracking-widest text-current">
-                  {t('mail.how_title')}
-                </h2>
-                <div className="mx-auto w-12 h-px bg-wr-accent" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-0 relative">
-                {/* Connector lines (desktop only) */}
-                <div className="hidden md:block absolute top-8 left-[calc(33.33%+0.5rem)] right-[calc(33.33%+0.5rem)] h-px bg-wr-accent/30" />
+              <SectionHead kicker={t('mail.v2_process', '#02 // Process')} title={t('mail.how_title')} />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {([
-                  { num: '01', icon: <Clock size={20} />, title: t('mail.how_step1_title'), desc: t('mail.how_step1_desc') },
-                  { num: '02', icon: <Shield size={20} />, title: t('mail.how_step2_title'), desc: t('mail.how_step2_desc') },
-                  { num: '03', icon: <Mail size={20} />, title: t('mail.how_step3_title'), desc: t('mail.how_step3_desc') },
-                ]).map((step, i) => (
-                  <div key={step.num} className="flex flex-col items-center text-center space-y-3 relative px-4">
-                    <div className="relative z-10 w-16 h-16 rounded-full bg-wr-accent/10 border border-wr-accent/30 flex items-center justify-center text-wr-accent">
-                      {step.icon}
+                  { num: '01', icon: <Clock size={16} />, title: t('mail.how_step1_title'), desc: t('mail.how_step1_desc') },
+                  { num: '02', icon: <Shield size={16} />, title: t('mail.how_step2_title'), desc: t('mail.how_step2_desc') },
+                  { num: '03', icon: <Mail size={16} />, title: t('mail.how_step3_title'), desc: t('mail.how_step3_desc') },
+                ]).map((step) => (
+                  <div key={step.num} className="flex flex-col gap-3 p-5 border border-wr-border bg-wr-surface">
+                    <div className="flex items-center justify-between">
+                      <span className="text-wr-accent">{step.icon}</span>
+                      <span className="text-[11px] font-bold font-mono tracking-[0.18em] text-wr-dim">{step.num}</span>
                     </div>
-                    <div className="text-xs text-wr-accent font-mono font-bold tracking-widest">{step.num}</div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-current">{step.title}</h3>
-                    <p className="text-xs text-wr-dim leading-relaxed max-w-xs">{step.desc}</p>
-                    {/* Vertical connector for mobile */}
-                    {i < 2 && <div className="md:hidden w-px h-6 bg-wr-accent/30" />}
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-current">{step.title}</h3>
+                    <p className="text-[11px] text-wr-dim leading-relaxed">{step.desc}</p>
                   </div>
                 ))}
               </div>
@@ -267,22 +265,17 @@ export function GhostMail() {
 
             {/* ═══ FAQ ACCORDION ═══ */}
             <div className="mx-2 md:mx-0 space-y-6">
-              <div className="text-center space-y-2">
-                <h2 className="font-mono text-sm md:text-base font-bold uppercase tracking-widest text-current">
-                  {t('mail.faq_title')}
-                </h2>
-                <div className="mx-auto w-12 h-px bg-wr-accent" />
-              </div>
+              <SectionHead kicker={t('mail.v2_faq_kicker', '#03 // FAQ')} title={t('mail.faq_title')} />
               <div className="space-y-2">
                 {([1, 2, 3, 4, 5, 6] as const).map((n) => {
                   const isOpen = faqOpen === n;
                   return (
-                    <div key={n} className="border border-wr-border rounded-sm bg-wr-surface overflow-hidden">
+                    <div key={n} className="border border-wr-border bg-wr-surface overflow-hidden">
                       <button
                         onClick={() => setFaqOpen(isOpen ? null : n)}
-                        className="w-full flex items-center justify-between p-4 text-left hover:bg-wr-base/50 transition-colors"
+                        className="w-full min-h-[44px] flex items-center justify-between gap-4 p-4 text-left hover:bg-wr-accent/[0.04] transition-colors"
                       >
-                        <span className="text-xs font-bold text-current pr-4">{t(`mail.faq_q${n}`)}</span>
+                        <span className="text-xs font-bold text-current">{t(`mail.faq_q${n}`)}</span>
                         <ChevronDown
                           size={16}
                           className={`text-wr-accent shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
@@ -291,7 +284,7 @@ export function GhostMail() {
                       <div
                         className={`overflow-hidden transition-all duration-200 ${isOpen ? 'max-h-60' : 'max-h-0'}`}
                       >
-                        <div className="px-4 pb-4 text-xs text-wr-dim leading-relaxed border-t border-wr-border/30 pt-3">
+                        <div className="px-4 pb-4 pt-3 text-[11px] text-wr-dim leading-relaxed border-t border-wr-border/60">
                           {t(`mail.faq_a${n}`)}
                         </div>
                       </div>

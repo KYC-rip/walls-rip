@@ -24,7 +24,7 @@
     "monero_toolkit": "Moneroツールキット",
     "xmr_paywall": "XMRペイウォール",
     "rip_family_project": "rip.familyプロジェクト",
-    "tagline": "ログなし。身元確認なし。壁なし。"
+    "tagline": "アカウント不要。身元確認なし。プロバイダーの方針は異なります。"
   },
   "home": {
     "badge": "匿名コミュニケーションツールキット",
@@ -226,7 +226,7 @@
     "info_pay_desc": "MoneroまたはLightning — どちらも追跡不能",
     "info_refund_title": "自動返金",
     "info_refund_desc": "SMS未受信時はウォレットに返金",
-    "info_services_title": "1,700以上のサービス",
+    "info_services_title": "サービス",
     "info_services_desc": "Discord、Telegram、Googleなど",
     "rental_info_longterm_title": "長期番号",
     "rental_info_longterm_desc": "数日から数週間番号をレンタル",
@@ -251,7 +251,7 @@
     "payment_chain_tron": "TRON (TRC20)",
     "payment_chain_eth": "Ethereum (ERC20)",
     "pro_cta_title": "Ghost Mail Pro",
-    "pro_cta_desc": "送信できる永続的な受信箱 — エイリアス、作成・返信。$3/月〜。",
+    "pro_cta_desc": "送信できる永続的な受信箱 — エイリアス、作成・返信。暗号資産で毎月支払い。",
     "pro_cta_go": "Pro にする"
   },
   "drop": {

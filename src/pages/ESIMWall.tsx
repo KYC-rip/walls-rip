@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Wifi, Signal, SlidersHorizontal, Shield, MapPin, Database, DollarSign, ArrowUpDown, Key } from 'lucide-react';
+import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronDown, Wallet, Zap, X, Wifi, Signal, Shield, MapPin, Database, DollarSign } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
+import { WalletBanner } from '../components/WalletBanner';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
@@ -174,6 +175,120 @@ function updateUrlParams(tab: BrowseTab, country: string, region: string) {
   const qs = params.toString();
   const url = `${window.location.pathname}${qs ? '?' + qs : ''}`;
   window.history.replaceState(null, '', url);
+}
+
+// ─── Shared filter/sort controls (used by all three browse tabs) ───
+
+function chipClass(active: boolean): string {
+  return `inline-flex min-h-11 md:min-h-0 items-center justify-center rounded-sm border px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider transition-colors ${
+    active
+      ? 'border-wr-accent bg-wr-accent/10 text-wr-accent'
+      : 'border-wr-border bg-wr-base/40 text-wr-dim hover:border-wr-dim hover:text-current'
+  }`;
+}
+
+function PlanFilterBar({
+  dataFilter,
+  durationFilter,
+  sortKey,
+  sortAsc,
+  onDataFilter,
+  onDurationFilter,
+  onSort,
+}: {
+  dataFilter: number;
+  durationFilter: number;
+  sortKey: SortKey;
+  sortAsc: boolean;
+  onDataFilter: (i: number) => void;
+  onDurationFilter: (i: number) => void;
+  onSort: (key: SortKey) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="sticky top-0 z-30 -mx-4 border-y border-wr-border bg-wr-base/90 px-4 py-2 backdrop-blur-md md:static md:mx-0 md:rounded-sm md:border md:bg-wr-surface/40 md:p-3 md:backdrop-blur-none">
+      <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-mono uppercase tracking-widest text-wr-dim">{t('esim.filter_data', 'Data')}</span>
+            {DATA_FILTERS.map((df, i) => (
+              <button key={df.label} onClick={() => onDataFilter(i)} className={chipClass(dataFilter === i)}>
+                {df.label === 'All' ? t('esim.filter_all') : df.label}
+              </button>
+            ))}
+          </div>
+          <span aria-hidden className="hidden h-4 w-px bg-wr-border md:inline-block" />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-mono uppercase tracking-widest text-wr-dim">{t('esim.filter_duration', 'Duration')}</span>
+            {DURATION_FILTERS.map((durf, i) => (
+              <button key={durf.label} onClick={() => onDurationFilter(i)} className={chipClass(durationFilter === i)}>
+                {durf.label === 'All' ? t('esim.filter_all') : durf.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-mono uppercase tracking-widest text-wr-dim">{t('esim.filter_sort', 'Sort')}</span>
+          {(['price', 'data', 'duration'] as SortKey[]).map(key => (
+            <button key={key} onClick={() => onSort(key)} className={chipClass(sortKey === key)}>
+              {t(`esim.sort_${key}`)} {sortKey === key ? (sortAsc ? '↑' : '↓') : ''}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Shared plan card ───
+
+function PlanCard({ plan, isCheapest, onSelect }: { plan: ComparePlan; isCheapest: boolean; onSelect: (plan: ComparePlan) => void }) {
+  const { t } = useTranslation();
+  const pricePerGB = plan.dataGB > 0 ? +(plan.price / plan.dataGB).toFixed(2) : plan.price;
+  const hasFlag = !!plan.country && plan.country.length === 2 && /^[A-Z]{2}$/.test(plan.country);
+  const planLabel = isGlobalPlan(plan) ? 'GLOBAL' : isRegionalPlan(plan) ? 'REGIONAL' : (plan.country || 'PLAN');
+
+  return (
+    <div className="group relative flex flex-col rounded-sm border border-wr-border bg-wr-base p-4 transition-colors hover:border-wr-accent/40">
+      {isCheapest && (
+        <div className="absolute -top-2 left-3 rounded-xs border border-wr-accent/40 bg-wr-base px-2 py-0.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-accent">
+          {t('esim.best_price')}
+        </div>
+      )}
+
+      {/* Plan / term micro-label row */}
+      <div className="flex items-center justify-between gap-2 border-b border-wr-border/60 pb-2">
+        <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-wr-dim">
+          {hasFlag ? (
+            <img src={`https://flagcdn.com/w20/${plan.country.toLowerCase()}.png`} alt={plan.country} loading="lazy" className="h-3 w-4 shrink-0 rounded-xs object-cover opacity-70" />
+          ) : (
+            <Globe size={12} className="shrink-0 text-wr-info" />
+          )}
+          <span className="truncate">{planLabel}</span>
+        </span>
+        <span className="shrink-0 text-[11px] font-mono uppercase tracking-widest text-wr-dim">
+          {plan.durationDays}D
+        </span>
+      </div>
+
+      {/* Capacity + price hierarchy */}
+      <div className="mt-3 flex items-end justify-between gap-2">
+        <span className="font-mono text-2xl font-black tabular-nums text-current">{plan.dataGB}GB</span>
+        <span className="font-mono text-xl font-black tabular-nums text-wr-accent">${plan.price.toFixed(2)}</span>
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-2 text-[11px] font-mono text-wr-dim">
+        <span className="truncate">{(plan as any).speed || '3G/4G/5G'}</span>
+        <span className="shrink-0 text-wr-dim/70">${pricePerGB}{t('esim.per_gb')}</span>
+      </div>
+
+      <button
+        onClick={() => onSelect(plan)}
+        className="mt-3 flex min-h-11 w-full items-center justify-center rounded-sm border border-wr-border py-2 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent md:min-h-0"
+      >
+        {t('esim.select_plan', 'Select')}
+      </button>
+    </div>
+  );
 }
 
 export function ESIMWall() {
@@ -643,9 +758,9 @@ export function ESIMWall() {
     return (
       <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
         <Header />
-        <div className="flex flex-col items-center justify-center py-20 animate-pulse text-wr-dim">
-          <RefreshCw size={32} className="animate-spin mb-4" />
-          <p className="text-xs tracking-widest uppercase">{t('esim.loading')}</p>
+        <div className="flex flex-col items-center justify-center py-20 text-wr-dim">
+          <RefreshCw size={28} className="mb-4 animate-spin text-wr-accent" />
+          <p className="text-[11px] font-mono uppercase tracking-widest">{t('esim.loading')}</p>
         </div>
       </div>
     );
@@ -668,7 +783,7 @@ export function ESIMWall() {
               url: 'https://walls.rip/esim',
               applicationCategory: 'UtilitiesApplication',
               operatingSystem: 'Web',
-              description: 'Anonymous eSIM data plans for 120+ countries. No KYC, no registration. 3G/4G/5G.',
+              description: 'Anonymous eSIM data plans for supported countries. No KYC, no registration. 3G/4G/5G.',
               provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
             },
             {
@@ -677,7 +792,7 @@ export function ESIMWall() {
               name: 'eSIM — Anonymous Data Plans',
               serviceType: 'eSIM Data Plans',
               areaServed: 'Worldwide',
-              description: 'Buy anonymous eSIM data plans for 120+ countries. Install via QR code, pay with Monero or Lightning.',
+              description: 'Buy anonymous eSIM data plans for supported countries. Install via QR code, pay with Monero or Lightning.',
               provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
             },
           ]}
@@ -686,11 +801,11 @@ export function ESIMWall() {
         <div className="fixed inset-0 z-40 pointer-events-none vignette" />
         <Header />
         <main className="w-full max-w-2xl px-4 relative z-10 flex flex-col gap-8 mb-20 mt-8">
-          <div className="p-8 rounded-sm border border-wr-green bg-wr-surface text-center space-y-6">
-            <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-400 border border-green-400/20">
-              <Check size={32} />
+          <div className="space-y-6 rounded-sm border border-wr-accent/40 bg-wr-surface p-6 text-center md:p-8">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-sm border border-wr-accent/30 bg-wr-accent/10 text-wr-accent">
+              <Check size={28} />
             </div>
-            <h2 className="text-lg font-bold tracking-wider text-wr-green">{t('esim.esim_purchased')}</h2>
+            <h2 className="text-lg font-bold uppercase tracking-wider text-wr-accent">{t('esim.esim_purchased')}</h2>
             <p className="text-xs text-wr-dim">{t('esim.scan_qr')}</p>
 
             {profileData?.qrCode ? (
@@ -705,9 +820,9 @@ export function ESIMWall() {
                 </div>
                 {profileData.activationUrl && (
                 <button onClick={() => copyText(profileData.activationUrl!)}
-                  className="w-full p-3 rounded bg-wr-base border border-wr-border text-xs font-mono text-wr-green break-all text-left hover:border-wr-green/50 transition-colors cursor-pointer flex items-center justify-between gap-2">
+                  className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-sm border border-wr-border bg-wr-base p-3 text-left font-mono text-xs break-all text-wr-accent transition-colors hover:border-wr-accent/50">
                   <span className="truncate">{profileData.activationUrl}</span>
-                  {copied ? <Check size={14} className="text-green-500 shrink-0" /> : <Copy size={14} className="text-wr-dim shrink-0" />}
+                  {copied ? <Check size={14} className="shrink-0 text-wr-accent" /> : <Copy size={14} className="shrink-0 text-wr-dim" />}
                 </button>
                 )}
               </div>
@@ -722,7 +837,7 @@ export function ESIMWall() {
                   </div>
                 </div>
                 <a href={profileData.activationUrl} target="_blank" rel="noreferrer"
-                  className="w-full p-3 rounded bg-wr-base border border-wr-green text-xs font-mono text-wr-green break-all hover:bg-wr-green/5 transition-colors block text-center">
+                  className="block w-full rounded-sm border border-wr-accent/40 bg-wr-base p-3 text-center font-mono text-xs break-all text-wr-accent transition-colors hover:bg-wr-accent/5">
                   {t('esim.open_activation')}
                 </a>
               </div>
@@ -768,7 +883,7 @@ export function ESIMWall() {
     <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
       <SEO
         title="eSIM — Compare anonymous data plans worldwide"
-        description="Compare eSIM data plans from multiple providers. Find the cheapest anonymous data for 100+ countries. No KYC, pay with Monero or Lightning."
+        description="Compare eSIM data plans from multiple providers. Find the cheapest anonymous data. No KYC, pay with Monero or Lightning."
         path="/esim"
         image="/og-esim.jpg"
         schemas={[
@@ -779,8 +894,7 @@ export function ESIMWall() {
             url: 'https://walls.rip/esim',
             applicationCategory: 'UtilitiesApplication',
             operatingSystem: 'Web',
-            description: 'Compare anonymous eSIM data plans from multiple providers. 120+ countries, 3G/4G/5G. No KYC.',
-            offers: { '@type': 'Offer', price: '0.80', priceCurrency: 'USD', description: 'Starting price for eSIM data plan' },
+            description: 'Compare anonymous eSIM data plans from multiple providers. 3G/4G/5G. No KYC.',
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
           },
           {
@@ -789,9 +903,8 @@ export function ESIMWall() {
             name: 'eSIM — Anonymous Data Plan Comparison',
             serviceType: 'eSIM Data Plans',
             areaServed: 'Worldwide',
-            description: 'Compare and buy anonymous eSIM data plans from multiple providers. Best prices, instant activation.',
+            description: 'Compare and buy anonymous eSIM data plans from multiple providers. Best prices, delivered after provider provisioning.',
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
-            offers: { '@type': 'Offer', price: '0.80', priceCurrency: 'USD' },
           },
         ]}
       />
@@ -802,34 +915,43 @@ export function ESIMWall() {
       <main className="w-full max-w-6xl px-4 md:px-6 relative z-10 pb-12">
         <div className="max-w-6xl mx-auto space-y-6 md:space-y-10 pb-8 md:pb-12">
 
-          {/* HERO */}
-          <div className="text-center py-8 scale-90 md:scale-100 origin-top">
-            <div className="mx-auto w-16 h-16 rounded-full bg-wr-accent/10 flex items-center justify-center text-wr-accent border border-wr-accent/20 mb-4">
-              <Smartphone size={40} />
+          {/* HERO — left aligned */}
+          <div className="border-b border-wr-border pb-5 pt-6 md:pt-10">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="min-w-0">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-sm border border-wr-border bg-wr-surface px-2 py-1 text-[11px] font-mono uppercase tracking-widest text-wr-dim">
+                    <Smartphone size={12} className="text-wr-accent" />
+                    {t('esim.hero_kicker', 'eSIM // PROFILE DISPATCH')}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-sm border border-wr-info/30 bg-wr-info/10 px-2 py-1 text-[11px] font-mono uppercase tracking-widest text-wr-info">
+                    <Signal size={10} /> {t('esim.tag_no_kyc')}
+                  </span>
+                </div>
+                <h1 className="font-display text-3xl font-black tracking-tight md:text-5xl">
+                  {t('esim.hero_title', 'Global data eSIMs')}
+                </h1>
+                <p className="mt-2 text-sm text-wr-dim">{t('esim.compare_subtitle')}</p>
+              </div>
+              <a href="/esim/topup" className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-wr-secondary transition-colors hover:text-wr-secondary/80 md:min-h-0 md:pb-1">
+                <Zap size={12} /> {t('esim.topup_link', 'Top up an existing eSIM')} <span aria-hidden>→</span>
+              </a>
             </div>
-            <h1 className="font-display text-3xl md:text-5xl font-black tracking-tight mb-2">
-              <span className="text-wr-accent">{t('esim.title_e')}</span>{t('esim.title_sim')}
-              <span className="text-wr-dim text-lg md:text-2xl ml-3 font-normal">aggregator</span>
-            </h1>
-            <p className="text-wr-dim text-sm">{t('esim.compare_subtitle')}</p>
-            <a href="/esim/topup" className="inline-flex items-center gap-1.5 mt-3 text-xs text-wr-accent/80 hover:text-wr-accent border border-wr-accent/20 hover:border-wr-accent/50 rounded-full px-4 py-1.5 transition-all">
-              <Zap size={12} /> {t('esim.topup_link', 'Top up an existing eSIM')}
-            </a>
           </div>
 
           {/* COMING SOON / NOT CONFIGURED */}
           {notConfigured && (
-            <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-accent/30 p-6 md:p-8 rounded-sm text-center space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-wr-accent/10 flex items-center justify-center text-wr-accent border border-wr-accent/20">
-                <Signal size={24} />
+            <div className="mx-2 rounded-sm border border-wr-border bg-wr-surface p-6 text-center md:mx-0 md:p-8">
+              <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-sm border border-wr-info/30 bg-wr-info/10 text-wr-info">
+                <Signal size={20} />
               </div>
-              <h2 className="text-wr-accent font-bold tracking-widest text-sm uppercase">{t('esim.coming_soon')}</h2>
-              <p className="text-xs text-wr-dim max-w-md mx-auto leading-relaxed">
+              <h2 className="text-[11px] font-mono font-bold uppercase tracking-widest text-wr-info">{t('esim.coming_soon')}</h2>
+              <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-wr-dim">
                 {t('esim.coming_soon_desc')}
               </p>
-              <div className="flex flex-wrap justify-center gap-2 pt-2">
+              <div className="flex flex-wrap justify-center gap-2 pt-4">
                 {[t('esim.tag_no_kyc'), t('esim.tag_no_reg'), t('esim.tag_global'), t('esim.tag_instant'), t('esim.tag_pay')].map(tag => (
-                  <span key={tag} className="text-xs px-3 py-1.5 rounded-full border border-wr-accent/20 text-wr-accent/70">
+                  <span key={tag} className="rounded-sm border border-wr-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-wr-dim">
                     {tag}
                   </span>
                 ))}
@@ -839,81 +961,25 @@ export function ESIMWall() {
 
           {!notConfigured && (
             <>
-              {/* WALLET BANNER — same structure as SMS */}
-              <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-border rounded-sm relative overflow-hidden group">
-                <div className="absolute inset-0 bg-green-500/5 group-hover:bg-green-500/10 transition-colors pointer-events-none" />
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500" />
-
-                <div className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div className="flex items-start gap-4 relative z-10">
-                    <div className="p-3 bg-green-500/10 text-green-400 rounded-full shrink-0 border border-green-400/20">
-                      <Wallet size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-green-400 font-bold tracking-widest text-sm mb-1 uppercase flex items-center gap-2">
-                        {walletToken ? (
-                          <>{t('sms.wallet_balance')} <span className="text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
-                        ) : (
-                          <>{t('sms.anonymous_wallet')} <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">{t('sms.new')}</span></>
-                        )}
-                      </h3>
-                      <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg text-left">
-                        {walletToken
-                          ? t('esim.wallet_shared')
-                          : t('esim.wallet_shared_new')}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowPaymentModal(true)}
-                    className="relative z-10 w-full md:w-auto px-6 py-3 bg-green-500 hover:bg-green-400 text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:-translate-y-0.5"
-                  >
-                    <Plus size={14} /> {walletToken ? t('sms.top_up') : t('sms.deposit')} <ChevronRight size={14} />
-                  </button>
-                </div>
-
-                {/* Restore wallet */}
-                {!walletToken && (
-                  <div className="border-t border-wr-border/30 px-4 md:px-6 py-3 relative z-10">
-                    {showRestoreInput ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={restoreToken}
-                          onChange={e => setRestoreToken(e.target.value)}
-                          placeholder={t('sms.paste_token')}
-                          className="flex-1 bg-wr-base border border-wr-border px-3 py-2 text-xs font-mono outline-none focus:border-green-400 rounded-sm text-current placeholder-wr-dim/30"
-                          onKeyDown={e => e.key === 'Enter' && handleRestoreWallet()}
-                        />
-                        <button
-                          onClick={handleRestoreWallet}
-                          disabled={restoringWallet || !restoreToken.trim()}
-                          className="px-4 py-2 bg-green-500/20 border border-green-400/30 text-green-400 text-xs font-bold uppercase tracking-widest hover:bg-green-500/30 transition-colors rounded-sm disabled:opacity-30"
-                        >
-                          {restoringWallet ? <RefreshCw size={12} className="animate-spin" /> : t('sms.restore')}
-                        </button>
-                        <button onClick={() => { setShowRestoreInput(false); setRestoreToken(''); }} className="p-2 text-wr-dim hover:text-wr-accent">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowRestoreInput(true)}
-                        className="text-[10px] text-wr-dim hover:text-green-400 font-mono uppercase tracking-widest transition-colors flex items-center gap-2"
-                      >
-                        <Key size={10} /> {t('sms.restore_wallet')}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+              <WalletBanner
+                token={walletToken}
+                balance={balanceUSD}
+                helper={t('wallet.shared_helper', 'One prepaid balance covers eSIMs, SMS, phone numbers and VPN.')}
+                onDeposit={() => setShowPaymentModal(true)}
+                restoreOpen={showRestoreInput}
+                setRestoreOpen={setShowRestoreInput}
+                restoreToken={restoreToken}
+                setRestoreToken={setRestoreToken}
+                onRestore={handleRestoreWallet}
+                restoring={restoringWallet}
+              />
 
               {/* TABBED BROWSING + COMPARISON TABLE */}
-              <div className="bg-wr-surface border border-wr-border p-4 md:p-10 relative overflow-hidden shadow-2xl mx-2 md:mx-0">
+              <div className="mx-2 rounded-sm border border-wr-border bg-wr-surface p-4 md:mx-0 md:p-8">
                 <div className="relative z-10 space-y-6 md:space-y-8">
 
                   {/* Tab Buttons */}
-                  <div className="flex gap-1 border-b border-wr-border/30 pb-0">
+                  <div className="flex w-full border border-wr-border bg-wr-base/50 p-0.5 sm:w-auto sm:self-start">
                     {([
                       { key: 'country' as BrowseTab, label: t('esim.tab_country'), icon: <Globe size={12} /> },
                       { key: 'regional' as BrowseTab, label: t('esim.tab_regional'), icon: <MapPin size={12} /> },
@@ -922,10 +988,10 @@ export function ESIMWall() {
                       <button
                         key={tab.key}
                         onClick={() => handleTabChange(tab.key)}
-                        className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-all border-b-2 -mb-px ${
+                        className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-4 py-2 text-[11px] font-mono font-bold uppercase tracking-widest transition-colors sm:flex-none md:min-h-0 ${
                           activeTab === tab.key
-                            ? 'border-wr-accent text-wr-accent'
-                            : 'border-transparent text-wr-dim hover:text-current hover:border-wr-border'
+                            ? 'bg-wr-accent text-black'
+                            : 'text-wr-dim hover:text-current'
                         }`}
                       >
                         {tab.icon} {tab.label}
@@ -944,7 +1010,7 @@ export function ESIMWall() {
                         <div className="relative">
                           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
                           <input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder={t('esim.search_countries')}
-                            className="w-full pl-10 pr-3 py-3 bg-wr-base border-2 border-wr-border outline-none font-mono text-sm transition-all rounded-sm focus:border-wr-accent text-current placeholder-wr-dim/30" />
+                            className="min-h-11 w-full rounded-sm border border-wr-border bg-wr-base py-3 pl-10 pr-3 font-mono text-base text-current outline-none transition-colors placeholder-wr-dim/50 focus:border-wr-accent md:text-sm" />
                         </div>
                         {/* Popular countries */}
                         <div className="flex flex-wrap gap-1.5">
@@ -953,25 +1019,27 @@ export function ESIMWall() {
                             if (!country) return null;
                             return (
                               <button key={code} onClick={() => { setSelectedCountry(code); scrollToPlans(); }} title={country.name}
-                                className={`text-xs px-2.5 py-1.5 rounded-full border font-bold transition-all flex items-center gap-1.5 ${selectedCountry === code ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/30 hover:text-wr-accent'}`}>
-                                <img src={`https://flagcdn.com/w20/${code.toLowerCase()}.png`} alt={code} className="w-4 h-3 object-cover rounded-xs" />
+                                className={`flex min-h-11 items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-[11px] font-mono font-bold uppercase tracking-wider transition-colors md:min-h-0 ${selectedCountry === code ? 'border-wr-accent bg-wr-accent/10 text-wr-accent' : 'border-wr-border text-wr-dim hover:border-wr-dim hover:text-current'}`}>
+                                <img src={`https://flagcdn.com/w20/${code.toLowerCase()}.png`} alt={code} loading="lazy" className="h-3 w-4 rounded-xs object-cover" />
                                 {code}
                               </button>
                             );
                           })}
                         </div>
-                        <div className="border-t border-wr-border/30" />
+                        <div className="border-t border-wr-border/60" />
                         {/* All countries */}
-                        <div className="flex flex-col gap-0.5 max-h-[400px] overflow-y-auto pr-1">
+                        <div className="flex max-h-[400px] flex-col gap-0.5 overflow-y-auto pr-1">
                           {filteredCountries.map(c => (
                             <button key={c.code} onClick={() => { setSelectedCountry(c.code); scrollToPlans(); }}
-                              className={`text-xs px-3 py-2 rounded transition-all flex items-center gap-2 text-left ${selectedCountry === c.code ? 'bg-wr-accent/15 text-wr-accent font-bold' : 'text-current hover:bg-wr-surface hover:text-wr-accent'}`}>
-                              <img src={`https://flagcdn.com/w20/${c.code.toLowerCase()}.png`} alt={c.code} className="w-4 h-3 object-cover rounded-xs opacity-70" />
+                              className={`flex min-h-11 items-center gap-2 rounded-sm px-3 py-2 text-left text-xs transition-colors md:min-h-0 ${selectedCountry === c.code ? 'bg-wr-accent/10 font-bold text-wr-accent' : 'text-current hover:bg-wr-surface hover:text-wr-accent'}`}>
+                              <img src={`https://flagcdn.com/w20/${c.code.toLowerCase()}.png`} alt={c.code} loading="lazy" className="h-3 w-4 rounded-xs object-cover opacity-70" />
                               <span className="truncate">{c.name}</span>
                             </button>
                           ))}
                           {filteredCountries.length === 0 && !loading && (
-                            <div className="text-xs text-wr-dim py-4 w-full text-center">{t('esim.no_countries')}</div>
+                            <div className="w-full rounded-sm border border-wr-border bg-wr-base/50 px-3 py-4 text-center text-xs text-wr-dim">
+                              {t('esim.no_countries')}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -996,112 +1064,33 @@ export function ESIMWall() {
                             </div>
                           ) : comparePlans.length > 0 ? (
                             <>
-                              {/* Filter toolbar */}
-                              <div className="flex flex-col gap-2">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <SlidersHorizontal size={10} className="text-wr-dim shrink-0" />
-                                  <div className="flex gap-1 flex-wrap">
-                                    {DATA_FILTERS.map((df, i) => (
-                                      <button key={df.label} onClick={() => setDataFilter(i)}
-                                        className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${dataFilter === i ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
-                                        {df.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <Clock size={10} className="text-wr-dim shrink-0" />
-                                  <div className="flex gap-1 flex-wrap">
-                                    {DURATION_FILTERS.map((durf, i) => (
-                                      <button key={durf.label} onClick={() => setDurationFilter(i)}
-                                        className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${durationFilter === i ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
-                                        {durf.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
+                              <PlanFilterBar
+                                dataFilter={dataFilter}
+                                durationFilter={durationFilter}
+                                sortKey={sortKey}
+                                sortAsc={sortAsc}
+                                onDataFilter={setDataFilter}
+                                onDurationFilter={setDurationFilter}
+                                onSort={(key) => { if (sortKey === key) setSortAsc(!sortAsc); else { setSortKey(key); setSortAsc(true); } }}
+                              />
 
-                              {/* Sort controls */}
-                              <div className="flex items-center gap-1.5">
-                                <ArrowUpDown size={10} className="text-wr-dim shrink-0" />
-                                {(['price', 'data', 'duration'] as SortKey[]).map(key => (
-                                  <button key={key} onClick={() => { if (sortKey === key) setSortAsc(!sortAsc); else { setSortKey(key); setSortAsc(true); } }}
-                                    className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${sortKey === key ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
-                                    {key === 'price' ? 'Price' : key === 'data' ? 'Data' : 'Duration'} {sortKey === key ? (sortAsc ? '↑' : '↓') : ''}
-                                  </button>
+                              {/* Plan cards grid */}
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                                {filteredPlans.slice(0, visiblePlans).map((plan) => (
+                                  <PlanCard
+                                    key={plan.id}
+                                    plan={plan}
+                                    isCheapest={plan.id === filteredCheapestId}
+                                    onSelect={setSelectedPlanDetail}
+                                  />
                                 ))}
                               </div>
 
-                              {/* Plan cards grid */}
-                              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3">
-                                {filteredPlans.slice(0, visiblePlans).map((plan) => {
-                                  const isCheapest = plan.id === filteredCheapestId;
-                                  const pricePerGB = plan.dataGB > 0 ? +(plan.price / plan.dataGB).toFixed(2) : plan.price;
-
-                                  return (
-                                    <div
-                                      key={plan.id}
-                                      className={`group relative flex flex-col p-4 rounded-sm border transition-all hover:shadow-lg ${
-                                        isCheapest
-                                          ? 'border-wr-green/60 bg-wr-green/5 shadow-[0_0_20px_rgba(0,255,65,0.08)]'
-                                          : 'border-wr-border/50 bg-wr-base hover:border-wr-accent/30'
-                                      }`}
-                                    >
-                                      {isCheapest && (
-                                        <div className="absolute -top-2 left-3 px-2 py-0.5 bg-wr-green text-black text-xs font-black tracking-widest uppercase rounded-xs shadow-lg shadow-wr-green/30">
-                                          {t('esim.best_price')}
-                                        </div>
-                                      )}
-
-                                      {/* Flag */}
-                                      <div className="flex items-center justify-end mt-1">
-                                        {plan.country && plan.country.length === 2 && /^[A-Z]{2}$/.test(plan.country) ? (
-                                          <img src={`https://flagcdn.com/w40/${plan.country.toLowerCase()}.png`} alt={plan.country} className="w-5 h-3.5 object-cover rounded-xs opacity-70" />
-                                        ) : (
-                                          <span className="text-sm opacity-50">🌍</span>
-                                        )}
-                                      </div>
-
-                                      {/* Data + Duration */}
-                                      <div className="flex items-baseline justify-between gap-2 mt-2">
-                                        <span className={`text-lg font-black font-mono ${isCheapest ? 'text-wr-green' : 'text-current'}`}>
-                                          {plan.dataGB}GB
-                                        </span>
-                                        <span className="flex items-center gap-1 text-xs text-wr-dim">
-                                          <Clock size={10} /> {plan.durationDays}d
-                                        </span>
-                                      </div>
-
-                                      <span className="text-[11px] text-wr-dim/60 mt-0.5">{(plan as any).speed || '3G/4G/5G'}</span>
-
-                                      <div className="mt-3">
-                                        <div className={`text-xl font-black font-mono ${isCheapest ? 'text-wr-green' : 'text-current'}`}>
-                                          ${plan.price.toFixed(2)}
-                                        </div>
-                                        <div className="text-[11px] text-wr-dim/50 font-mono">${pricePerGB}{t('esim.per_gb')}</div>
-                                      </div>
-
-                                      <button
-                                        onClick={() => setSelectedPlanDetail(plan)}
-                                        className={`w-full mt-3 py-2 text-xs font-bold tracking-widest uppercase rounded-sm border transition-all flex items-center justify-center ${
-                                            isCheapest
-                                              ? 'border-wr-green text-wr-green hover:bg-wr-green hover:text-black shadow-[0_0_10px_rgba(0,255,65,0.15)]'
-                                              : 'border-wr-accent/40 text-wr-accent hover:bg-wr-accent hover:text-black'
-                                        }`}
-                                      >
-                                        {t('esim.buy')}
-                                      </button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-
                               {visiblePlans < filteredPlans.length && (
-                                <div className="text-center pt-2">
+                                <div className="pt-2 text-center">
                                   <button
                                     onClick={() => setVisiblePlans(v => v + PLANS_PER_PAGE)}
-                                    className="px-6 py-2.5 text-xs font-bold uppercase tracking-widest border border-wr-accent/40 text-wr-accent rounded-sm hover:bg-wr-accent hover:text-black transition-all"
+                                    className="min-h-11 rounded-sm border border-wr-border px-6 py-2.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent md:min-h-0"
                                   >
                                     {t('esim.show_more', 'Show More')} ({filteredPlans.length - visiblePlans} {t('esim.remaining', 'remaining')})
                                   </button>
@@ -1109,14 +1098,14 @@ export function ESIMWall() {
                               )}
 
                               {filteredPlans.length === 0 && comparePlans.length > 0 && (
-                                <div className="text-center py-6 text-xs text-wr-dim">
-                                  No plans match the current filters. Try adjusting the data size or provider filters.
+                                <div className="rounded-sm border border-wr-border bg-wr-base/50 px-4 py-6 text-center text-xs text-wr-dim">
+                                  {t('esim.no_filter_match', 'No plans match the current filters. Try adjusting the data size or provider filters.')}
                                 </div>
                               )}
                             </>
                           ) : (
-                            <div className="flex items-start gap-2 text-xs text-wr-dim p-4 rounded bg-wr-base border border-wr-border/50 justify-center">
-                              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-wr-warning" />
+                            <div className="flex items-start justify-center gap-2 rounded-sm border border-wr-warning/30 bg-wr-warning/5 p-4 text-xs text-wr-dim">
+                              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-wr-warning" />
                               <span>{t('esim.no_compare_plans')}</span>
                             </div>
                           )}
@@ -1152,17 +1141,17 @@ export function ESIMWall() {
                                 <button
                                   key={region}
                                   onClick={() => { setSelectedRegion(isSelected ? '' : region); if (window.innerWidth < 768) setTimeout(() => plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}
-                                  className={`p-3 rounded-sm border text-left transition-all ${
+                                  className={`min-h-11 rounded-sm border p-3 text-left transition-colors md:min-h-0 ${
                                     isSelected
                                       ? 'border-wr-accent bg-wr-accent/10'
-                                      : 'border-wr-border hover:border-wr-accent/40 bg-wr-base'
+                                      : 'border-wr-border bg-wr-base hover:border-wr-dim'
                                   }`}
                                 >
-                                  <div className={`text-xs font-bold tracking-wider uppercase ${isSelected ? 'text-wr-accent' : 'text-current'}`}>
+                                  <div className={`text-[11px] font-mono font-bold uppercase tracking-widest ${isSelected ? 'text-wr-accent' : 'text-current'}`}>
                                     {t(REGION_I18N_KEYS[region] || region)}
                                   </div>
                                   {count > 0 && (
-                                    <div className="text-[10px] text-wr-dim mt-0.5">{count} {t('esim.plans_available', 'plans')}</div>
+                                    <div className="mt-0.5 text-[11px] font-mono text-wr-dim">{count} {t('esim.plans_available', 'plans')}</div>
                                   )}
                                 </button>
                               );
@@ -1182,123 +1171,44 @@ export function ESIMWall() {
 
                           {tabPlans.length > 0 ? (
                             <>
-                              {/* Filter toolbar */}
-                              <div className="flex flex-col gap-2">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <SlidersHorizontal size={10} className="text-wr-dim shrink-0" />
-                                  <div className="flex gap-1 flex-wrap">
-                                    {DATA_FILTERS.map((df, i) => (
-                                      <button key={df.label} onClick={() => setDataFilter(i)}
-                                        className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${dataFilter === i ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
-                                        {df.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <Clock size={10} className="text-wr-dim shrink-0" />
-                                  <div className="flex gap-1 flex-wrap">
-                                    {DURATION_FILTERS.map((durf, i) => (
-                                      <button key={durf.label} onClick={() => setDurationFilter(i)}
-                                        className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${durationFilter === i ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
-                                        {durf.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Sort controls */}
-                              <div className="flex items-center gap-1.5">
-                                <ArrowUpDown size={10} className="text-wr-dim shrink-0" />
-                                {(['price', 'data', 'duration'] as SortKey[]).map(key => (
-                                  <button key={key} onClick={() => { if (sortKey === key) setSortAsc(!sortAsc); else { setSortKey(key); setSortAsc(true); } }}
-                                    className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${sortKey === key ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
-                                    {key === 'price' ? 'Price' : key === 'data' ? 'Data' : 'Duration'} {sortKey === key ? (sortAsc ? '↑' : '↓') : ''}
-                                  </button>
-                                ))}
-                              </div>
+                              <PlanFilterBar
+                                dataFilter={dataFilter}
+                                durationFilter={durationFilter}
+                                sortKey={sortKey}
+                                sortAsc={sortAsc}
+                                onDataFilter={setDataFilter}
+                                onDurationFilter={setDurationFilter}
+                                onSort={(key) => { if (sortKey === key) setSortAsc(!sortAsc); else { setSortKey(key); setSortAsc(true); } }}
+                              />
 
                               {/* Plan cards grid */}
-                              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3">
-                                {tabPlans.slice(0, visiblePlans).map((plan) => {
-                                  const isCheapest = plan.id === tabCheapestId;
-                                  const pricePerGB = plan.dataGB > 0 ? +(plan.price / plan.dataGB).toFixed(2) : plan.price;
-
-                                  return (
-                                    <div
-                                      key={plan.id}
-                                      className={`group relative flex flex-col p-4 rounded-sm border transition-all hover:shadow-lg ${
-                                        isCheapest
-                                          ? 'border-wr-green/60 bg-wr-green/5 shadow-[0_0_20px_rgba(0,255,65,0.08)]'
-                                          : 'border-wr-border/50 bg-wr-base hover:border-wr-accent/30'
-                                      }`}
-                                    >
-                                      {isCheapest && (
-                                        <div className="absolute -top-2 left-3 px-2 py-0.5 bg-wr-green text-black text-xs font-black tracking-widest uppercase rounded-xs shadow-lg shadow-wr-green/30">
-                                          {t('esim.best_price')}
-                                        </div>
-                                      )}
-
-                                      {/* Flag */}
-                                      <div className="flex items-center justify-end mt-1">
-                                        {plan.country && plan.country.length === 2 && /^[A-Z]{2}$/.test(plan.country) ? (
-                                          <img src={`https://flagcdn.com/w40/${plan.country.toLowerCase()}.png`} alt={plan.country} className="w-5 h-3.5 object-cover rounded-xs opacity-70" />
-                                        ) : (
-                                          <span className="text-sm opacity-50">🌍</span>
-                                        )}
-                                      </div>
-
-                                      {/* Data + Duration */}
-                                      <div className="flex items-baseline justify-between gap-2 mt-2">
-                                        <span className={`text-lg font-black font-mono ${isCheapest ? 'text-wr-green' : 'text-current'}`}>
-                                          {plan.dataGB}GB
-                                        </span>
-                                        <span className="flex items-center gap-1 text-xs text-wr-dim">
-                                          <Clock size={10} /> {plan.durationDays}d
-                                        </span>
-                                      </div>
-
-                                      <span className="text-[11px] text-wr-dim/60 mt-0.5">{(plan as any).speed || '3G/4G/5G'}</span>
-
-                                      <div className="mt-3">
-                                        <div className={`text-xl font-black font-mono ${isCheapest ? 'text-wr-green' : 'text-current'}`}>
-                                          ${plan.price.toFixed(2)}
-                                        </div>
-                                        <div className="text-[11px] text-wr-dim/50 font-mono">${pricePerGB}{t('esim.per_gb')}</div>
-                                      </div>
-
-                                      <button
-                                        onClick={() => setSelectedPlanDetail(plan)}
-                                        className={`w-full mt-3 py-2 text-xs font-bold tracking-widest uppercase rounded-sm border transition-all flex items-center justify-center ${
-                                            isCheapest
-                                              ? 'border-wr-green text-wr-green hover:bg-wr-green hover:text-black shadow-[0_0_10px_rgba(0,255,65,0.15)]'
-                                              : 'border-wr-accent/40 text-wr-accent hover:bg-wr-accent hover:text-black'
-                                        }`}
-                                      >
-                                        {t('esim.buy')}
-                                      </button>
-                                    </div>
-                                  );
-                                })}
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                                {tabPlans.slice(0, visiblePlans).map((plan) => (
+                                  <PlanCard
+                                    key={plan.id}
+                                    plan={plan}
+                                    isCheapest={plan.id === tabCheapestId}
+                                    onSelect={setSelectedPlanDetail}
+                                  />
+                                ))}
                               </div>
                               {visiblePlans < tabPlans.length && (
-                                <div className="text-center pt-2">
+                                <div className="pt-2 text-center">
                                   <button onClick={() => setVisiblePlans(v => v + PLANS_PER_PAGE)}
-                                    className="px-6 py-2.5 text-xs font-bold uppercase tracking-widest border border-wr-accent/40 text-wr-accent rounded-sm hover:bg-wr-accent hover:text-black transition-all">
+                                    className="min-h-11 rounded-sm border border-wr-border px-6 py-2.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent md:min-h-0">
                                     {t('esim.show_more', 'Show More')} ({tabPlans.length - visiblePlans} {t('esim.remaining', 'remaining')})
                                   </button>
                                 </div>
                               )}
                             </>
                           ) : regionalPlans.length === 0 ? (
-                            <div className="flex items-start gap-2 text-xs text-wr-dim p-4 rounded bg-wr-base border border-wr-border/50 justify-center">
-                              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-wr-warning" />
+                            <div className="flex items-start justify-center gap-2 rounded-sm border border-wr-warning/30 bg-wr-warning/5 p-4 text-xs text-wr-dim">
+                              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-wr-warning" />
                               <span>{t('esim.no_regional_plans')}</span>
                             </div>
                           ) : (
-                            <div className="text-center py-6 text-xs text-wr-dim">
-                              No plans match the current filters. Try adjusting the data size or provider filters.
+                            <div className="rounded-sm border border-wr-border bg-wr-base/50 px-4 py-6 text-center text-xs text-wr-dim">
+                              {t('esim.no_filter_match', 'No plans match the current filters. Try adjusting the data size or provider filters.')}
                             </div>
                           )}
                         </div>
@@ -1327,113 +1237,46 @@ export function ESIMWall() {
                         </div>
                       ) : tabPlans.length > 0 ? (
                         <>
-                          {/* Filter toolbar */}
-                          <div className="flex flex-col md:flex-row md:flex-wrap gap-3 md:items-center">
-                            <div className="flex items-center gap-1.5">
-                              <SlidersHorizontal size={10} className="text-wr-dim shrink-0" />
-                              <div className="flex gap-1 flex-wrap">
-                                {DATA_FILTERS.map((df, i) => (
-                                  <button key={df.label} onClick={() => setDataFilter(i)}
-                                    className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${dataFilter === i ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
-                                    {df.label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <Clock size={10} className="text-wr-dim shrink-0" />
-                              <div className="flex gap-1 flex-wrap">
-                                {DURATION_FILTERS.map((durf, i) => (
-                                  <button key={durf.label} onClick={() => setDurationFilter(i)}
-                                    className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${durationFilter === i ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
-                                    {durf.label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <ArrowUpDown size={10} className="text-wr-dim shrink-0" />
-                              {(['price', 'data', 'duration'] as SortKey[]).map(key => (
-                                <button key={key} onClick={() => { if (sortKey === key) setSortAsc(!sortAsc); else { setSortKey(key); setSortAsc(true); } }}
-                                  className={`text-xs px-2.5 py-1 rounded border font-mono transition-all ${sortKey === key ? 'border-wr-accent text-wr-accent bg-wr-accent/15' : 'border-wr-border/50 text-wr-dim hover:border-wr-dim'}`}>
-                                  {key === 'price' ? 'Price' : key === 'data' ? 'Data' : 'Duration'} {sortKey === key ? (sortAsc ? '↑' : '↓') : ''}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                          <PlanFilterBar
+                            dataFilter={dataFilter}
+                            durationFilter={durationFilter}
+                            sortKey={sortKey}
+                            sortAsc={sortAsc}
+                            onDataFilter={setDataFilter}
+                            onDurationFilter={setDurationFilter}
+                            onSort={(key) => { if (sortKey === key) setSortAsc(!sortAsc); else { setSortKey(key); setSortAsc(true); } }}
+                          />
 
                           {/* Plan cards grid */}
-                          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3">
-                            {tabPlans.slice(0, visiblePlans).map((plan) => {
-                              const isCheapest = plan.id === tabCheapestId;
-                              const pricePerGB = plan.dataGB > 0 ? +(plan.price / plan.dataGB).toFixed(2) : plan.price;
-
-                              return (
-                                <div
-                                  key={plan.id}
-                                  className={`group relative flex flex-col p-4 rounded-lg border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
-                                    isCheapest
-                                      ? 'border-wr-green/60 bg-wr-green/5 shadow-[0_0_20px_rgba(0,255,65,0.08)]'
-                                      : 'border-wr-border/50 bg-wr-base hover:border-wr-accent/30'
-                                  }`}
-                                >
-                                  {isCheapest && (
-                                    <div className="absolute -top-2 left-3 px-2 py-0.5 bg-wr-green text-black text-xs font-black tracking-widest uppercase rounded-xs shadow-lg shadow-wr-green/30">
-                                      {t('esim.best_price')}
-                                    </div>
-                                  )}
-
-                                  <div className="flex items-baseline justify-between gap-2 mt-1">
-                                    <span className={`text-lg font-black font-mono ${isCheapest ? 'text-wr-green' : 'text-current'}`}>
-                                      {plan.dataGB}GB
-                                    </span>
-                                    <span className="flex items-center gap-1 text-xs text-wr-dim">
-                                      <Clock size={10} /> {plan.durationDays}d
-                                    </span>
-                                  </div>
-
-                                  <span className="text-[11px] text-wr-dim/60 mt-0.5">3G/4G/5G</span>
-
-                                  <div className="mt-3">
-                                    <div className={`text-xl font-black font-mono ${isCheapest ? 'text-wr-green' : 'text-current'}`}>
-                                      ${plan.price.toFixed(2)}
-                                    </div>
-                                    <div className="text-[11px] text-wr-dim/50 font-mono">${pricePerGB}{t('esim.per_gb')}</div>
-                                  </div>
-
-                                  <button
-                                    onClick={() => setSelectedPlanDetail(plan)}
-                                    className={`w-full mt-3 py-2 text-xs font-bold tracking-widest uppercase rounded-md border transition-all flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-wr-accent ${
-                                        isCheapest
-                                          ? 'border-wr-green text-wr-green hover:bg-wr-green hover:text-black shadow-[0_0_10px_rgba(0,255,65,0.15)]'
-                                          : 'border-wr-accent/40 text-wr-accent hover:bg-wr-accent hover:text-black'
-                                    }`}
-                                  >
-                                    {t('esim.buy')}
-                                  </button>
-                                </div>
-                              );
-                            })}
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                            {tabPlans.slice(0, visiblePlans).map((plan) => (
+                              <PlanCard
+                                key={plan.id}
+                                plan={plan}
+                                isCheapest={plan.id === tabCheapestId}
+                                onSelect={setSelectedPlanDetail}
+                              />
+                            ))}
                           </div>
 
                           {visiblePlans < tabPlans.length && (
-                            <div className="text-center pt-2">
+                            <div className="pt-2 text-center">
                               <button onClick={() => setVisiblePlans(v => v + PLANS_PER_PAGE)}
-                                className="px-6 py-2.5 text-xs font-bold uppercase tracking-widest border border-wr-accent/40 text-wr-accent rounded-sm hover:bg-wr-accent hover:text-black transition-all">
+                                className="min-h-11 rounded-sm border border-wr-border px-6 py-2.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent md:min-h-0">
                                 {t('esim.show_more', 'Show More')} ({tabPlans.length - visiblePlans} {t('esim.remaining', 'remaining')})
                               </button>
                             </div>
                           )}
 
                           {tabPlans.length === 0 && globalPlans.length > 0 && (
-                            <div className="text-center py-6 text-xs text-wr-dim">
-                              No plans match the current filters. Try adjusting the data size or provider filters.
+                            <div className="rounded-sm border border-wr-border bg-wr-base/50 px-4 py-6 text-center text-xs text-wr-dim">
+                              {t('esim.no_filter_match', 'No plans match the current filters. Try adjusting the data size or provider filters.')}
                             </div>
                           )}
                         </>
                       ) : (
-                        <div className="flex items-start gap-2 text-xs text-wr-dim p-4 rounded bg-wr-base border border-wr-border/50 justify-center">
-                          <AlertTriangle size={14} className="shrink-0 mt-0.5 text-wr-warning" />
+                        <div className="flex items-start justify-center gap-2 rounded-sm border border-wr-warning/30 bg-wr-warning/5 p-4 text-xs text-wr-dim">
+                          <AlertTriangle size={14} className="mt-0.5 shrink-0 text-wr-warning" />
                           <span>{t('esim.no_global_plans')}</span>
                         </div>
                       )}
@@ -1450,9 +1293,9 @@ export function ESIMWall() {
                   { title: t('esim.info_instant_title'), desc: t('esim.info_instant_desc') },
                   { title: t('esim.info_global_title'), desc: t('esim.info_global_desc') },
                 ].map(item => (
-                  <div key={item.title} className="p-4 rounded-sm border border-wr-border/50 bg-wr-surface/30">
-                    <h4 className="text-xs font-bold uppercase text-wr-accent mb-1">{item.title}</h4>
-                    <p className="text-xs text-wr-dim">{item.desc}</p>
+                  <div key={item.title} className="rounded-sm border border-wr-border bg-wr-surface p-4">
+                    <h4 className="mb-1 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-info">{item.title}</h4>
+                    <p className="text-xs leading-relaxed text-wr-dim">{item.desc}</p>
                   </div>
                 ))}
               </div>
@@ -1561,7 +1404,7 @@ export function ESIMWall() {
         const countryName = countries.find(c => c.code === plan.country)?.name || plan.country;
         const isGlobal = isGlobalPlan(plan);
         const isRegional = isRegionalPlan(plan);
-        const locationLabel = isGlobal ? 'Global (120+ areas)' : isRegional ? plan.country : countryName;
+        const locationLabel = isGlobal ? 'Global' : isRegional ? plan.country : countryName;
         const hasSufficientBalance = walletToken !== null && balanceUSD >= plan.price;
         const modalMaxW = modalStep === 'details' ? 'max-w-lg' : 'max-w-xl';
 
@@ -1611,11 +1454,11 @@ export function ESIMWall() {
                             <div className="text-sm font-black font-mono text-current">3G/4G/5G</div>
                           </div>
                         </div>
-                        <div className="p-3 rounded-sm border border-wr-green/30 bg-wr-green/5 flex items-center gap-3">
-                          <div className="p-2 bg-wr-green/10 text-wr-green rounded-sm border border-wr-green/20"><DollarSign size={14} /></div>
+                        <div className="flex items-center gap-3 rounded-sm border border-wr-accent/30 bg-wr-accent/5 p-3">
+                          <div className="rounded-sm border border-wr-accent/20 bg-wr-accent/10 p-2 text-wr-accent"><DollarSign size={14} /></div>
                           <div>
-                            <div className="text-[11px] text-wr-dim uppercase tracking-widest">{t('esim.detail_price')}</div>
-                            <div className="text-sm font-black font-mono text-wr-green">${plan.price.toFixed(2)}</div>
+                            <div className="text-[11px] uppercase tracking-widest text-wr-dim">{t('esim.detail_price')}</div>
+                            <div className="font-mono text-sm font-black tabular-nums text-wr-accent">${plan.price.toFixed(2)}</div>
                           </div>
                         </div>
                       </div>
@@ -1641,7 +1484,7 @@ export function ESIMWall() {
                           <span className="text-wr-dim flex items-center gap-1.5 shrink-0"><Shield size={10} /> {t('esim.detail_ip_location')}</span>
                           <span className="flex items-center gap-1 ml-2">
                             <span className="font-mono text-wr-accent text-right truncate">{plan.country}</span>
-                            <span className="text-[11px] px-1.5 py-0.5 bg-wr-accent/10 border border-wr-accent/20 rounded-full whitespace-nowrap">{t('esim.detail_standard_privacy')}</span>
+                            <span className="whitespace-nowrap rounded-full border border-wr-info/30 bg-wr-info/10 px-1.5 py-0.5 text-[11px] text-wr-info">{t('esim.detail_standard_privacy')}</span>
                           </span>
                         </div>
                         <div className="flex items-center justify-between py-2 border-b border-wr-border/20">
@@ -1686,19 +1529,19 @@ export function ESIMWall() {
                       <h4 className="text-xs font-bold uppercase text-wr-dim tracking-widest">{t('esim.detail_important_notices')}</h4>
                       <ul className="space-y-1">
                         <li className="text-xs text-wr-dim/70 flex items-start gap-1.5">
-                          <AlertTriangle size={10} className="shrink-0 mt-0.5 text-wr-warning/50" />
+                          <AlertTriangle size={10} className="mt-0.5 shrink-0 text-wr-warning" />
                           {t('esim.detail_notice_data_only')}
                         </li>
                         <li className="text-xs text-wr-dim/70 flex items-start gap-1.5">
-                          <AlertTriangle size={10} className="shrink-0 mt-0.5 text-wr-warning/50" />
+                          <AlertTriangle size={10} className="mt-0.5 shrink-0 text-wr-warning" />
                           {t('esim.detail_notice_no_refund')}
                         </li>
                         {plan.engine === 'buyukesim' && <li className="text-xs text-wr-dim/70 flex items-start gap-1.5">
-                          <AlertTriangle size={10} className="shrink-0 mt-0.5 text-wr-warning/50" />
+                          <AlertTriangle size={10} className="mt-0.5 shrink-0 text-wr-warning" />
                           {t('esim.detail_notice_buyuk_refund')}
                         </li>}
                         <li className="text-xs text-wr-dim/70 flex items-start gap-1.5">
-                          <AlertTriangle size={10} className="shrink-0 mt-0.5 text-wr-warning/50" />
+                          <AlertTriangle size={10} className="mt-0.5 shrink-0 text-wr-warning" />
                           {t('esim.detail_notice_compatibility')}
                         </li>
                       </ul>
@@ -1709,11 +1552,11 @@ export function ESIMWall() {
                       <div className="flex items-center gap-2 text-xs border-t border-wr-border/30 pt-4">
                         <Wallet size={12} className="text-wr-accent" />
                         <span className="text-wr-dim">{t('sms.wallet_balance')}:</span>
-                        <span className={`font-mono font-bold ${hasSufficientBalance ? 'text-wr-green' : 'text-wr-warning'}`}>
+                        <span className={`font-mono font-bold tabular-nums ${hasSufficientBalance ? 'text-wr-accent' : 'text-wr-warning'}`}>
                           ${balanceUSD.toFixed(2)}
                         </span>
                         {hasSufficientBalance && (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-wr-green/10 border border-wr-green/20 rounded-full text-wr-green">
+                          <span className="rounded-full border border-wr-accent/20 bg-wr-accent/10 px-1.5 py-0.5 text-[10px] text-wr-accent">
                             {t('esim.sufficient_balance', 'Sufficient')}
                           </span>
                         )}
@@ -1731,7 +1574,7 @@ export function ESIMWall() {
                         </button>
                         <button
                           onClick={() => handleModalPurchase(plan)}
-                          className="flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-sm shadow-lg transition-all flex items-center justify-center gap-2 bg-wr-green text-black hover:bg-wr-green/90 shadow-wr-green/20"
+                          className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-sm bg-wr-accent py-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-wr-accent/90"
                         >
                           <Check size={14} /> {t('esim.detail_confirm_purchase')}
                         </button>
@@ -1768,14 +1611,14 @@ export function ESIMWall() {
                 {modalStep === 'purchasing' && (
                   <div className="flex flex-col items-center justify-center py-12 space-y-4">
                     <div className="relative">
-                      <div className="w-16 h-16 rounded-full bg-wr-green/10 flex items-center justify-center border border-wr-green/30">
-                        <Smartphone size={28} className="text-wr-green animate-pulse" />
+                      <div className="flex h-16 w-16 items-center justify-center rounded-sm border border-wr-accent/30 bg-wr-accent/10">
+                        <Smartphone size={28} className="animate-pulse text-wr-accent" />
                       </div>
-                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-wr-accent/20 flex items-center justify-center border border-wr-accent/30">
-                        <RefreshCw size={12} className="animate-spin text-wr-accent" />
+                      <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-wr-info/30 bg-wr-info/20">
+                        <RefreshCw size={12} className="animate-spin text-wr-info" />
                       </div>
                     </div>
-                    <p className="text-sm font-bold text-wr-green tracking-wider uppercase">Payment confirmed!</p>
+                    <p className="text-sm font-bold uppercase tracking-wider text-wr-accent">Payment confirmed!</p>
                     <p className="text-xs text-wr-dim">Purchasing your eSIM plan...</p>
                   </div>
                 )}
@@ -1783,10 +1626,10 @@ export function ESIMWall() {
                 {/* ═══ STEP: SUCCESS ═══ */}
                 {modalStep === 'success' && (
                   <div className="flex flex-col items-center justify-center py-8 space-y-5">
-                    <div className="w-16 h-16 rounded-full bg-wr-green/10 flex items-center justify-center border border-wr-green/30">
-                      <Check size={32} className="text-wr-green" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-sm border border-wr-accent/30 bg-wr-accent/10">
+                      <Check size={32} className="text-wr-accent" />
                     </div>
-                    <p className="text-sm font-bold text-wr-green tracking-wider uppercase">{t('esim.esim_purchased', 'eSIM Purchased!')}</p>
+                    <p className="text-sm font-bold uppercase tracking-wider text-wr-accent">{t('esim.esim_purchased', 'eSIM Purchased!')}</p>
                     <p className="text-xs text-wr-dim text-center max-w-sm">
                       {t('esim.wallet_shared', 'Your wallet has been credited and the eSIM has been purchased.')}
                     </p>
@@ -1794,12 +1637,12 @@ export function ESIMWall() {
                       <div className="flex items-center gap-2 text-xs">
                         <Wallet size={12} className="text-wr-accent" />
                         <span className="text-wr-dim">{t('sms.wallet_balance')}:</span>
-                        <span className="font-mono font-bold text-wr-green">${balanceUSD.toFixed(2)}</span>
+                        <span className="font-mono font-bold tabular-nums text-wr-accent">${balanceUSD.toFixed(2)}</span>
                       </div>
                     )}
                     <button
                       onClick={() => setSelectedPlanDetail(null)}
-                      className="px-8 py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-green text-black hover:bg-wr-green/90 shadow-lg shadow-wr-green/20 transition-all"
+                      className="min-h-11 rounded-sm bg-wr-accent px-8 py-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-wr-accent/90"
                     >
                       {t('common.close', 'Close')}
                     </button>
@@ -1809,10 +1652,10 @@ export function ESIMWall() {
                 {/* ═══ STEP: ERROR ═══ */}
                 {modalStep === 'error' && (
                   <div className="flex flex-col items-center justify-center py-8 space-y-5">
-                    <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-400/30">
-                      <AlertTriangle size={28} className="text-red-400" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-sm border border-wr-error/30 bg-wr-error/10">
+                      <AlertTriangle size={28} className="text-wr-error" />
                     </div>
-                    <p className="text-sm font-bold text-red-400 tracking-wider uppercase">Error</p>
+                    <p className="text-sm font-bold uppercase tracking-wider text-wr-error">Error</p>
                     <p className="text-xs text-wr-dim text-center max-w-sm">{modalError || 'Something went wrong. Please try again.'}</p>
                     <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-accent hover:underline text-xs">
                       Need help? @kyc_rip_bot

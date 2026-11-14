@@ -24,7 +24,7 @@
     "monero_toolkit": "Набор Monero",
     "xmr_paywall": "XMR-пейволл",
     "rip_family_project": "Проект rip.family",
-    "tagline": "Без логов. Без идентификации. Без стен."
+    "tagline": "Без аккаунта. Без идентификации. Политики провайдеров различаются."
   },
   "home": {
     "badge": "Набор анонимной связи",
@@ -68,13 +68,13 @@
     "tool_dead_drop_desc": "Создавайте зашифрованные самоуничтожающиеся сообщения. AES-256-GCM шифрование на клиенте. Сервер никогда не видит ваши данные.",
     "tool_sms_wall": "SMS Wall",
     "tool_sms_wall_tagline": "Анонимная верификация по телефону",
-    "tool_sms_wall_desc": "Получите временные номера для SMS-верификации. 150+ стран, 300+ сервисов. Оплата XMR.",
+    "tool_sms_wall_desc": "Временные номера для SMS-верификации. Недоставленные коды возвращаются автоматически.",
     "tool_ghost_chat": "Ghost Chat",
     "tool_ghost_chat_tagline": "PGP-шифрованный чат через Nostr",
     "tool_ghost_chat_desc": "Сквозное шифрование через децентрализованные Nostr-реле. Временные личности, без доверия серверу.",
     "tool_esim": "eSIM",
     "tool_esim_tagline": "Анонимный мобильный интернет",
-    "tool_esim_desc": "Глобальные eSIM-планы для анонимного интернета. 120+ стран, 3G/4G/5G. Установка по QR-коду, оплата XMR.",
+    "tool_esim_desc": "Предоплаченные eSIM для передачи данных; QR-код выдаётся после активации плана провайдером.",
     "tool_proxy": "Proxy Wall",
     "tool_proxy_tagline": "Анонимный доступ к прокси",
     "tool_proxy_desc": "Резидентные, серверные и мобильные прокси. SOCKS5 и HTTP. Глобальное покрытие, анонимная оплата.",
@@ -132,7 +132,7 @@
   "sms": {
     "title": "SMS",
     "title_accent": "WALL",
-    "subtitle": "Анонимная верификация по телефону. 150+ стран. Оплата за SMS.",
+    "subtitle": "Анонимная верификация по телефону. Оплата за SMS.",
     "wallet_balance": "БАЛАНС КОШЕЛЬКА",
     "anonymous_wallet": "АНОНИМНЫЙ КОШЕЛЁК",
     "new": "НОВЫЙ",
@@ -226,7 +226,7 @@
     "info_pay_desc": "Monero или Lightning — оба неотслеживаемы",
     "info_refund_title": "Авто-возврат",
     "info_refund_desc": "Возврат на кошелёк, если SMS не получен",
-    "info_services_title": "1700+ сервисов",
+    "info_services_title": "Сервисы",
     "info_services_desc": "Discord, Telegram, Google и другие",
     "rental_info_longterm_title": "Долгосрочные номера",
     "rental_info_longterm_desc": "Аренда номера на дни или недели",
@@ -251,7 +251,7 @@
     "payment_chain_tron": "TRON (TRC20)",
     "payment_chain_eth": "Ethereum (ERC20)",
     "pro_cta_title": "Ghost Mail Pro",
-    "pro_cta_desc": "Постоянный ящик с возможностью отправки — алиасы, письма и ответы. От $3/мес.",
+    "pro_cta_desc": "Постоянный ящик с возможностью отправки — алиасы, письма и ответы. Оплата помесячно в криптовалюте.",
     "pro_cta_go": "Перейти на Pro"
   },
   "drop": {
@@ -289,9 +289,9 @@
   "esim": {
     "title_e": "e",
     "title_sim": "SIM",
-    "subtitle": "Анонимный мобильный интернет. 100+ стран. Без KYC.",
+    "subtitle": "Анонимный мобильный интернет. Без KYC.",
     "coming_soon": "Скоро",
-    "coming_soon_desc": "Анонимные eSIM-планы интегрируются. Покупайте предоплаченный мобильный интернет для 100+ стран через Monero или Lightning — без личности.",
+    "coming_soon_desc": "Анонимные eSIM-планы интегрируются. Покупайте предоплаченный мобильный интернет через Monero или Lightning — без идентификации.",
     "tag_no_kyc": "Без KYC",
     "tag_no_reg": "Без регистрации",
     "tag_global": "Глобальное покрытие",
@@ -325,7 +325,7 @@
     "info_instant_title": "Мгновенная активация",
     "info_instant_desc": "Сканируйте QR-код и подключитесь за секунды",
     "info_global_title": "Глобальное покрытие",
-    "info_global_desc": "100+ стран с планами 4G/5G",
+    "info_global_desc": "Планы 4G/5G для доступных стран",
     "buy_esim": "Купить eSIM",
     "loading_plans": "Загрузка планов..."
   },
@@ -368,7 +368,7 @@
     "info_protocols_title": "SOCKS5 и HTTP",
     "info_protocols_desc": "Оба протокола поддерживаются. Переключайте в любое время.",
     "info_global_title": "Глобальные IP",
-    "info_global_desc": "15+ стран, резидентные и серверные пулы",
+    "info_global_desc": "Резидентные и серверные пулы",
     "info_pay_title": "XMR / Lightning",
     "info_pay_desc": "Анонимные платежи. Без KYC. Без следов.",
     "use_cases": "Сценарии использования",

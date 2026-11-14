@@ -17,7 +17,7 @@ const ORG_SCHEMA = {
   name: 'walls.rip',
   url: SITE_URL,
   logo: `${SITE_URL}/favicon.svg`,
-  description: 'Anonymous communication toolkit. Burner email, encrypted dead drops, anonymous SMS — no identity, no logs.',
+  description: 'Anonymous communication toolkit. Burner email, encrypted dead drops, anonymous SMS — no account.',
   parentOrganization: {
     '@type': 'Organization',
     name: 'KYC.RIP',
@@ -39,7 +39,7 @@ const WEBSITE_SCHEMA = {
 
 export function SEO({
   title = 'walls.rip — Break walls for anonymous communication',
-  description = 'Anonymous communication toolkit. Ghost Mail burner email, encrypted dead drops, anonymous SMS verification — no identity, no logs, no walls.',
+  description = 'Anonymous communication toolkit. Ghost Mail burner email, encrypted dead drops, anonymous SMS verification — no account, no identity.',
   path = '',
   image,
   schema,

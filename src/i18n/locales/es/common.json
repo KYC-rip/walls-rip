@@ -24,7 +24,7 @@
     "monero_toolkit": "Kit Monero",
     "xmr_paywall": "Muro de pago XMR",
     "rip_family_project": "Un proyecto de rip.family",
-    "tagline": "Sin registros. Sin identidad. Sin muros."
+    "tagline": "Sin cuenta. Sin identidad. Las políticas del proveedor varían."
   },
   "home": {
     "badge": "Kit de comunicacion anonima",
@@ -68,13 +68,13 @@
     "tool_dead_drop_desc": "Crea mensajes encriptados que se autodestruyen. Encriptacion AES-256-GCM del lado del cliente. El servidor nunca ve tus datos.",
     "tool_sms_wall": "SMS Wall",
     "tool_sms_wall_tagline": "Verificacion telefonica anonima",
-    "tool_sms_wall_desc": "Obtener numeros temporales para verificacion SMS. 150+ paises, 300+ servicios. Paga con XMR.",
+    "tool_sms_wall_desc": "Obtén números temporales para verificación SMS. Los códigos no entregados se reembolsan automáticamente.",
     "tool_ghost_chat": "Ghost Chat",
     "tool_ghost_chat_tagline": "Comunicaciones PGP sobre Nostr",
     "tool_ghost_chat_desc": "Mensajeria encriptada de extremo a extremo via relays Nostr descentralizados. Identidades efimeras, sin confianza en el servidor.",
     "tool_esim": "eSIM",
     "tool_esim_tagline": "Conectividad de datos anonima",
-    "tool_esim_desc": "Planes eSIM globales para datos anonimos. 120+ paises, 3G/4G/5G. Instala via codigo QR, paga con XMR.",
+    "tool_esim_desc": "eSIM de datos prepagados; el código QR se emite después de que el proveedor aprovisione el plan.",
     "tool_proxy": "Proxy Wall",
     "tool_proxy_tagline": "Acceso proxy anonimo",
     "tool_proxy_desc": "Proxies residenciales, de datacenter y moviles. SOCKS5 y HTTP. Cobertura global, pagos anonimos.",
@@ -132,7 +132,7 @@
   "sms": {
     "title": "SMS",
     "title_accent": "WALL",
-    "subtitle": "Verificacion telefonica anonima. 150+ paises. Pago por SMS.",
+    "subtitle": "Verificación telefónica anónima. Pago por SMS.",
     "wallet_balance": "SALDO DE BILLETERA",
     "anonymous_wallet": "BILLETERA ANONIMA",
     "new": "NUEVO",
@@ -226,7 +226,7 @@
     "info_pay_desc": "Monero o Lightning — ambos irrastreables",
     "info_refund_title": "Auto-reembolso",
     "info_refund_desc": "Reembolso a billetera si no se recibe SMS",
-    "info_services_title": "1,700+ servicios",
+    "info_services_title": "Servicios",
     "info_services_desc": "Discord, Telegram, Google y mas",
     "rental_info_longterm_title": "Numeros a largo plazo",
     "rental_info_longterm_desc": "Alquila un numero por dias o semanas",
@@ -251,7 +251,7 @@
     "payment_chain_tron": "TRON (TRC20)",
     "payment_chain_eth": "Ethereum (ERC20)",
     "pro_cta_title": "Ghost Mail Pro",
-    "pro_cta_desc": "Buzón persistente desde el que puedes enviar — alias, redactar y responder. Desde $3/mes.",
+    "pro_cta_desc": "Buzón persistente desde el que puedes enviar — alias, redactar y responder. Pago mensual en cripto.",
     "pro_cta_go": "Ir a Pro"
   },
   "drop": {
@@ -289,9 +289,9 @@
   "esim": {
     "title_e": "e",
     "title_sim": "SIM",
-    "subtitle": "Datos moviles anonimos. 100+ paises. Sin KYC.",
+    "subtitle": "Datos móviles anónimos. Sin KYC.",
     "coming_soon": "Proximamente",
-    "coming_soon_desc": "Los planes eSIM anonimos se estan integrando. Compra datos moviles prepagados para 100+ paises con Monero o Lightning — sin identidad requerida.",
+    "coming_soon_desc": "Los planes eSIM anónimos se están integrando. Compra datos móviles prepagados con Monero o Lightning — sin identidad.",
     "tag_no_kyc": "Sin KYC",
     "tag_no_reg": "Sin registro",
     "tag_global": "Cobertura global",
@@ -325,7 +325,7 @@
     "info_instant_title": "Activacion instantanea",
     "info_instant_desc": "Escanea el codigo QR y conectate en segundos",
     "info_global_title": "Cobertura global",
-    "info_global_desc": "100+ paises con planes de datos 4G/5G",
+    "info_global_desc": "Planes de datos 4G/5G para países disponibles",
     "buy_esim": "Comprar eSIM",
     "loading_plans": "Cargando planes..."
   },
@@ -368,7 +368,7 @@
     "info_protocols_title": "SOCKS5 y HTTP",
     "info_protocols_desc": "Ambos protocolos soportados. Cambia cuando quieras.",
     "info_global_title": "IPs globales",
-    "info_global_desc": "15+ paises, pools residenciales y datacenter",
+    "info_global_desc": "Pools residenciales y de datacenter",
     "info_pay_title": "XMR / Lightning",
     "info_pay_desc": "Pagos anonimos. Sin KYC. Sin rastros.",
     "use_cases": "Casos de uso",

@@ -36,12 +36,14 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           {/* Tools */}
           <div>
-            <h4 className="text-[10px] text-wr-dim uppercase tracking-wider font-bold mb-3">{t('footer.tools')}</h4>
+            <h4 className="text-[11px] text-wr-dim uppercase tracking-[0.16em] font-bold mb-3">{t('footer.tools')}</h4>
             <ul className="space-y-2 text-[12px]">
               <li><Link to={navLinkPath('/mail', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.ghost_mail')}</Link></li>
+              <li><Link to={navLinkPath('/mail/pro', currentLang)} className="hover:text-wr-secondary transition-colors">{t('header.ghost_mail_pro', 'Ghost Mail Pro')}</Link></li>
               <li><Link to={navLinkPath('/drop', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.dead_drop')}</Link></li>
               <li><Link to={navLinkPath('/sms', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.sms_wall')}</Link></li>
               <li><Link to={navLinkPath('/esim', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.esim')}</Link></li>
+              <li><Link to={navLinkPath('/esim/topup', currentLang)} className="hover:text-wr-info transition-colors">eSIM top-up</Link></li>
               <li><Link to={navLinkPath('/phone', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.phone')}</Link></li>
               <li><Link to={navLinkPath('/uk-sim', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.uk_esim', 'UK eSIM')}</Link></li>
               <li><Link to={navLinkPath('/topup', currentLang)} className="hover:text-wr-accent transition-colors">Renew UK number</Link></li>
@@ -51,7 +53,7 @@ export function Footer() {
 
           {/* Learn */}
           <div>
-            <h4 className="text-[10px] text-wr-dim uppercase tracking-wider font-bold mb-3">{t('footer.learn')}</h4>
+            <h4 className="text-[11px] text-wr-dim uppercase tracking-[0.16em] font-bold mb-3">{t('footer.learn')}</h4>
             <ul className="space-y-2 text-[12px]">
               <li><Link to={navLinkPath('/faq', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.faq')}</Link></li>
               <li><a href="https://stables.rip" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors">{t('footer.freeze_tracker')}</a></li>
@@ -60,7 +62,7 @@ export function Footer() {
 
           {/* Ecosystem */}
           <div>
-            <h4 className="text-[10px] text-wr-dim uppercase tracking-wider font-bold mb-3">{t('footer.ecosystem')}</h4>
+            <h4 className="text-[11px] text-wr-dim uppercase tracking-[0.16em] font-bold mb-3">{t('footer.ecosystem')}</h4>
             <ul className="space-y-2 text-[12px]">
               <li>
                 <a href="https://kyc.rip" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors">
@@ -92,7 +94,7 @@ export function Footer() {
 
           {/* Connect */}
           <div>
-            <h4 className="text-[10px] text-wr-dim uppercase tracking-wider font-bold mb-3">{t('footer.connect')}</h4>
+            <h4 className="text-[11px] text-wr-dim uppercase tracking-[0.16em] font-bold mb-3">{t('footer.connect')}</h4>
             <ul className="space-y-2 text-[12px]">
               <li><a href="https://x.com/intent/follow?screen_name=XBToshi" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors">@XBToshi</a></li>
               <li><a href="https://x.com/intent/follow?screen_name=kyc_rip" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors">@kyc_rip</a></li>

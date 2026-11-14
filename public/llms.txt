@@ -1,94 +1,119 @@
 # walls.rip
 
-> walls.rip — Anonymous communication & connectivity toolkit. Break walls for private, uncensored communication.
+> walls.rip — No-account communication and connectivity toolkit. Burner email, SMS verification, travel eSIMs, UK numbers and VPN configs, paid in Monero or Lightning.
 
 ## What is walls.rip?
 
-walls.rip is a suite of privacy-first communication and connectivity tools that require no identity, accounts, or personal data. All tools are designed with zero-knowledge principles — the server never sees your plaintext. Pay with Monero (XMR), Lightning Network, USDT, or XMR402.
+walls.rip is a suite of privacy-first communication and connectivity tools that
+require no identity or account. Access is a prepaid wallet token kept in the
+browser. Content for Ghost Mail and Dead Drop is encrypted in the browser; the
+server stores ciphertext it cannot read. Provider policies (retention, KYC) vary
+by product and are disclosed on the product pages.
 
-## Tools
+Payment methods: Monero (XMR) and Bitcoin Lightning for all products; USDT where
+the checkout offers it. One prepaid balance works across mail, SMS, eSIM, numbers
+and VPN.
+
+## Products
 
 ### Ghost Mail
-Disposable encrypted email inboxes. Create temporary email addresses with optional PGP encryption. Available in three tiers:
-- BASIC (free): Random address, standard domains, 30-minute session
-- PREMIUM (~$1): Custom name, premium domains, extended time, PGP
-- PRIVATE (~$3): Full control, all domains, max duration, PGP + extensions
-Payment: Monero, Lightning, USDT (TRON/Ethereum), XMR402
+Disposable encrypted inbox with burn timers, custom domains and attachments.
+Tiers (live prices are shown in the app):
+- BASIC — 4 hours
+- PREMIUM — 3 days
+- PRIVATE — 7 days
+Extensions: +24 hours or +7 days.
+
+### Ghost Mail Pro
+Persistent, send-capable private address with aliases, compose and reply.
+- PRO — 10 aliases
+- PRO+ — 20 aliases
+Prices are shown live in the app before checkout.
+Domains: vigilpro.xyz, vigilplus.xyz. Prepaid monthly; no auto-renew.
 
 ### Dead Drop
-Self-destructing encrypted messages using AES-256-GCM. Encryption happens entirely in the browser — the server stores only ciphertext. The decryption key lives in the URL fragment and never reaches the server. Configurable TTL: 10 minutes to 3 days.
+Self-destructing encrypted messages. AES-256-GCM encryption happens in the
+browser; the decryption key lives in the URL fragment and never reaches the
+server. Configurable TTL.
 
-### SMS Wall
-Anonymous phone number verification. Get temporary numbers for SMS verification across 150+ countries and 1,700+ services. No identity required. Auto-refund if SMS not received. Supports long-term phone number rentals.
+### SMS verification
+One-time numbers for account activation. Pick a country and service, pay from
+the prepaid balance, read the code on the page. An undelivered code is refunded
+automatically. Long-term rentals (30–365 days) are available.
 
-### Ghost Chat
-End-to-end encrypted messaging over decentralized Nostr relays. PGP-encrypted, ephemeral identities, no server trust. Generate keys in-browser or import your own.
+### Data eSIM
+Prepaid travel data plans from partner catalogs, delivered as a QR code after
+the provider provisions the plan. Country, regional and global plans; filters by
+data size and duration. Top-up for an existing eSIM is supported.
 
-### eSIM
-Anonymous eSIM data plans for 120+ countries. Country, Regional, and Global plans with 3G/4G/5G connectivity. No KYC or registration. Install via QR code. Pay with Monero, Lightning, USDT, or XMR402.
+### UK numbers
+Prepaid +44 eSIM numbers on 6, 12 or 24-month terms, renewable in 180-day blocks.
+Incoming SMS and voice; QR delivery.
 
-### Proxy Wall
-Anonymous proxy access — residential, datacenter, and mobile proxies. SOCKS5 and HTTP protocols. Global coverage with anonymous crypto payments.
+### VPN
+Prepaid WireGuard, OpenVPN or VLESS configuration; available terms and prices are shown in the app.
+The config is generated after purchase; no auto-renew.
+
+### Proxy
+Not currently available. The page is a placeholder.
 
 ## Developer API
 
-Full REST API available at walls.rip/api. Endpoints for SMS verification, eSIM purchases, proxy access, and dead drops. No API keys needed — wallet tokens serve as authentication. JSON responses.
+REST API at walls.rip/api. Wallet tokens act as authentication; no API keys.
+JSON responses.
 
-### API Base URLs
-- SMS/eSIM/Proxy/Dead Drop: https://api.kyc.rip/v1/tools/
+### API base URLs
+- SMS / eSIM / Dead Drop: https://api.kyc.rip/v1/tools/
 - Ghost Mail: https://mail-api.kyc.rip/
 
-### Key SMS Endpoints
-- GET /sms/countries — List countries
-- GET /sms/services — List services
-- GET /sms/price?country=X&service=Y — Check price
-- POST /sms/purchase — Buy number
-- GET /sms/check?order_id=X&token=X — Poll for SMS
+### Key endpoints
+- GET /sms/countries
+- GET /sms/services
+- GET /sms/price?country=X&service=Y
+- POST /sms/purchase
+- GET /sms/check?order_id=X&token=X
+- GET /esim/countries
+- GET /esim/plans?country=X
+- POST /esim/purchase
+- GET /esim/profile?order_id=X
 
-### Key eSIM Endpoints
-- GET /esim/countries — List countries
-- GET /esim/plans?country=X — List data plans
-- POST /esim/purchase — Buy eSIM
-- GET /esim/profile?order_id=X — Get QR code
+## Privacy posture
 
-### Payment Flow
-1. POST /sms/payment/create — Create XMR or Lightning payment
-2. GET /sms/payment/check?paymentId=X — Poll until paid
-3. Wallet credited, use for purchases across SMS, eSIM, Proxy
-
-## Privacy Principles
-
-- Zero Identity: No accounts, emails, or phone numbers required
-- Client-Side Crypto: Encryption in the browser, server never sees plaintext
-- No Logs: No IP logging, no user-agent storage, no analytics
-- Crypto Payments: Monero (XMR), Lightning, USDT (TRON/Ethereum), XMR402
-- Push Notifications: Browser-only, no server-side tracking
+- No account, email or phone number required for access.
+- Client-side encryption for Ghost Mail content and Dead Drop payloads.
+- Access requires no account or personal details. Upstream provider policies vary
+  and are disclosed per product.
+- Crypto payments only.
+- Browser-only notifications; no third-party analytics.
 
 ## Pages
 
-- / — Home page with tool overview
-- /mail — Ghost Mail burner email
+- / — product overview
+- /mail — Ghost Mail disposable inbox
+- /mail/pro — Ghost Mail Pro subscription
 - /drop — Dead Drop encrypted messages
-- /sms — SMS Wall anonymous verification
-- /esim — eSIM anonymous data plans
-- /proxy — Proxy Wall anonymous proxies
+- /sms — SMS verification and rentals
+- /esim — data eSIM plans
+- /esim/topup — top up an existing eSIM
+- /phone — US and Global phone plans
+- /uk-sim — UK numbers (6/12/24 months)
+- /topup — renew a UK number
+- /vpn — VPN configs
+- /proxy — placeholder (unavailable)
 - /comms — Ghost Chat encrypted messaging
-- /api — Developer API documentation
-- /faq — Frequently asked questions
+- /api — API documentation
+- /faq — frequently asked questions
 
-## rip.family Ecosystem
+## rip.family ecosystem
 
-- kyc.rip — No-KYC exchange aggregator
-- stables.rip — Stablecoin censorship tracker
-- walls.rip — Anonymous communication toolkit (this site)
-- upay.rip — USDT payment gateway (powers USDT payments across walls.rip)
-- disperse.rip — USDT batch disperser (TRON/Ethereum)
+- kyc.rip — no-KYC exchange aggregator
+- stables.rip — stablecoin freeze tracker
 - xmrprice.live — Monero price tracker
-- ripley.run — Monero toolkit and wallet
-- xmr402.org — XMR payment protocol
+- ripley.run — Monero toolkit
+- xmr402.org — XMR paywall protocol
 
 ## Support
 
-- Telegram Bot: https://t.me/kyc_rip_bot
-- Twitter: @XBToshi, @kyc_rip
+- Telegram bot: https://t.me/kyc_rip_bot
+- X: @XBToshi, @kyc_rip
 - Website: https://walls.rip

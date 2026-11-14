@@ -24,7 +24,7 @@
     "monero_toolkit": "Monero 工具包",
     "xmr_paywall": "XMR 付費牆",
     "rip_family_project": "rip.family 專案",
-    "tagline": "無日誌。無身份。無障礙。"
+    "tagline": "無帳號。無身份。供應商政策各異。"
   },
   "home": {
     "badge": "匿名通訊工具組",
@@ -68,13 +68,13 @@
     "tool_dead_drop_desc": "建立加密的自毀訊息。AES-256-GCM 用戶端加密。伺服器永遠看不到你的資料。",
     "tool_sms_wall": "簡訊牆",
     "tool_sms_wall_tagline": "匿名手機驗證",
-    "tool_sms_wall_desc": "取得臨時手機號碼進行簡訊驗證。150+ 國家、300+ 服務。使用 XMR 付款。",
+    "tool_sms_wall_desc": "取得臨時手機號碼進行簡訊驗證。未送達的驗證碼會自動退款。",
     "tool_ghost_chat": "幽靈聊天",
     "tool_ghost_chat_tagline": "透過 Nostr 的 PGP 加密通訊",
     "tool_ghost_chat_desc": "透過去中心化 Nostr 中繼的端對端加密通訊。臨時身份，無需信任伺服器。",
     "tool_esim": "eSIM",
     "tool_esim_tagline": "匿名數據連線",
-    "tool_esim_desc": "全球匿名數據 eSIM 方案。120+ 國家、3G/4G/5G。掃描 QR 碼安裝，使用 XMR 付款。",
+    "tool_esim_desc": "預付數據 eSIM；電信商開通方案後發出 QR 碼。",
     "tool_proxy": "代理牆",
     "tool_proxy_tagline": "匿名代理存取",
     "tool_proxy_desc": "住宅、資料中心和行動代理。SOCKS5 和 HTTP。全球覆蓋，匿名付款。",
@@ -132,7 +132,7 @@
   "sms": {
     "title": "簡訊",
     "title_accent": "牆",
-    "subtitle": "匿名手機驗證。150+ 國家。按簡訊付費。",
+    "subtitle": "匿名手機驗證。按簡訊付費。",
     "wallet_balance": "錢包餘額",
     "anonymous_wallet": "匿名錢包",
     "new": "新",
@@ -226,7 +226,7 @@
     "info_pay_desc": "Monero 或 Lightning — 兩者都無法追蹤",
     "info_refund_title": "自動退款",
     "info_refund_desc": "未收到簡訊時退款至錢包",
-    "info_services_title": "1,700+ 服務",
+    "info_services_title": "服務",
     "info_services_desc": "Discord、Telegram、Google 等等",
     "rental_info_longterm_title": "長期號碼",
     "rental_info_longterm_desc": "租賃數天或數週的號碼",
@@ -251,7 +251,7 @@
     "payment_chain_tron": "TRON (TRC20)",
     "payment_chain_eth": "以太坊 (ERC20)",
     "pro_cta_title": "Ghost Mail Pro",
-    "pro_cta_desc": "可寄信的持久信箱 — 別名、撰寫與回覆。每月 $3 起。",
+    "pro_cta_desc": "可寄信的持久信箱 — 別名、撰寫與回覆。以加密貨幣按月付款。",
     "pro_cta_go": "升級 Pro"
   },
   "drop": {
@@ -289,9 +289,9 @@
   "esim": {
     "title_e": "e",
     "title_sim": "SIM",
-    "subtitle": "匿名行動數據。100+ 國家。免 KYC。",
+    "subtitle": "匿名行動數據。免 KYC。",
     "coming_soon": "即將推出",
-    "coming_soon_desc": "匿名 eSIM 數據方案正在整合中。使用 Monero 或 Lightning 為 100+ 國家購買預付行動數據 — 無需身份。",
+    "coming_soon_desc": "匿名 eSIM 數據方案正在整合中。使用 Monero 或 Lightning 購買預付行動數據 — 無需身份。",
     "tag_no_kyc": "免 KYC",
     "tag_no_reg": "免註冊",
     "tag_global": "全球覆蓋",
@@ -325,7 +325,7 @@
     "info_instant_title": "即時啟用",
     "info_instant_desc": "掃描 QR 碼即可在數秒內連線",
     "info_global_title": "全球覆蓋",
-    "info_global_desc": "100+ 國家的 4G/5G 數據方案",
+    "info_global_desc": "支援國家的 4G/5G 數據方案",
     "buy_esim": "購買 eSIM",
     "loading_plans": "正在載入方案..."
   },
@@ -368,7 +368,7 @@
     "info_protocols_title": "SOCKS5 & HTTP",
     "info_protocols_desc": "兩種協定均支援。隨時切換。",
     "info_global_title": "全球 IP",
-    "info_global_desc": "15+ 國家，住宅和資料中心池",
+    "info_global_desc": "住宅和資料中心池",
     "info_pay_title": "XMR / Lightning",
     "info_pay_desc": "匿名支付。無 KYC。無痕跡。",
     "use_cases": "使用案例",

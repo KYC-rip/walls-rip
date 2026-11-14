@@ -169,6 +169,18 @@ export function Header() {
         </div>
 
         <button
+          onClick={cycleSkin}
+          aria-label={`Skin: ${skinLabel}`}
+          className={`p-2 hover:bg-wr-accent/10 rounded transition-colors relative ${skin !== 'terminal' ? 'text-wr-accent' : 'text-wr-dim hover:text-current'}`}
+          title={`Skin: ${skinLabel}`}
+        >
+          <Palette size={15} />
+          {skin !== 'terminal' && (
+            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-wr-accent rounded-full" />
+          )}
+        </button>
+
+        <button
           onClick={toggleContrast}
           className="p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current"
           title={`Contrast: ${contrast}`}
@@ -183,17 +195,6 @@ export function Header() {
         >
           <ALargeSmall size={15} />
           {fontScale !== 'default' && (
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-wr-accent rounded-full" />
-          )}
-        </button>
-
-        <button
-          onClick={cycleSkin}
-          className={`p-2 hover:bg-wr-accent/10 rounded transition-colors relative ${skin !== 'terminal' ? 'text-wr-accent' : 'text-wr-dim hover:text-current'}`}
-          title={`Skin: ${skinLabel}`}
-        >
-          <Palette size={15} />
-          {skin !== 'terminal' && (
             <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-wr-accent rounded-full" />
           )}
         </button>

@@ -292,7 +292,7 @@ const DEAD_DROP_API: APIGroup = {
 const ESIM_API: APIGroup = {
   title: 'eSIM',
   base: 'https://api.kyc.rip/v1/tools/esim',
-  description: 'Anonymous eSIM data plans. 120+ countries, 3G/4G/5G. Install via QR code.',
+  description: 'Anonymous eSIM data plans. No KYC, install via QR code.',
   endpoints: [
     {
       method: 'GET',

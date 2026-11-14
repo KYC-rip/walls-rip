@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Plus, Bell, BellOff, Key, MessageSquare, Calendar, Timer, Trash2, Expand, Shield, Layers } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Phone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronRight, ChevronDown, Wallet, Zap, X, Bell, BellOff, MessageSquare, Calendar, Timer, Trash2, Expand, Shield, Layers } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
+import { WalletBanner } from '../components/WalletBanner';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
@@ -96,10 +97,53 @@ function getSmsInitialParams(): { country: string; service: string; order: strin
   const params = new URLSearchParams(window.location.search);
   const c = params.get('c') || '';
   const s = params.get('s') || '';
-  // Legacy: if numeric (old smspool IDs), default to US. User can switch.
-  const country = /^\d+$/.test(c) ? 'US' : (c.toUpperCase() || 'US');
+  // Detected country from the edge, else US. Legacy numeric IDs also fall back.
+  const geo = (window as unknown as { __GEO_COUNTRY?: string }).__GEO_COUNTRY;
+  const fallback = geo && /^[A-Za-z]{2}$/.test(geo) ? geo.toUpperCase() : 'US';
+  const country = /^\d+$/.test(c) ? fallback : (c.toUpperCase() || fallback);
   return { country, service: s.toLowerCase(), order: params.get('id') || '' };
 }
+
+function flagOf(code: string): string {
+  if (!/^[A-Za-z]{2}$/.test(code)) return '';
+  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt(0)));
+}
+
+// Service name -> Simple Icons slug (https://cdn.simpleicons.org). Unknown names
+// fall back to a generic icon; no request is made for them.
+const SERVICE_SLUGS: Record<string, string> = {
+  telegram: 'telegram', discord: 'discord', whatsapp: 'whatsapp', facebook: 'facebook',
+  steam: 'steam', microsoft: 'microsoft', amazon: 'amazon', google: 'google',
+  twitter: 'x', x: 'x', instagram: 'instagram', tiktok: 'tiktok', snapchat: 'snapchat',
+  linkedin: 'linkedin', signal: 'signal', tinder: 'tinder', uber: 'uber',
+  paypal: 'paypal', apple: 'apple', netflix: 'netflix', spotify: 'spotify',
+  reddit: 'reddit', twitch: 'twitch', pinterest: 'pinterest', ebay: 'ebay',
+  aliexpress: 'aliexpress', alibaba: 'alibaba', binance: 'binance', coinbase: 'coinbase',
+  revolut: 'revolut', wise: 'wise', line: 'line', viber: 'viber', wechat: 'wechat',
+  yahoo: 'yahoo', yandex: 'yandex', protonmail: 'protonmail', openai: 'openai',
+  chatgpt: 'openai', youtube: 'youtube', gmail: 'gmail', outlook: 'microsoftoutlook',
+  hotmail: 'microsoftoutlook', bolt: 'bolt', grab: 'grab', airbnb: 'airbnb',
+};
+const serviceSlug = (name: string): string | null =>
+  SERVICE_SLUGS[name.toLowerCase().replace(/[^a-z0-9]/g, '')] ?? null;
+
+// Long-tail services that Simple Icons does not carry: resolve by domain via
+// logoapi.sh's square icon endpoint. Mapped names only — no runtime search.
+const SERVICE_DOMAINS: Record<string, string> = {
+  '1688': '1688.com', taobao: 'taobao.com', alipay: 'alipay.com', jd: 'jd.com',
+  qq: 'qq.com', baidu: 'baidu.com', douyin: 'douyin.com', meituan: 'meituan.com',
+  'cafe nero': 'cafe-nero.com', lazada: 'lazada.com', shopee: 'shopee.com',
+  'luckyland slots': 'luckylandslots.com', '10sbets': '10sbet.com',
+  '115com': '115.com', '163ash': '163.com', '163boxm': '163.com',
+};
+const serviceDomain = (name: string): string | null =>
+  SERVICE_DOMAINS[name.toLowerCase().trim()] ?? null;
+const serviceLogo = (name: string): string | null => {
+  const slug = serviceSlug(name);
+  if (slug) return `https://cdn.simpleicons.org/${slug}`;
+  const domain = serviceDomain(name);
+  return domain ? `https://logoapi.sh/icon/${domain}.svg` : null;
+};
 
 function updateSmsUrlParams(country: string, service: string) {
   // Don't overwrite order URL
@@ -131,7 +175,19 @@ export function SMSWall() {
     _setSelectedService(s);
     updateSmsUrlParams(selectedCountry, s);
   }, [selectedCountry]);
+
+  const chooseService = useCallback((id: string) => {
+    setSelectedService(id);
+    setServiceSearch('');
+    setServicePickerOpen(false);
+  }, [setSelectedService]);
   const [serviceSearch, setServiceSearch] = useState('');
+  const [visibleServices, setVisibleServices] = useState(24);
+  const [popularPrices, setPopularPrices] = useState<Record<string, number>>({});
+  const countryListRef = useRef<HTMLDivElement>(null);
+  const servicePanelRef = useRef<HTMLElement>(null);
+  const quoteRef = useRef<HTMLDivElement>(null);
+  const [servicePickerOpen, setServicePickerOpen] = useState(true);
   const [countrySearch, setCountrySearch] = useState('');
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
   const [poolOptions, setPoolOptions] = useState<PoolOption[]>([]);
@@ -172,7 +228,6 @@ export function SMSWall() {
   const [restoringWallet, setRestoringWallet] = useState(false);
   const [walletStats, setWalletStats] = useState<{ totalDeposited: number; totalSpent: number }>({ totalDeposited: 0, totalSpent: 0 });
   const [walletExpiresAt, setWalletExpiresAt] = useState<number | null>(null);
-  const [walletTokenCopied, setWalletTokenCopied] = useState(false);
 
   // Tabs
   const [activeTab, setActiveTab] = useState<'sms' | 'rentals'>('sms');
@@ -227,7 +282,13 @@ export function SMSWall() {
           countryMap.set(iso, { id: iso, name: c.name, shortName: iso, engines: [c.engine] });
         }
       }
-      setCountries(Array.from(countryMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+      const list = Array.from(countryMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      setCountries(list);
+      // Keep the detected/US default only if that country exists.
+      if (list.length && !list.some(x => x.id === selectedCountry)) {
+        const match = list.find(x => x.shortName === selectedCountry) || list.find(x => x.shortName === 'US') || list[0];
+        if (match) _setSelectedCountry(match.id);
+      }
       setServices(unifiedServices || []);
     })
       .catch(() => toast.error('Failed to load SMS data'))
@@ -334,10 +395,10 @@ export function SMSWall() {
 
   // Fetch compare results (all engines) + SMSPool pools when country+service selected
   useEffect(() => {
-    if (!selectedCountry || !selectedService) {
-      setPriceInfo(null); setStockInfo(null); setPoolOptions([]); setCompareResults([]);
-      setSelectedPool(''); setSelectedProvider(''); return;
-    }
+    // Reset quote state so a previous service's price never shows on a new card.
+    setPriceInfo(null); setStockInfo(null); setPoolOptions([]); setCompareResults([]);
+    setSelectedPool(''); setSelectedProvider('');
+    if (!selectedCountry || !selectedService) return;
     setLoadingPrice(true);
     apiClient<{ results: CompareResult[] }>(`/v1/tools/sms/compare?country=${selectedCountry}&service=${selectedService}`)
       .then(async ({ results }) => {
@@ -382,6 +443,32 @@ export function SMSWall() {
       .then(data => setSuggestedCountryIds(new Set(data.map(c => (c.shortName || '').toUpperCase()))))
       .catch(() => setSuggestedCountryIds(new Set()));
   }, [selectedService]);
+
+  // Keep the selected territory visible in the left list.
+  useEffect(() => {
+    const el = countryListRef.current?.querySelector(`[data-country="${selectedCountry}"]`) as HTMLElement | null;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [selectedCountry, countries]);
+
+  // Prefetch top-route prices so popular service cards show a real "from" price.
+  useEffect(() => {
+    if (!selectedCountry || !services.length) { setPopularPrices({}); return; }
+    let cancelled = false;
+    const targets = POPULAR_SERVICES
+      .map(name => services.find(s => s.name.toLowerCase() === name.toLowerCase()))
+      .filter((s): s is Service => Boolean(s));
+    Promise.all(targets.map(s =>
+      apiClient<{ results: CompareResult[] }>(`/v1/tools/sms/compare?country=${selectedCountry}&service=${s.id}`)
+        .then(r => ({ id: s.id, price: r.results?.[0]?.price }))
+        .catch(() => ({ id: s.id, price: undefined }))
+    )).then(rows => {
+      if (cancelled) return;
+      const map: Record<string, number> = {};
+      for (const row of rows) if (typeof row.price === 'number') map[row.id] = row.price;
+      setPopularPrices(map);
+    });
+    return () => { cancelled = true; };
+  }, [selectedCountry, services]);
 
   // Poll for SMS
   useEffect(() => {
@@ -487,6 +574,13 @@ export function SMSWall() {
       .finally(() => setLoadingRentalServices(false));
   }, [activeTab, rentalServices.length]);
 
+  // Default to a sensible rental service so the right-hand packages are never empty.
+  useEffect(() => {
+    if (!rentalServices.length || selectedRentalService) return;
+    const pref = rentalServices.find(s => /united kingdom/i.test(s.name)) || rentalServices[0];
+    if (pref) setSelectedRentalService(pref.id);
+  }, [rentalServices, selectedRentalService]);
+
   // ─── Rental: load prices when service selected ───
   useEffect(() => {
     if (!selectedRentalService) { setRentalPrices([]); return; }
@@ -589,11 +683,6 @@ export function SMSWall() {
     } finally { setRestoringWallet(false); }
   };
 
-  const truncateToken = (token: string) => {
-    if (token.length <= 12) return token;
-    return `${token.slice(0, 8)}...${token.slice(-4)}`;
-  };
-
   const getTimeRemaining = (expiresAt: string) => {
     const diff = new Date(expiresAt).getTime() - Date.now();
     if (diff <= 0) return 'Expired';
@@ -604,11 +693,20 @@ export function SMSWall() {
     return `${hours}h ${mins}m`;
   };
 
+  const selectedRentalServiceName = rentalServices.find(s => s.id === selectedRentalService)?.name || '';
   const filteredRentalServices = rentalServices.filter(s =>
     s.name.toLowerCase().includes(rentalServiceSearch.toLowerCase())
   );
 
-  const filteredServices = services.filter(s => s.name.toLowerCase().includes(serviceSearch.toLowerCase()));
+  const orderedServices = useMemo(() => {
+    const rank = new Map(POPULAR_SERVICES.map((n, i) => [n.toLowerCase(), i]));
+    return [...services].sort((a, b) => {
+      const ar = rank.get(a.name.toLowerCase()) ?? 999;
+      const br = rank.get(b.name.toLowerCase()) ?? 999;
+      return ar !== br ? ar - br : a.name.localeCompare(b.name);
+    });
+  }, [services]);
+  const filteredServices = orderedServices.filter(s => s.name.toLowerCase().includes(serviceSearch.toLowerCase()));
   const filteredCountries = countries
     .filter(c => {
       const q = countrySearch.toLowerCase().trim();
@@ -623,14 +721,15 @@ export function SMSWall() {
 
   const selectedCountryName = countries.find(c => c.id === selectedCountry)?.name || '';
   const selectedServiceName = services.find(s => s.id === selectedService)?.name || '';
+  const selectedServiceObj = orderedServices.find(s => s.id === selectedService) || null;
 
   if (loading || xmr402Verifying) {
     return (
       <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
         <Header />
         <div className="flex flex-col items-center justify-center py-20 animate-pulse text-wr-dim">
-          <RefreshCw size={32} className="animate-spin mb-4" />
-          <p className="text-xs tracking-widest uppercase">
+          <RefreshCw size={32} className="animate-spin mb-4 text-wr-info" />
+          <p className="text-[11px] font-mono tracking-[0.18em] uppercase">
             {xmr402Verifying ? t('sms.xmr402_verifying', 'VERIFYING XMR402 PAYMENT PROOF...') : t('sms.loading_services')}
           </p>
         </div>
@@ -646,33 +745,35 @@ export function SMSWall() {
         <div className="fixed inset-0 z-40 pointer-events-none vignette" />
         <Header />
         <main className="w-full max-w-2xl px-4 relative z-10 flex flex-col gap-8 mb-20 mt-8">
-          <div className="p-8 rounded-sm border border-wr-border bg-wr-surface text-center space-y-6">
-            <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-400 border border-green-400/20">
-              <Clock size={32} className="animate-pulse" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-wider text-wr-green mb-2">{t('sms.waiting_for_sms')}</h2>
-              <p className="text-wr-dim text-xs">{t('sms.use_number')}</p>
+          <div className="p-8 rounded-sm border border-wr-border bg-wr-surface space-y-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-sm bg-wr-info/10 flex items-center justify-center text-wr-info border border-wr-info/20 shrink-0">
+                <Clock size={24} className="animate-pulse" />
+              </div>
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-wr-info mb-1">{t('sms.waiting_for_sms')}</div>
+                <p className="text-wr-dim text-xs">{t('sms.use_number')}</p>
+              </div>
             </div>
             <div className="relative group">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-green-400 to-cyan-400 rounded-sm blur opacity-30 group-hover:opacity-50 transition duration-300" />
-              <button onClick={() => copyText(purchase.phoneNumber)} className="w-full relative p-5 rounded bg-wr-base border border-wr-border flex items-center justify-between gap-4 hover:border-wr-green transition-colors">
-                <span className="font-mono text-2xl font-bold text-wr-green">{purchase.phoneNumber}</span>
-                {copied ? <Check size={18} className="text-green-500" /> : <Copy size={18} className="text-wr-dim" />}
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-wr-info to-wr-secondary rounded-sm blur opacity-20 group-hover:opacity-35 transition duration-300" />
+              <button onClick={() => copyText(purchase.phoneNumber)} className="min-h-14 w-full relative p-5 rounded-sm bg-wr-base border border-wr-border flex items-center justify-between gap-4 hover:border-wr-accent transition-colors">
+                <span className="font-mono text-2xl font-bold text-current break-all text-left">{purchase.phoneNumber}</span>
+                {copied ? <Check size={18} className="text-wr-accent" /> : <Copy size={18} className="text-wr-dim" />}
               </button>
             </div>
-            <div className="flex items-center justify-center gap-2 text-xs text-wr-dim">
-              <RefreshCw size={12} className="animate-spin" /> {t('sms.polling')}
+            <div className="flex items-center justify-start gap-2 text-xs text-wr-dim font-mono">
+              <RefreshCw size={12} className="animate-spin text-wr-info" /> {t('sms.polling')}
             </div>
             <button onClick={notifEnabled ? () => setNotifEnabled(false) : requestNotifPermission}
-              className={`flex items-center justify-center gap-2 text-xs transition-colors ${notifEnabled ? 'text-green-400 hover:text-wr-dim' : 'text-wr-dim hover:text-wr-accent'}`}>
+              className={`min-h-11 inline-flex items-center justify-center gap-2 text-xs font-mono transition-colors ${notifEnabled ? 'text-wr-accent hover:text-wr-dim' : 'text-wr-dim hover:text-wr-secondary'}`}>
               {notifEnabled ? <><Bell size={12} /> {t('sms.push_on')}</> : <><BellOff size={12} /> {t('sms.push_enable')}</>}
             </button>
-            <div className="text-[10px] text-wr-dim">{t('sms.charged')}: ${purchase.charged.toFixed(2)} — {t('sms.wallet')}: ${balanceUSD.toFixed(2)}</div>
-            <button onClick={handleCancel} className="text-xs font-bold uppercase text-wr-dim hover:text-red-400 transition-colors">
+            <div className="text-[11px] font-mono text-wr-dim">{t('sms.charged')}: <span className="tabular-nums">${purchase.charged.toFixed(2)}</span> — {t('sms.wallet')}: <span className="tabular-nums">${balanceUSD.toFixed(2)}</span></div>
+            <button onClick={handleCancel} className="min-h-11 text-xs font-bold uppercase tracking-[0.16em] text-wr-dim hover:text-wr-error transition-colors">
               {t('sms.cancel_refund')}
             </button>
-            <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-dim hover:text-wr-accent hover:underline text-[10px] transition-colors">
+            <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="inline-block text-wr-secondary hover:underline text-[11px] transition-colors">
               Need help? @kyc_rip_bot
             </a>
           </div>
@@ -689,20 +790,24 @@ export function SMSWall() {
         <div className="fixed inset-0 z-40 pointer-events-none vignette" />
         <Header />
         <main className="w-full max-w-2xl px-4 relative z-10 flex flex-col gap-8 mb-20 mt-8">
-          <div className="p-8 rounded-sm border border-wr-green bg-wr-surface text-center space-y-6">
-            <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-400 border border-green-400/20">
-              <Check size={32} />
-            </div>
-            <h2 className="text-lg font-bold tracking-wider text-wr-green">{t('sms.sms_received')}</h2>
-            <button onClick={() => copyText(smsResult.sms || '')} className="w-full p-5 rounded bg-wr-base border border-wr-green flex items-center justify-between gap-4 hover:bg-wr-green/5 transition-colors text-left">
-              <div>
-                <div className="font-mono text-2xl font-bold text-wr-green mb-1">{smsResult.sms}</div>
-                {smsResult.fullSms && <div className="text-xs text-wr-dim">{smsResult.fullSms}</div>}
+          <div className="p-8 rounded-sm border border-wr-accent/50 bg-wr-surface space-y-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-sm bg-wr-accent/10 flex items-center justify-center text-wr-accent border border-wr-accent/20 shrink-0">
+                <Check size={24} />
               </div>
-              {copied ? <Check size={18} className="text-green-500 shrink-0" /> : <Copy size={18} className="text-wr-dim shrink-0" />}
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-wr-accent mb-1">{t('sms.sms_received')}</div>
+                <p className="text-wr-dim text-xs">{t('sms.wallet')}: <span className="tabular-nums">${balanceUSD.toFixed(2)}</span></p>
+              </div>
+            </div>
+            <button onClick={() => copyText(smsResult.sms || '')} className="min-h-14 w-full p-5 rounded-sm bg-wr-base border border-wr-accent/50 flex items-center justify-between gap-4 hover:bg-wr-accent/5 transition-colors text-left">
+              <div className="min-w-0">
+                <div className="font-mono text-2xl font-bold text-wr-accent mb-1 break-all">{smsResult.sms}</div>
+                {smsResult.fullSms && <div className="text-xs text-wr-dim break-all">{smsResult.fullSms}</div>}
+              </div>
+              {copied ? <Check size={18} className="text-wr-accent shrink-0" /> : <Copy size={18} className="text-wr-dim shrink-0" />}
             </button>
-            <div className="text-xs text-wr-dim">{t('sms.wallet')}: ${balanceUSD.toFixed(2)}</div>
-            <button onClick={reset} className="text-xs font-bold uppercase text-wr-accent hover:underline">{t('sms.get_another')}</button>
+            <button onClick={reset} className="min-h-11 inline-flex items-center text-xs font-bold uppercase tracking-[0.16em] text-wr-secondary hover:underline">{t('sms.get_another')}</button>
           </div>
         </main>
         <Footer />
@@ -715,7 +820,7 @@ export function SMSWall() {
     <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
       <SEO
         title="SMS Wall — Anonymous phone verification"
-        description="Get temporary phone numbers for anonymous SMS verification. 150+ countries, 1700+ services. Pay with XMR."
+        description="Get temporary phone numbers for anonymous SMS verification. Undelivered codes are refunded. Pay with XMR."
         path="/sms"
         image="/og-sms.jpg"
         schemas={[
@@ -726,9 +831,8 @@ export function SMSWall() {
             url: 'https://walls.rip/sms',
             applicationCategory: 'UtilitiesApplication',
             operatingSystem: 'Web',
-            description: 'Get temporary phone numbers for anonymous SMS verification. 150+ countries, 1700+ services. Pay with XMR, Lightning, USDT, or XMR402.',
-            offers: { '@type': 'Offer', price: '0.10', priceCurrency: 'USD', description: 'Starting price for SMS verification' },
-            featureList: '150+ countries, 1700+ services, Auto-refund, XMR/Lightning/USDT/XMR402 payments',
+            description: 'Get temporary phone numbers for anonymous SMS verification. Undelivered codes are refunded. Pay with XMR, Lightning, USDT, or XMR402.',
+            featureList: 'Supported countries and services, Auto-refund, XMR/Lightning/USDT/XMR402 payments',
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
           },
           {
@@ -737,9 +841,8 @@ export function SMSWall() {
             name: 'SMS Wall — Anonymous SMS Verification',
             serviceType: 'SMS Verification',
             areaServed: 'Worldwide',
-            description: 'Temporary phone numbers for anonymous SMS verification across 150+ countries and 1700+ services.',
+            description: 'Temporary phone numbers for anonymous SMS verification across supported countries and services.',
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
-            offers: { '@type': 'Offer', price: '0.10', priceCurrency: 'USD' },
           },
         ]}
       />
@@ -747,151 +850,57 @@ export function SMSWall() {
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />
       <Header />
 
-      <main className="w-full max-w-5xl px-4 md:px-6 relative z-10 pb-12">
-        <div className="max-w-5xl mx-auto space-y-6 md:space-y-10 pb-8 md:pb-12">
+      <main className="w-full max-w-6xl px-4 md:px-6 relative z-10 pb-12">
+        <div className="max-w-6xl mx-auto space-y-6 md:space-y-10 pb-8 md:pb-12">
 
           {/* ═══ HERO ═══ */}
-          <div className="text-center py-8 scale-90 md:scale-100 origin-top">
-            <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-400 border border-green-400/20 mb-4">
-              <Phone size={40} />
+          <div className="px-2 md:px-0 pt-8 md:pt-12 pb-2">
+            <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.2em] font-bold text-wr-accent">
+              <span className="w-1.5 h-1.5 rounded-full bg-wr-accent" />
+              {t('sms.kicker', 'Connectivity / SMS')}
             </div>
-            <h1 className="font-display text-3xl md:text-5xl font-black tracking-tight mb-2">
-              {t('sms.title')} <span className="text-green-400">{t('sms.title_accent')}</span>
+            <h1 className="mt-3 font-display text-3xl md:text-5xl font-black tracking-tight leading-[1.05]">
+              {t('sms.title')} <span className="text-wr-accent">{t('sms.title_accent')}</span>
             </h1>
-            <p className="text-wr-dim text-sm">{t('sms.subtitle')}</p>
-          </div>
-
-          {/* ═══ WALLET BANNER ═══ */}
-          <div className="mx-2 md:mx-0 bg-wr-surface border border-wr-border rounded-sm relative overflow-hidden group">
-            <div className="absolute inset-0 bg-green-500/5 group-hover:bg-green-500/10 transition-colors pointer-events-none" />
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500" />
-
-            <div className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-start gap-4 relative z-10">
-                <div className="p-3 bg-green-500/10 text-green-400 rounded-full shrink-0 border border-green-400/20">
-                  <Wallet size={24} />
-                </div>
-                <div>
-                  <h3 className="text-green-400 font-bold tracking-widest text-sm mb-1 uppercase flex items-center gap-2">
-                    {walletToken ? (
-                      <>{t('sms.wallet_balance')} <span className="text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-xs">${balanceUSD.toFixed(2)}</span></>
-                    ) : (
-                      <>{t('sms.anonymous_wallet')} <span className="text-[9px] bg-wr-accent text-black px-1.5 py-0.5 rounded-xs">{t('sms.new')}</span></>
-                    )}
-                  </h3>
-                  <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg text-left">
-                    {walletToken
-                      ? t('sms.wallet_has_funds')
-                      : t('sms.wallet_no_funds')}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => { setShowPaymentModal(true); }}
-                className="relative z-10 w-full md:w-auto px-6 py-3 bg-green-500 hover:bg-green-400 text-black text-xs font-bold tracking-widest uppercase transition-all rounded-sm flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:-translate-y-0.5"
-              >
-                <Plus size={14} /> {walletToken ? t('sms.top_up') : t('sms.deposit')} <ChevronRight size={14} />
-              </button>
+            <p className="mt-3 text-sm md:text-base text-wr-dim max-w-2xl leading-7">{t('sms.subtitle')}</p>
+            <div className="flex flex-wrap gap-2 pt-4">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.14em] px-2.5 py-1.5 rounded-sm border border-wr-info/30 text-wr-info"><Zap size={12} />{t('sms.instant_chip', 'Auto-refund')}</span>
             </div>
-
-            {/* Wallet details panel */}
-            {walletToken && (
-              <div className="border-t border-wr-border/30 px-4 md:px-6 py-3 relative z-10">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-                  {/* Token + Copy */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 text-[10px] text-wr-dim font-mono">
-                      <Key size={10} className="text-green-400/60" />
-                      <span className="select-none">TOKEN:</span>
-                      <span className="text-green-400/80">{truncateToken(walletToken)}</span>
-                      <button
-                        onClick={() => { navigator.clipboard.writeText(walletToken); setWalletTokenCopied(true); setTimeout(() => setWalletTokenCopied(false), 2000); }}
-                        className="p-1 hover:bg-green-500/10 rounded transition-colors"
-                        title="Copy full token"
-                      >
-                        {walletTokenCopied ? <Check size={10} className="text-green-400" /> : <Copy size={10} className="text-wr-dim hover:text-green-400" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="flex items-center gap-4 text-[10px] font-mono text-wr-dim flex-wrap">
-                    <span>{t('sms.deposited')}: <span className="text-green-400">${walletStats.totalDeposited.toFixed(2)}</span></span>
-                    <span className="text-wr-border">|</span>
-                    <span>{t('sms.spent')}: <span className="text-wr-accent">${walletStats.totalSpent.toFixed(2)}</span></span>
-                    <span className="text-wr-border">|</span>
-                    <span>{t('sms.balance')}: <span className="text-green-400 font-bold">${balanceUSD.toFixed(2)}</span></span>
-                    {walletExpiresAt && (() => {
-                      const daysLeft = Math.max(0, Math.floor((walletExpiresAt - Date.now()) / 86400000));
-                      const color = daysLeft <= 7 ? 'text-red-400' : daysLeft <= 14 ? 'text-yellow-400' : 'text-wr-dim';
-                      return (
-                        <>
-                          <span className="text-wr-border">|</span>
-                          <span className={color} title="Wallet auto-renews each visit. Resets to 90 days whenever you open this page.">
-                            wallet expires in {daysLeft}d
-                          </span>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Restore wallet */}
-            {!walletToken && (
-              <div className="border-t border-wr-border/30 px-4 md:px-6 py-3 relative z-10">
-                {showRestoreInput ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={restoreToken}
-                      onChange={e => setRestoreToken(e.target.value)}
-                      placeholder={t('sms.paste_token')}
-                      className="flex-1 bg-wr-base border border-wr-border px-3 py-2 text-xs font-mono outline-none focus:border-green-400 rounded-sm text-current placeholder-wr-dim/30"
-                      onKeyDown={e => e.key === 'Enter' && handleRestoreWallet()}
-                    />
-                    <button
-                      onClick={handleRestoreWallet}
-                      disabled={restoringWallet || !restoreToken.trim()}
-                      className="px-4 py-2 bg-green-500/20 border border-green-400/30 text-green-400 text-xs font-bold uppercase tracking-widest hover:bg-green-500/30 transition-colors rounded-sm disabled:opacity-30"
-                    >
-                      {restoringWallet ? <RefreshCw size={12} className="animate-spin" /> : t('sms.restore')}
-                    </button>
-                    <button onClick={() => { setShowRestoreInput(false); setRestoreToken(''); }} className="p-2 text-wr-dim hover:text-wr-accent">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowRestoreInput(true)}
-                    className="text-[10px] text-wr-dim hover:text-green-400 font-mono uppercase tracking-widest transition-colors flex items-center gap-2"
-                  >
-                    <Key size={10} /> {t('sms.restore_wallet')}
-                  </button>
-                )}
-              </div>
-            )}
           </div>
+
+          <WalletBanner
+            token={walletToken}
+            balance={balanceUSD}
+            helper={walletToken
+              ? `${t('esim.wallet_shared')} · ${t('sms.spent')}: $${walletStats.totalSpent.toFixed(2)}${walletExpiresAt ? ` · ${t('sms.wallet_expires', 'expires')} ${Math.max(0, Math.floor((walletExpiresAt - Date.now()) / 86400000))}d` : ''}`
+              : t('wallet.shared_helper', 'One prepaid balance covers eSIMs, SMS, phone numbers and VPN.')}
+            onDeposit={() => setShowPaymentModal(true)}
+            restoreOpen={showRestoreInput}
+            setRestoreOpen={setShowRestoreInput}
+            restoreToken={restoreToken}
+            setRestoreToken={setRestoreToken}
+            onRestore={handleRestoreWallet}
+            restoring={restoringWallet}
+          />
 
           {/* ═══ TAB SELECTOR ═══ */}
           <div className="mx-2 md:mx-0 flex border-b border-wr-border">
             <button
               onClick={() => setActiveTab('sms')}
-              className={`flex-1 py-3 px-4 text-xs font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 border-b-2 ${
+              className={`min-h-11 flex-1 py-3 px-4 text-xs font-bold tracking-[0.18em] uppercase transition-colors flex items-center justify-center gap-2 border-b-2 ${
                 activeTab === 'sms'
-                  ? 'border-green-400 text-green-400 bg-green-400/5'
-                  : 'border-transparent text-wr-dim hover:text-green-400/60 hover:bg-wr-surface/50'
+                  ? 'border-wr-accent text-wr-accent bg-wr-accent/5'
+                  : 'border-transparent text-wr-dim hover:text-wr-accent/60 hover:bg-wr-surface/50'
               }`}
             >
               <Phone size={14} /> {t('sms.one_time_sms')}
             </button>
             <button
               onClick={() => setActiveTab('rentals')}
-              className={`flex-1 py-3 px-4 text-xs font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 border-b-2 ${
+              className={`min-h-11 flex-1 py-3 px-4 text-xs font-bold tracking-[0.18em] uppercase transition-colors flex items-center justify-center gap-2 border-b-2 ${
                 activeTab === 'rentals'
-                  ? 'border-wr-accent text-wr-accent bg-wr-accent/5'
-                  : 'border-transparent text-wr-dim hover:text-wr-accent/60 hover:bg-wr-surface/50'
+                  ? 'border-wr-secondary text-wr-secondary bg-wr-secondary/5'
+                  : 'border-transparent text-wr-dim hover:text-wr-secondary/60 hover:bg-wr-surface/50'
               }`}
             >
               <Calendar size={14} /> {t('sms.number_rentals_tab')}
@@ -899,97 +908,179 @@ export function SMSWall() {
           </div>
 
           {/* ═══ ONE-TIME SMS TAB ═══ */}
-          {activeTab === 'sms' && (
-          <div className="bg-wr-surface border border-wr-border p-4 md:p-10 relative overflow-hidden shadow-2xl mx-2 md:mx-0">
-            <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-8">
-
-              {/* Country */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                  <Globe size={12} className="text-wr-accent" /> {t('sms.country')}
-                </label>
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
-                  <input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder={t('sms.search_countries')}
-                    className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-wr-accent text-current placeholder-wr-dim/30" />
-                </div>
-                {/* Popular countries */}
-                <div className="flex flex-wrap gap-1.5">
-                  {POPULAR_COUNTRIES.map(code => {
-                    const country = countries.find(c => c.shortName === code);
-                    if (!country) return null;
-                    return (
-                      <button key={country.id} onClick={() => setSelectedCountry(country.id)} title={country.name}
-                        className={`text-xs px-3 py-1.5 rounded-full border font-bold transition-all ${selectedCountry === country.id ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/30 hover:text-wr-accent'}`}>
-                        {country.shortName}
-                      </button>
-                    );
-                  })}
-                </div>
-                {/* Separator */}
-                <div className="border-t border-wr-border/30" />
-                {/* All countries */}
-                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto content-start p-1">
-                  {filteredCountries.map(c => (
-                    <button key={c.id} onClick={() => setSelectedCountry(c.id)} title={`${c.name}${suggestedCountryIds.has(c.id) ? ' (recommended)' : ''}`}
-                      className={`text-xs px-3 py-1.5 rounded border font-mono transition-all ${selectedCountry === c.id ? 'border-wr-accent text-wr-accent bg-wr-accent/20 font-bold shadow-[0_0_12px_rgba(34,211,238,0.25)]' : suggestedCountryIds.has(c.id) ? 'border-green-400/40 text-green-400 hover:border-green-400 hover:text-green-300' : 'border-wr-border text-current hover:border-wr-accent/40 hover:text-wr-accent'}`}>
-                      {c.shortName}{suggestedCountryIds.has(c.id) ? ' ★' : ''}
-                    </button>
-                  ))}
-                </div>
-                {selectedCountryName && (
-                  <div className="text-[10px] text-wr-accent font-bold animate-pulse">
-                    {"● "}{selectedCountryName}
+            {activeTab === 'sms' && (
+            <div className="bg-wr-surface border border-wr-border p-4 md:p-8 relative shadow-2xl mx-2 md:mx-0 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 md:gap-8">
+                {/* LEFT: territory selection */}
+                <aside className="space-y-3 md:sticky md:top-6 self-start">
+                  <label className="flex items-center gap-2 text-[11px] font-mono text-wr-dim uppercase tracking-[0.18em] font-bold">
+                    <Globe size={12} className="text-wr-info" /> {t('sms.territory', 'Territory')}
+                  </label>
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
+                    <input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder={t('sms.search_countries')}
+                      className="min-h-11 w-full pl-10 pr-3 py-3 bg-wr-base border border-wr-border outline-none font-mono text-base md:text-sm transition-all rounded-sm focus:border-wr-info text-current placeholder-wr-dim/30" />
                   </div>
-                )}
-              </div>
-
-              {/* Service */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                  <Phone size={12} className="text-green-400" /> {t('sms.service')}
-                </label>
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
-                  <input type="text" value={serviceSearch} onChange={e => setServiceSearch(e.target.value)} placeholder={t('sms.search_services')}
-                    className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-green-400 text-current placeholder-wr-dim/30" />
-                </div>
-                {/* Popular services */}
-                <div className="flex flex-wrap gap-1.5">
-                  {POPULAR_SERVICES.map(name => {
-                    const svc = services.find(s => s.name.toLowerCase() === name.toLowerCase());
-                    if (!svc) return null;
-                    return (
-                      <button key={svc.id} onClick={() => { setSelectedService(svc.id); setServiceSearch(''); }}
-                        className={`text-xs px-3 py-1.5 rounded-full border font-bold transition-all ${selectedService === svc.id ? 'border-green-400 text-green-400 bg-green-400/10' : 'border-wr-border text-wr-dim hover:border-green-400/30 hover:text-green-400'}`}>
-                        {svc.name}
-                      </button>
-                    );
-                  })}
-                </div>
-                {/* Separator */}
-                <div className="border-t border-wr-border/30" />
-                {/* All services */}
-                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto content-start p-1">
-                  {(serviceSearch ? filteredServices : services).slice(0, 80).map(s => (
-                    <button key={s.id} onClick={() => { setSelectedService(s.id); setServiceSearch(''); }}
-                      className={`text-xs px-3 py-1.5 rounded border font-mono transition-all ${selectedService === s.id ? 'border-green-400 text-green-400 bg-green-400/20 font-bold shadow-[0_0_12px_rgba(74,222,128,0.25)]' : 'border-wr-border text-current hover:border-green-400/40 hover:text-green-400'}`}>
-                      {s.name}
-                    </button>
-                  ))}
-                </div>
-                {selectedServiceName && (
-                  <div className="text-[10px] text-green-400 font-bold animate-pulse">
-                    {"● "}{selectedServiceName}
+                  <div className="flex flex-wrap gap-1.5">
+                    {POPULAR_COUNTRIES.map(code => {
+                      const country = countries.find(c => c.shortName === code);
+                      if (!country) return null;
+                      return (
+                        <button key={country.id} onClick={() => setSelectedCountry(country.id)} title={country.name}
+                          className={`inline-flex items-center gap-1 min-h-9 text-[11px] px-2 py-1 rounded-sm border font-mono font-bold transition-colors ${selectedCountry === country.id ? 'border-wr-info text-wr-info bg-wr-info/10' : 'border-wr-border text-wr-dim hover:border-wr-info/40 hover:text-wr-info'}`}>
+                          {flagOf(country.shortName)} {country.shortName}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
+                  <div className="border-t border-wr-border/60" />
+                  <div ref={countryListRef} className="flex max-h-[400px] flex-col gap-0.5 overflow-y-auto pr-1">
+                    {filteredCountries.filter(c => !c.shortName.includes('_')).map(c => (
+                      <button key={c.id} data-country={c.id} onClick={() => setSelectedCountry(c.id)} title={`${c.name}${suggestedCountryIds.has(c.id) ? ' (recommended)' : ''}`}
+                        className={`flex min-h-9 items-center gap-2 rounded-sm px-2.5 py-2 text-left text-xs transition-colors ${selectedCountry === c.id ? 'bg-wr-info/10 font-bold text-wr-info' : 'text-current hover:bg-wr-surface hover:text-wr-info'}`}>
+                        <span className="shrink-0">{flagOf(c.shortName)}</span>
+                        <span className="truncate">{c.name}{suggestedCountryIds.has(c.id) ? ' ★' : ''}</span>
+                        <span className="ml-auto shrink-0 font-mono text-[10px] text-wr-dim">{c.shortName}</span>
+                      </button>
+                    ))}
+                    {filteredCountries.length === 0 && (
+                      <div className="rounded-sm border border-wr-border bg-wr-base/50 px-3 py-4 text-center text-xs text-wr-dim">
+                        {t('sms.no_countries_match', 'No territories match this search')}
+                      </div>
+                    )}
+                  </div>
+                </aside>
+
+                {/* RIGHT: services */}
+                <section ref={servicePanelRef} className="min-w-0 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-[11px] font-mono text-wr-dim uppercase tracking-[0.18em] font-bold">
+                      <Phone size={12} className="text-wr-accent" /> {t('sms.service')}
+                    </label>
+                    {selectedCountryName && (
+                      <span className="text-[11px] font-mono text-wr-info font-bold truncate">● {selectedCountryName}</span>
+                    )}
+                  </div>
+                  {servicePickerOpen ? (
+                  <>
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
+                    <input type="text" value={serviceSearch} onChange={e => setServiceSearch(e.target.value)} placeholder={t('sms.search_services')}
+                      className="min-h-11 w-full pl-10 pr-3 py-3 bg-wr-base border border-wr-border outline-none font-mono text-base md:text-sm transition-all rounded-sm focus:border-wr-accent text-current placeholder-wr-dim/30" />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {POPULAR_SERVICES.map(name => {
+                      const svc = services.find(x => x.name.toLowerCase() === name.toLowerCase());
+                      if (!svc) return null;
+                      return (
+                        <button key={svc.id} onClick={() => chooseService(svc.id)}
+                          className={`min-h-9 text-[11px] px-2.5 py-1 rounded-sm border font-mono font-bold transition-colors ${selectedService === svc.id ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/40 hover:text-wr-accent'}`}>
+                          {svc.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                    {(serviceSearch ? filteredServices : orderedServices).slice(0, visibleServices).map((s, idx) => {
+                      const active = selectedService === s.id;
+                      const logo = serviceLogo(s.name);
+                      const prefetched = popularPrices[s.id];
+                      const shownPrice = active && priceInfo
+                        ? `$${priceInfo.price}`
+                        : prefetched != null ? `From $${prefetched.toFixed(2)}` : '';
+                      return (
+                        <button key={s.id} onClick={() => chooseService(s.id)}
+                          className={`group text-left p-4 rounded-sm border bg-wr-base transition-colors ${active ? 'border-wr-accent bg-wr-accent/5' : 'border-wr-border hover:border-wr-accent/40'}`}>
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <div className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-wr-border bg-white p-1.5">
+                              {logo
+                                ? <img src={logo} alt="" loading="lazy" referrerPolicy="no-referrer"
+                                    className="h-full w-full object-contain"
+                                    onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+                                : <Phone size={14} className="text-wr-dim" />}
+                            </div>
+                            <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-wr-dim">
+                              {t('sms.service_card_label', 'SERVICE')} {String(idx + 1).padStart(2, '0')}
+                            </span>
+                          </div>
+                          <div className="text-sm font-bold truncate">{s.name}</div>
+                          <div className="text-[11px] text-wr-dim mt-1">{t('sms.service_card_desc', 'One-time verification')}</div>
+                          <div className="flex items-center justify-between gap-2 mt-3">
+                            <span className={`text-[11px] font-mono tabular-nums ${shownPrice ? 'text-wr-accent font-bold' : 'text-wr-dim'}`}>
+                              {shownPrice || t('sms.check_price', 'Check price')}
+                            </span>
+                            <span className={`text-[10px] font-mono uppercase tracking-[0.14em] ${active ? 'text-wr-accent' : 'text-wr-dim group-hover:text-wr-accent'}`}>
+                              {active ? t('sms.selected', 'Selected') : t('sms.select', 'Select')} →
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {!serviceSearch && orderedServices.length > visibleServices && (
+                    <button onClick={() => setVisibleServices(v => v + 24)}
+                      className="w-full min-h-11 py-2.5 border border-wr-border rounded-sm text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-wr-dim hover:text-wr-accent hover:border-wr-accent/40 transition-colors">
+                      {t('sms.show_more_services', 'Show more services')} ({orderedServices.length - visibleServices})
+                    </button>
+                  )}
+                  {serviceSearch && filteredServices.length === 0 && (
+                    <div className="text-center text-[11px] font-mono uppercase tracking-[0.16em] text-wr-dim py-6">
+                      {t('sms.no_services_match', 'No services match this search')}
+                    </div>
+                  )}
+                  </>
+                  ) : selectedService ? (
+                    <div className="rounded-sm border border-wr-accent/40 bg-wr-accent/5 p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-wr-border bg-white p-1.5">
+                          {selectedServiceObj && serviceLogo(selectedServiceObj.name)
+                            ? <img src={serviceLogo(selectedServiceObj.name) as string} alt="" loading="lazy" referrerPolicy="no-referrer"
+                                className="h-full w-full object-contain"
+                                onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+                            : <Phone size={14} className="text-wr-dim" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-bold">{selectedServiceName}</div>
+                          <div className="text-[11px] font-mono text-wr-dim">
+                            {priceInfo ? `$${priceInfo.price}` : t('sms.fetching_price', 'Fetching price…')}
+                          </div>
+                        </div>
+                        <button onClick={() => { setServicePickerOpen(true); window.setTimeout(() => servicePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }}
+                          className="min-h-9 shrink-0 rounded-sm border border-wr-border px-3 text-[10px] font-mono font-bold uppercase tracking-[0.14em] text-wr-dim transition-colors hover:border-wr-accent/40 hover:text-wr-accent">
+                          {t('sms.change_service', 'Change')}
+                        </button>
+                      </div>
+                      {priceInfo && (
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-wr-accent/20 pt-3">
+                          <div className="text-[11px] font-mono text-wr-dim">
+                            {priceInfo.success_rate > 0 && `${priceInfo.success_rate}% ${t('sms.success_rate')}`}
+                            {stockInfo && stockInfo.count !== undefined ? ` · ${stockInfo.count.toLocaleString()} ${t('sms.in_stock').toLowerCase()}` : ''}
+                          </div>
+                          <button
+                            onClick={handleGetNumber}
+                            disabled={purchasing || (stockInfo !== null && !stockInfo.available)}
+                            className="min-h-11 rounded-sm bg-wr-accent px-5 text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-black transition-opacity hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            {purchasing
+                              ? <RefreshCw size={13} className="animate-spin" />
+                              : `${t('sms.get_number')} · $${priceInfo.price}`}
+                          </button>
+                        </div>
+                      )}
+                      {loadingPrice && !priceInfo && (
+                        <div className="mt-3 flex items-center gap-2 border-t border-wr-accent/20 pt-3 text-[11px] font-mono text-wr-info">
+                          <RefreshCw size={13} className="animate-spin" /> {t('sms.checking_price')}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </section>
               </div>
-            </div>
 
             {/* ═══ PROVIDER SELECTION (top-level: engine comparison) ═══ */}
             {compareResults.length > 1 && priceInfo && (
               <div className="pt-6 border-t border-wr-border/30">
-                <div className="text-[10px] text-wr-dim font-mono uppercase tracking-widest mb-2">{t('sms.select_route', 'Select Route')}</div>
+                <div className="text-[11px] text-wr-dim font-mono uppercase tracking-[0.18em] mb-2">{t('sms.select_route', 'Select Route')}</div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                   {compareResults.map((r, idx) => {
                     const isSelected = selectedProvider === r.engine;
@@ -1019,14 +1110,14 @@ export function SMSWall() {
                             setSelectedPool('');
                           }
                         }}
-                        className={`py-3 px-3 rounded-sm border text-xs font-mono transition-all text-left ${
+                        className={`min-h-14 py-3 px-3 rounded-sm border text-xs font-mono transition-colors text-left ${
                           isSelected
-                            ? 'border-wr-green bg-wr-green/10 text-wr-green'
-                            : 'border-wr-border text-wr-dim hover:border-wr-dim'
+                            ? 'border-wr-accent bg-wr-accent/10 text-wr-accent'
+                            : 'border-wr-border text-wr-dim hover:border-wr-accent/50 hover:text-current'
                         }`}
                       >
-                        <div className="font-bold text-sm">${r.price.toFixed(2)}</div>
-                        <div className="text-[10px] opacity-60 mt-0.5">
+                        <div className="font-bold text-sm tabular-nums">${r.price.toFixed(2)}</div>
+                        <div className="text-[11px] opacity-70 mt-0.5 tabular-nums">
                           {t('sms.route', 'Route')} {String.fromCharCode(65 + idx)}
                           {r.stock > 0 ? ` · ${r.stock.toLocaleString()}` : ''}
                           {r.successRate > 0 ? ` · ${r.successRate}%` : ''}
@@ -1041,7 +1132,7 @@ export function SMSWall() {
             {/* ═══ Sub-route variants (pools for smspool, operators for 5sim) ═══ */}
             {poolOptions.length > 0 && priceInfo && (
               <div className={compareResults.length > 1 ? 'mt-3' : 'pt-6 border-t border-wr-border/30'}>
-                <div className="text-[10px] text-wr-dim font-mono uppercase tracking-widest mb-2">{t('sms.select_pool', 'Sub-Route')}</div>
+                <div className="text-[11px] text-wr-dim font-mono uppercase tracking-[0.18em] mb-2">{t('sms.select_pool', 'Sub-Route')}</div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                   {/* "Auto" card — shows when the route's default tier is cheaper than any specific pool */}
                   {(() => {
@@ -1062,14 +1153,14 @@ export function SMSWall() {
                             engine: route.engine,
                           });
                         }}
-                        className={`py-3 px-3 rounded-sm border text-xs font-mono transition-all text-left ${
+                        className={`min-h-14 py-3 px-3 rounded-sm border text-xs font-mono transition-colors text-left ${
                           isAutoSelected
-                            ? 'border-wr-green bg-wr-green/10 text-wr-green'
-                            : 'border-wr-border text-wr-dim hover:border-wr-dim'
+                            ? 'border-wr-accent bg-wr-accent/10 text-wr-accent'
+                            : 'border-wr-border text-wr-dim hover:border-wr-accent/50 hover:text-current'
                         }`}
                       >
-                        <div className="font-bold text-sm">${route.price.toFixed(2)}</div>
-                        <div className="text-[10px] opacity-60 mt-0.5">
+                        <div className="font-bold text-sm tabular-nums">${route.price.toFixed(2)}</div>
+                        <div className="text-[11px] opacity-70 mt-0.5 tabular-nums">
                           {t('sms.auto', 'Auto')}
                           {route.stock > 0 ? ` · ${route.stock.toLocaleString()}` : ''}
                         </div>
@@ -1085,14 +1176,14 @@ export function SMSWall() {
                           setSelectedPool(p.pool);
                           setPriceInfo({ ...priceInfo, price: p.price.toFixed(2), pool: p.pool, success_rate: p.successRate });
                         }}
-                        className={`py-3 px-3 rounded-sm border text-xs font-mono transition-all text-left ${
+                        className={`min-h-14 py-3 px-3 rounded-sm border text-xs font-mono transition-colors text-left ${
                           isSelected
-                            ? 'border-wr-green bg-wr-green/10 text-wr-green'
-                            : 'border-wr-border text-wr-dim hover:border-wr-dim'
+                            ? 'border-wr-secondary bg-wr-secondary/10 text-wr-secondary'
+                            : 'border-wr-border text-wr-dim hover:border-wr-secondary/50 hover:text-current'
                         }`}
                       >
-                        <div className="font-bold text-sm">${p.price.toFixed(2)}</div>
-                        <div className="text-[10px] opacity-60 mt-0.5">
+                        <div className="font-bold text-sm tabular-nums">${p.price.toFixed(2)}</div>
+                        <div className="text-[11px] opacity-70 mt-0.5 tabular-nums">
                           {t('sms.pool', 'Pool')} {String.fromCharCode(65 + idx)}
                           {p.successRate > 0 ? ` · ${p.successRate}%` : ''}
                         </div>
@@ -1101,24 +1192,23 @@ export function SMSWall() {
                   })}
                 </div>
                 {!selectedPool && (
-                  <p className="text-[10px] text-wr-dim/60 mt-2">{t('sms.auto_price_note', 'Auto selects the cheapest available number. Actual price may vary from estimate.')}</p>
+                  <p className="text-[11px] text-wr-dim/60 mt-2">{t('sms.auto_price_note', 'Auto selects the cheapest available number. Actual price may vary from estimate.')}</p>
                 )}
               </div>
             )}
 
             {/* ═══ ACTION BAR ═══ */}
-            <div className="pt-6 border-t border-wr-border/30 flex flex-col md:flex-row justify-between items-center gap-6 md:gap-4">
-              <div className="text-xs text-wr-dim font-mono uppercase tracking-widest">
+            <div ref={quoteRef} className="sticky bottom-0 z-20 -mx-4 md:-mx-10 mt-6 px-4 md:px-10 py-4 bg-wr-surface/95 backdrop-blur border-t border-wr-border flex flex-col md:flex-row justify-between md:items-center gap-3 md:gap-4">
+              <div className="text-[11px] text-wr-dim font-mono uppercase tracking-[0.14em]">
                 {priceInfo ? (
                   <span>
-                    <span className="text-wr-green animate-pulse">●</span>{' '}
+                    <span className="text-wr-accent">●</span>{' '}
                     {selectedServiceName} / {selectedCountryName}{priceInfo.success_rate > 0 && (<> — <span
                       key={`rate-${selectedPool}-${priceInfo.success_rate}`}
-                      className="inline-block animate-[flash_0.6s_ease-out]"
-                      style={{ color: priceInfo.success_rate >= 70 ? '#00ff41' : priceInfo.success_rate >= 40 ? '#f59e0b' : '#ef4444' }}
+                      className={`inline-block animate-[flash_0.6s_ease-out] tabular-nums ${priceInfo.success_rate >= 70 ? 'text-wr-accent' : priceInfo.success_rate >= 40 ? 'text-wr-warning' : 'text-wr-error'}`}
                     >{priceInfo.success_rate}%</span> {t('sms.success_rate')}</>)}
                     {stockInfo && stockInfo.count !== undefined && (
-                      <span className={stockInfo.available ? 'text-wr-green' : 'text-red-400'}> — {stockInfo.count.toLocaleString()} {t('sms.in_stock').toLowerCase()}</span>
+                      <span className={stockInfo.available ? 'text-wr-info' : 'text-wr-error'}> — {stockInfo.count.toLocaleString()} {t('sms.in_stock').toLowerCase()}</span>
                     )}
                   </span>
                 ) : (
@@ -1127,29 +1217,28 @@ export function SMSWall() {
               </div>
 
               {loadingPrice ? (
-                <div className="flex items-center gap-2 text-wr-dim text-xs"><RefreshCw size={14} className="animate-spin" /> {t('sms.checking_price')}</div>
+                <div className="flex items-center gap-2 text-wr-info text-[11px] font-mono"><RefreshCw size={14} className="animate-spin" /> {t('sms.checking_price')}</div>
               ) : priceInfo ? (
                 <button
                   onClick={handleGetNumber}
                   disabled={!selectedService || purchasing || (stockInfo !== null && !stockInfo.available)}
-                  className="w-full md:w-auto group relative px-8 py-4 text-sm font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-3 overflow-hidden rounded-sm bg-wr-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)] disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="min-h-12 w-full md:w-auto px-8 py-4 text-sm font-bold tracking-[0.18em] uppercase transition-opacity flex items-center justify-center gap-3 rounded-sm bg-wr-accent text-black shadow-lg shadow-wr-accent/20 hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12" />
                   {purchasing ? (
                     <><RefreshCw size={16} className="animate-spin" /> <span>{t('sms.purchasing', 'PURCHASING...')}</span></>
                   ) : (
-                    <><span>{t('sms.get_number')}</span><span className="opacity-40">|</span><span>${priceInfo.price}</span><ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" /></>
+                    <><span>{t('sms.get_number')}</span><span className="opacity-40">|</span><span className="tabular-nums">${priceInfo.price}</span><ChevronRight size={16} /></>
                   )}
                 </button>
               ) : (
-                <div className="px-8 py-4 bg-wr-surface border border-wr-border text-wr-dim text-sm rounded-sm cursor-not-allowed">
+                <div className="w-full md:w-auto px-8 py-4 bg-wr-base border border-wr-border text-wr-dim text-sm rounded-sm cursor-not-allowed text-center">
                   {t('sms.select_service_price')}
                 </div>
               )}
             </div>
 
             {stockInfo && !stockInfo.available && (
-              <div className="mt-4 flex items-start gap-2 text-xs text-red-400 p-3 rounded bg-red-400/10 border border-red-400/20">
+              <div className="mt-4 flex items-start gap-2 text-xs text-wr-error p-3 rounded-sm bg-wr-error/10 border border-wr-error/20">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                 <span>{t('sms.no_numbers_available')}</span>
               </div>
@@ -1169,14 +1258,14 @@ export function SMSWall() {
 
             <div className="p-4 bg-wr-surface border border-wr-border text-sm rounded-sm">
               Want a UK +44 line on your own phone for 6–24 months?{' '}
-              <Link className="text-wr-accent underline" to={`${i18n.language === 'en' ? '' : `/${i18n.language}`}/uk-sim`}>Browse long-term phone eSIMs</Link>.
+              <Link className="text-wr-secondary underline underline-offset-4" to={`${i18n.language === 'en' ? '' : `/${i18n.language}`}/uk-sim`}>Browse long-term phone eSIMs</Link>.
             </div>
 
             {/* ─── Active Rentals ─── */}
             {walletToken && (
             <div className="bg-wr-surface border border-wr-border rounded-sm overflow-hidden shadow-2xl">
               <div className="p-4 md:p-6 border-b border-wr-border/30 flex items-center justify-between">
-                <h3 className="text-xs font-bold tracking-[0.2em] uppercase text-wr-accent flex items-center gap-2">
+                <h3 className="text-[11px] font-mono font-bold tracking-[0.18em] uppercase text-wr-secondary flex items-center gap-2">
                   <Timer size={14} /> {t('sms.active_rentals')}
                 </h3>
                 <button
@@ -1185,7 +1274,7 @@ export function SMSWall() {
                     apiClient<RentalStatus[]>(`/v1/tools/sms/rentals/active?token=${walletToken}`)
                       .then(setActiveRentals).catch(() => {}).finally(() => setLoadingActiveRentals(false));
                   }}
-                  className="text-wr-dim hover:text-wr-accent transition-colors"
+                  className="min-h-11 min-w-11 p-1.5 text-wr-dim hover:text-wr-secondary transition-colors"
                 >
                   <RefreshCw size={12} className={loadingActiveRentals ? 'animate-spin' : ''} />
                 </button>
@@ -1205,15 +1294,15 @@ export function SMSWall() {
                     <div key={rental.orderId} className="p-4 md:p-5 hover:bg-wr-surface/50 transition-colors">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-wr-accent/10 text-wr-accent rounded border border-wr-accent/20">
+                          <div className="p-2 bg-wr-secondary/10 text-wr-secondary rounded-sm border border-wr-secondary/20">
                             <Phone size={16} />
                           </div>
                           <div>
-                            <div className="font-mono text-sm font-bold text-wr-accent">{rental.phoneNumber}</div>
-                            <div className="text-[10px] text-wr-dim flex items-center gap-2 mt-0.5">
+                            <div className="font-mono text-sm font-bold text-current break-all">{rental.phoneNumber}</div>
+                            <div className="text-[11px] font-mono text-wr-dim flex items-center gap-2 mt-0.5">
                               <Clock size={8} /> {getTimeRemaining(rental.expiresAt)} remaining
                               {rental.messages.length > 0 && (
-                                <span className="text-green-400">
+                                <span className="text-wr-info">
                                   <MessageSquare size={8} className="inline" /> {rental.messages.length} msg{rental.messages.length !== 1 ? 's' : ''}
                                 </span>
                               )}
@@ -1232,23 +1321,23 @@ export function SMSWall() {
                                 setPollingRentalMessages(true);
                               }
                             }}
-                            className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border rounded-sm transition-all ${
+                            className={`min-h-11 px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-[0.14em] border rounded-sm transition-colors ${
                               viewingRentalMessages === rental.orderId
-                                ? 'border-green-400 text-green-400 bg-green-400/10'
-                                : 'border-wr-border text-wr-dim hover:border-wr-accent hover:text-wr-accent'
+                                ? 'border-wr-secondary text-wr-secondary bg-wr-secondary/10'
+                                : 'border-wr-border text-wr-dim hover:border-wr-secondary hover:text-wr-secondary'
                             }`}
                           >
                             <MessageSquare size={10} className="inline mr-1" /> {t('sms.messages')}
                           </button>
                           <button
                             onClick={() => setShowExtendModal(rental.orderId)}
-                            className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-wr-border text-wr-dim hover:border-green-400 hover:text-green-400 rounded-sm transition-all"
+                            className="min-h-11 px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-[0.14em] border border-wr-border text-wr-dim hover:border-wr-secondary hover:text-wr-secondary rounded-sm transition-colors"
                           >
                             <Expand size={10} className="inline mr-1" /> {t('sms.extend')}
                           </button>
                           <button
                             onClick={() => handleRentalCancel(rental.orderId)}
-                            className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-wr-border text-wr-dim hover:border-red-400 hover:text-red-400 rounded-sm transition-all"
+                            className="min-h-11 px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-[0.14em] border border-wr-border text-wr-dim hover:border-wr-error hover:text-wr-error rounded-sm transition-colors"
                           >
                             <Trash2 size={10} className="inline mr-1" /> {t('sms.cancel_rental')}
                           </button>
@@ -1259,23 +1348,23 @@ export function SMSWall() {
                       {viewingRentalMessages === rental.orderId && (
                         <div className="mt-4 border-t border-wr-border/20 pt-4">
                           <div className="flex items-center justify-between mb-3">
-                            <span className="text-[10px] text-wr-dim uppercase tracking-widest font-bold flex items-center gap-2">
-                              <RefreshCw size={8} className={pollingRentalMessages ? 'animate-spin text-green-400' : 'text-wr-dim'} />
+                            <span className="text-[11px] font-mono text-wr-dim uppercase tracking-[0.14em] font-bold flex items-center gap-2">
+                              <RefreshCw size={8} className={pollingRentalMessages ? 'animate-spin text-wr-secondary' : 'text-wr-dim'} />
                               {t('sms.live_messages')}
                             </span>
                           </div>
                           {rentalMessages.length === 0 ? (
-                            <div className="p-4 text-center text-wr-dim text-[10px] font-mono bg-wr-base rounded border border-wr-border/30">
+                            <div className="p-4 text-center text-wr-dim text-[11px] font-mono bg-wr-base rounded-sm border border-wr-border/30">
                               {t('sms.waiting_incoming')}
                             </div>
                           ) : (
                             <div className="space-y-2 max-h-64 overflow-y-auto">
                               {rentalMessages.map((msg, i) => (
-                                <div key={i} className="p-3 bg-wr-base rounded border border-wr-border/30 group hover:border-green-400/30 transition-colors">
+                                <div key={i} className="p-3 bg-wr-base rounded-sm border border-wr-border/30 group hover:border-wr-secondary/40 transition-colors">
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="flex-1 min-w-0">
-                                      <div className="text-[10px] text-wr-dim mb-1 flex items-center gap-2">
-                                        <span className="text-wr-accent font-bold">{msg.sender}</span>
+                                      <div className="text-[11px] font-mono text-wr-dim mb-1 flex items-center gap-2">
+                                        <span className="text-wr-info font-bold">{msg.sender}</span>
                                         <span className="text-wr-border">|</span>
                                         <span>{new Date(msg.timestamp).toLocaleString()}</span>
                                       </div>
@@ -1283,7 +1372,7 @@ export function SMSWall() {
                                     </div>
                                     <button
                                       onClick={() => copyText(msg.message)}
-                                      className="p-1 text-wr-dim hover:text-green-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      className="min-h-11 min-w-11 p-1.5 text-wr-dim hover:text-wr-secondary shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
                                       <Copy size={10} />
                                     </button>
@@ -1302,93 +1391,102 @@ export function SMSWall() {
             )}
 
             {/* ─── Browse Rental Services ─── */}
-            <div className="bg-wr-surface border border-wr-border p-4 md:p-10 relative overflow-hidden shadow-xl rounded-lg">
-              <div className="relative z-10 space-y-6">
-                <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                  <Calendar size={12} className="text-wr-accent" /> {t('sms.browse_rental_services')}
-                </label>
-
-                {/* Search */}
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
-                  <input
-                    type="text"
-                    value={rentalServiceSearch}
-                    onChange={e => setRentalServiceSearch(e.target.value)}
-                    placeholder={t('sms.search_rental')}
-                    className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-wr-accent text-current placeholder-wr-dim/30"
-                  />
-                </div>
-
-                {loadingRentalServices ? (
-                  <div className="py-8 text-center text-wr-dim text-xs animate-pulse">
-                    <RefreshCw size={16} className="animate-spin mx-auto mb-2" /> {t('sms.loading_services')}
+            {/* ─── Browse Rental Services (master–detail, same as one-time SMS) ─── */}
+            <div className="bg-wr-surface border border-wr-border p-4 md:p-8 relative shadow-xl rounded-sm">
+              <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 md:gap-8">
+                <aside className="space-y-3 md:sticky md:top-6 self-start">
+                  <label className="flex items-center gap-2 text-[11px] font-mono text-wr-dim uppercase tracking-[0.18em] font-bold">
+                    <Calendar size={12} className="text-wr-secondary" /> {t('sms.browse_rental_services')}
+                  </label>
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
+                    <input
+                      type="text"
+                      value={rentalServiceSearch}
+                      onChange={e => setRentalServiceSearch(e.target.value)}
+                      placeholder={t('sms.search_rental')}
+                      className="min-h-11 w-full pl-10 pr-3 py-3 bg-wr-base border border-wr-border outline-none font-mono text-base md:text-sm transition-all rounded-sm focus:border-wr-secondary text-current placeholder-wr-dim/30"
+                    />
                   </div>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto content-start p-1">
-                    {filteredRentalServices.map(s => (
-                      <button
-                        key={s.id}
-                        onClick={() => setSelectedRentalService(s.id)}
-                        className={`text-xs px-3 py-1.5 rounded border font-mono transition-all ${
-                          selectedRentalService === s.id
-                            ? 'border-wr-accent text-wr-accent bg-wr-accent/20 font-bold shadow-[0_0_12px_rgba(34,211,238,0.25)]'
-                            : 'border-wr-border text-current hover:border-wr-accent/40 hover:text-wr-accent'
-                        }`}
-                      >
-                        {s.name}
-                      </button>
-                    ))}
-                    {filteredRentalServices.length === 0 && !loadingRentalServices && (
-                      <div className="w-full text-center text-wr-dim text-xs py-4 font-mono">{t('sms.no_services_found')}</div>
-                    )}
-                  </div>
-                )}
+                  {loadingRentalServices ? (
+                    <div className="py-8 text-center text-wr-dim text-xs animate-pulse">
+                      <RefreshCw size={16} className="animate-spin mx-auto mb-2" /> {t('sms.loading_services')}
+                    </div>
+                  ) : (
+                    <div className="flex max-h-[400px] flex-col gap-0.5 overflow-y-auto pr-1 border-t border-wr-border/60 pt-2">
+                      {filteredRentalServices.map(s => (
+                        <button
+                          key={s.id}
+                          onClick={() => setSelectedRentalService(s.id)}
+                          className={`flex min-h-10 items-center gap-2 rounded-sm px-2.5 py-2 text-left text-xs transition-colors ${
+                            selectedRentalService === s.id
+                              ? 'bg-wr-secondary/10 font-bold text-wr-secondary'
+                              : 'text-current hover:bg-wr-surface hover:text-wr-secondary'
+                          }`}
+                        >
+                          <Calendar size={12} className="shrink-0 opacity-70" />
+                          <span className="truncate">{s.name}</span>
+                        </button>
+                      ))}
+                      {filteredRentalServices.length === 0 && (
+                        <div className="w-full text-center text-wr-dim text-xs py-4 font-mono">{t('sms.no_services_found')}</div>
+                      )}
+                    </div>
+                  )}
+                </aside>
 
-                {/* Pricing tiers */}
-                {selectedRentalService && (
-                  <div className="space-y-4 pt-4 border-t border-wr-border/30">
-                    <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                      <Zap size={12} className="text-green-400" /> {t('sms.select_duration')}
+                <section className="min-w-0 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-[11px] font-mono text-wr-dim uppercase tracking-[0.18em] font-bold">
+                      <Zap size={12} className="text-wr-secondary" /> {t('sms.select_duration')}
                     </label>
-
-                    {loadingRentalPrices ? (
-                      <div className="py-6 text-center text-wr-dim text-xs animate-pulse">
-                        <RefreshCw size={14} className="animate-spin mx-auto mb-2" /> {t('sms.loading_prices')}
-                      </div>
-                    ) : rentalPrices.length === 0 ? (
-                      <div className="py-6 text-center text-wr-dim text-xs font-mono">{t('sms.no_pricing')}</div>
-                    ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {rentalPrices.map((tier, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleRentalPurchase(selectedRentalService, tier.days)}
-                            disabled={purchasingRental}
-                            className="relative p-4 md:p-5 border border-wr-border bg-wr-surface/50 hover:border-wr-accent hover:bg-wr-accent/5 cursor-pointer transition-all duration-200 group overflow-hidden rounded-lg disabled:opacity-30 disabled:cursor-wait text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-wr-accent"
-                          >
-                            <div className="text-2xl font-bold font-mono text-wr-accent mb-1">
-                              {tier.days}d
-                            </div>
-                            <div className="text-[10px] text-wr-dim uppercase tracking-widest mb-3">
-                              {tier.days === 1 ? '1 Day' : `${tier.days} Days`}
-                            </div>
-                            <div className="text-sm font-bold font-mono text-green-400">
-                              ${tier.price.toFixed(2)}
-                            </div>
-                            <div className="absolute inset-0 bg-wr-accent/5 translate-x-[-100%] group-hover:animate-[scan_1s_ease-in-out_infinite] skew-x-12 pointer-events-none" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {purchasingRental && (
-                      <div className="flex items-center justify-center gap-2 text-xs text-wr-accent">
-                        <RefreshCw size={12} className="animate-spin" /> {t('sms.processing_rental')}
-                      </div>
+                    {selectedRentalServiceName && (
+                      <span className="text-[11px] font-mono text-wr-secondary font-bold truncate">● {selectedRentalServiceName}</span>
                     )}
                   </div>
-                )}
+
+                  {!selectedRentalService ? (
+                    <div className="flex flex-col items-center justify-center rounded-sm border border-wr-border bg-wr-base/50 px-4 py-12 text-center text-xs text-wr-dim">
+                      <Calendar size={32} className="mb-3 opacity-30" />
+                      {t('sms.select_rental_prompt', 'Select a rental service to see durations and prices')}
+                    </div>
+                  ) : loadingRentalPrices ? (
+                    <div className="py-10 text-center text-wr-dim text-xs animate-pulse">
+                      <RefreshCw size={14} className="animate-spin mx-auto mb-2" /> {t('sms.loading_prices')}
+                    </div>
+                  ) : rentalPrices.length === 0 ? (
+                    <div className="rounded-sm border border-wr-border bg-wr-base/50 px-4 py-8 text-center text-xs text-wr-dim font-mono">
+                      {t('sms.no_pricing')}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+                      {rentalPrices.map((tier, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleRentalPurchase(selectedRentalService, tier.days)}
+                          disabled={purchasingRental}
+                          className="relative min-h-24 p-4 border border-wr-border bg-wr-base hover:border-wr-secondary hover:bg-wr-secondary/5 cursor-pointer transition-colors duration-200 rounded-sm disabled:opacity-30 disabled:cursor-wait text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-wr-secondary"
+                        >
+                          <div className="text-2xl font-bold font-mono text-current tabular-nums mb-1">
+                            {tier.days}d
+                          </div>
+                          <div className="text-[11px] font-mono text-wr-dim uppercase tracking-[0.14em] mb-3">
+                            {tier.days === 1 ? '1 Day' : `${tier.days} Days`}
+                          </div>
+                          <div className="text-sm font-bold font-mono text-wr-secondary tabular-nums">
+                            ${tier.price.toFixed(2)}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {purchasingRental && (
+                    <div className="flex items-center justify-center gap-2 text-xs text-wr-accent">
+                      <RefreshCw size={12} className="animate-spin" /> {t('sms.processing_rental')}
+                    </div>
+                  )}
+                </section>
               </div>
             </div>
 
@@ -1400,8 +1498,8 @@ export function SMSWall() {
                 { title: t('sms.rental_info_extend_title'), desc: t('sms.rental_info_extend_desc') },
               ].map(item => (
                 <div key={item.title} className="p-4 rounded-sm border border-wr-border/50 bg-wr-surface/30">
-                  <h4 className="text-[10px] font-bold uppercase text-wr-accent mb-1">{item.title}</h4>
-                  <p className="text-[10px] text-wr-dim">{item.desc}</p>
+                  <h4 className="text-[11px] font-bold uppercase text-wr-accent mb-1">{item.title}</h4>
+                  <p className="text-[11px] text-wr-dim">{item.desc}</p>
                 </div>
               ))}
             </div>
@@ -1410,15 +1508,15 @@ export function SMSWall() {
 
           {/* ═══ INFO CARDS (One-Time SMS) ═══ */}
           {activeTab === 'sms' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center mx-2 md:mx-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mx-2 md:mx-0">
             {[
-              { title: t('sms.info_pay_title'), desc: t('sms.info_pay_desc') },
-              { title: t('sms.info_refund_title'), desc: t('sms.info_refund_desc') },
-              { title: t('sms.info_services_title'), desc: t('sms.info_services_desc') },
+              { title: t('sms.info_pay_title'), desc: t('sms.info_pay_desc'), tone: 'text-wr-accent' },
+              { title: t('sms.info_refund_title'), desc: t('sms.info_refund_desc'), tone: 'text-wr-info' },
+              { title: t('sms.info_services_title'), desc: t('sms.info_services_desc'), tone: 'text-wr-secondary' },
             ].map(item => (
-              <div key={item.title} className="p-4 rounded-sm border border-wr-border/50 bg-wr-surface/30">
-                <h4 className="text-[10px] font-bold uppercase text-wr-accent mb-1">{item.title}</h4>
-                <p className="text-[10px] text-wr-dim">{item.desc}</p>
+              <div key={item.title} className="p-4 rounded-sm border border-wr-border bg-wr-surface/40">
+                <h4 className={`text-[11px] font-mono font-bold uppercase tracking-[0.14em] mb-1 ${item.tone}`}>{item.title}</h4>
+                <p className="text-[11px] text-wr-dim leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -1426,24 +1524,24 @@ export function SMSWall() {
 
           {/* ═══ WHY CHOOSE SMS WALL ═══ */}
           <div className="mx-2 md:mx-0 space-y-6">
-            <div className="text-center space-y-2">
-              <h2 className="font-mono text-sm md:text-base font-bold uppercase tracking-widest text-current">
+            <div className="space-y-2">
+              <h2 className="font-mono text-[11px] md:text-xs font-bold uppercase tracking-[0.2em] text-wr-dim">
                 {t('sms.why_title')}
               </h2>
-              <div className="mx-auto w-12 h-px bg-wr-accent" />
+              <div className="w-12 h-px bg-wr-accent" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {([
-                { icon: <Shield size={18} />, title: t('sms.why_anonymous_title'), desc: t('sms.why_anonymous_desc') },
-                { icon: <Globe size={18} />, title: t('sms.why_global_title'), desc: t('sms.why_global_desc') },
-                { icon: <Zap size={18} />, title: t('sms.why_instant_title'), desc: t('sms.why_instant_desc') },
-                { icon: <Wallet size={18} />, title: t('sms.why_crypto_title'), desc: t('sms.why_crypto_desc') },
-                { icon: <RefreshCw size={18} />, title: t('sms.why_refund_title'), desc: t('sms.why_refund_desc') },
-                { icon: <Layers size={18} />, title: t('sms.why_providers_title'), desc: t('sms.why_providers_desc') },
+                { icon: <Shield size={18} />, title: t('sms.why_anonymous_title'), desc: t('sms.why_anonymous_desc'), tone: 'text-wr-accent' },
+                { icon: <Globe size={18} />, title: t('sms.why_global_title'), desc: t('sms.why_global_desc'), tone: 'text-wr-info' },
+                { icon: <Zap size={18} />, title: t('sms.why_instant_title'), desc: t('sms.why_instant_desc'), tone: 'text-wr-secondary' },
+                { icon: <Wallet size={18} />, title: t('sms.why_crypto_title'), desc: t('sms.why_crypto_desc'), tone: 'text-wr-secondary' },
+                { icon: <RefreshCw size={18} />, title: t('sms.why_refund_title'), desc: t('sms.why_refund_desc'), tone: 'text-wr-accent' },
+                { icon: <Layers size={18} />, title: t('sms.why_providers_title'), desc: t('sms.why_providers_desc'), tone: 'text-wr-info' },
               ]).map((card) => (
-                <div key={card.title} className="p-4 rounded-sm border border-wr-border bg-wr-surface space-y-2 hover:border-wr-accent/30 transition-colors">
-                  <div className="text-wr-accent">{card.icon}</div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-current">{card.title}</h3>
+                <div key={card.title} className="p-4 rounded-sm border border-wr-border bg-wr-surface space-y-2 hover:border-wr-accent/40 transition-colors">
+                  <div className={card.tone}>{card.icon}</div>
+                  <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-current">{card.title}</h3>
                   <p className="text-xs text-wr-dim leading-relaxed">{card.desc}</p>
                 </div>
               ))}
@@ -1452,29 +1550,29 @@ export function SMSWall() {
 
           {/* ═══ HOW IT WORKS ═══ */}
           <div className="mx-2 md:mx-0 space-y-6">
-            <div className="text-center space-y-2">
-              <h2 className="font-mono text-sm md:text-base font-bold uppercase tracking-widest text-current">
+            <div className="space-y-2">
+              <h2 className="font-mono text-[11px] md:text-xs font-bold uppercase tracking-[0.2em] text-wr-dim">
                 {t('sms.how_title')}
               </h2>
-              <div className="mx-auto w-12 h-px bg-wr-accent" />
+              <div className="w-12 h-px bg-wr-info" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-0 relative">
               {/* Connector lines (desktop only) */}
-              <div className="hidden md:block absolute top-8 left-[calc(33.33%+0.5rem)] right-[calc(33.33%+0.5rem)] h-px bg-wr-accent/30" />
+              <div className="hidden md:block absolute top-8 left-[calc(33.33%+0.5rem)] right-[calc(33.33%+0.5rem)] h-px bg-wr-border" />
               {([
-                { num: '01', icon: <Search size={20} />, title: t('sms.how_step1_title'), desc: t('sms.how_step1_desc') },
-                { num: '02', icon: <Wallet size={20} />, title: t('sms.how_step2_title'), desc: t('sms.how_step2_desc') },
-                { num: '03', icon: <MessageSquare size={20} />, title: t('sms.how_step3_title'), desc: t('sms.how_step3_desc') },
+                { num: '01', icon: <Search size={20} />, title: t('sms.how_step1_title'), desc: t('sms.how_step1_desc'), tone: 'border-wr-info/30 bg-wr-info/10 text-wr-info', label: 'text-wr-info' },
+                { num: '02', icon: <Wallet size={20} />, title: t('sms.how_step2_title'), desc: t('sms.how_step2_desc'), tone: 'border-wr-accent/30 bg-wr-accent/10 text-wr-accent', label: 'text-wr-accent' },
+                { num: '03', icon: <MessageSquare size={20} />, title: t('sms.how_step3_title'), desc: t('sms.how_step3_desc'), tone: 'border-wr-secondary/30 bg-wr-secondary/10 text-wr-secondary', label: 'text-wr-secondary' },
               ]).map((step, i) => (
                 <div key={step.num} className="flex flex-col items-center text-center space-y-3 relative px-4">
-                  <div className="relative z-10 w-16 h-16 rounded-full bg-wr-accent/10 border border-wr-accent/30 flex items-center justify-center text-wr-accent">
+                  <div className={`relative z-10 w-16 h-16 rounded-sm border flex items-center justify-center ${step.tone}`}>
                     {step.icon}
                   </div>
-                  <div className="text-xs text-wr-accent font-mono font-bold tracking-widest">{step.num}</div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-current">{step.title}</h3>
+                  <div className={`text-[11px] font-mono font-bold tracking-[0.18em] ${step.label}`}>{step.num}</div>
+                  <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-current">{step.title}</h3>
                   <p className="text-xs text-wr-dim leading-relaxed max-w-xs">{step.desc}</p>
                   {/* Vertical connector for mobile */}
-                  {i < 2 && <div className="md:hidden w-px h-6 bg-wr-accent/30" />}
+                  {i < 2 && <div className="md:hidden w-px h-6 bg-wr-border" />}
                 </div>
               ))}
             </div>
@@ -1482,11 +1580,11 @@ export function SMSWall() {
 
           {/* ═══ FAQ ACCORDION ═══ */}
           <div className="mx-2 md:mx-0 space-y-6">
-            <div className="text-center space-y-2">
-              <h2 className="font-mono text-sm md:text-base font-bold uppercase tracking-widest text-current">
+            <div className="space-y-2">
+              <h2 className="font-mono text-[11px] md:text-xs font-bold uppercase tracking-[0.2em] text-wr-dim">
                 {t('sms.faq_title')}
               </h2>
-              <div className="mx-auto w-12 h-px bg-wr-accent" />
+              <div className="w-12 h-px bg-wr-secondary" />
             </div>
             <div className="space-y-2">
               {([1, 2, 3, 4, 5, 6] as const).map((n) => {
@@ -1495,7 +1593,7 @@ export function SMSWall() {
                   <div key={n} className="border border-wr-border rounded-sm bg-wr-surface overflow-hidden">
                     <button
                       onClick={() => setFaqOpen(isOpen ? null : n)}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-wr-base/50 transition-colors"
+                      className="min-h-11 w-full flex items-center justify-between p-4 text-left hover:bg-wr-base/50 transition-colors"
                     >
                       <span className="text-xs font-bold text-current pr-4">{t(`sms.faq_q${n}`)}</span>
                       <ChevronDown
@@ -1522,12 +1620,12 @@ export function SMSWall() {
       {/* ═══ EXTEND RENTAL MODAL ═══ */}
       {showExtendModal && (
         <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="border border-wr-accent bg-wr-base p-0 max-w-sm w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm">
-            <button onClick={() => setShowExtendModal(null)} className="absolute top-4 right-4 text-wr-dim hover:text-wr-accent z-10"><X size={20} /></button>
+          <div className="border border-wr-secondary/60 bg-wr-base p-0 max-w-sm w-full relative shadow-2xl overflow-hidden rounded-sm">
+            <button onClick={() => setShowExtendModal(null)} className="absolute top-2.5 right-2.5 min-h-11 min-w-11 p-1.5 text-wr-dim hover:text-wr-secondary z-10"><X size={20} /></button>
 
-            <div className="p-3 md:p-4 border-b bg-wr-accent/10 border-wr-accent/30 text-wr-accent flex items-center gap-2">
+            <div className="p-3 md:p-4 border-b bg-wr-secondary/10 border-wr-secondary/30 text-wr-secondary flex items-center gap-2">
               <Calendar size={14} />
-              <span className="text-xs font-bold tracking-widest uppercase">{t('sms.extend_rental')}</span>
+              <span className="text-[11px] font-mono font-bold tracking-[0.18em] uppercase">{t('sms.extend_rental')}</span>
             </div>
 
             <div className="p-4 md:p-6 space-y-4">
@@ -1538,17 +1636,17 @@ export function SMSWall() {
                     key={days}
                     onClick={() => handleRentalExtend(showExtendModal, days)}
                     disabled={extendingRental}
-                    className="py-4 border-2 border-wr-border hover:border-wr-accent bg-wr-surface/50 hover:bg-wr-accent/5 rounded-sm transition-all text-center disabled:opacity-30 disabled:cursor-wait"
+                    className="min-h-20 py-4 border border-wr-border hover:border-wr-secondary bg-wr-surface/50 hover:bg-wr-secondary/5 rounded-sm transition-colors text-center disabled:opacity-30 disabled:cursor-wait"
                   >
-                    <div className="text-xl font-bold font-mono text-wr-accent">{days}d</div>
-                    <div className="text-[9px] text-wr-dim uppercase tracking-widest mt-1">
+                    <div className="text-xl font-bold font-mono text-current tabular-nums">{days}d</div>
+                    <div className="text-[11px] font-mono text-wr-dim uppercase tracking-[0.14em] mt-1">
                       {days === 1 ? '1 Day' : `${days} Days`}
                     </div>
                   </button>
                 ))}
               </div>
               {extendingRental && (
-                <div className="flex items-center justify-center gap-2 text-xs text-wr-accent">
+                <div className="flex items-center justify-center gap-2 text-xs text-wr-secondary">
                   <RefreshCw size={12} className="animate-spin" /> {t('sms.extending')}
                 </div>
               )}

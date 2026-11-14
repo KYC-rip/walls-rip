@@ -402,7 +402,6 @@ export function ProxyWall() {
             applicationCategory: 'UtilitiesApplication',
             operatingSystem: 'Web',
             description: 'Anonymous residential, datacenter, and mobile proxies. SOCKS5 & HTTP. Global coverage.',
-            offers: { '@type': 'Offer', price: '3.00', priceCurrency: 'USD', description: 'Starting price for proxy access' },
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
           },
           {

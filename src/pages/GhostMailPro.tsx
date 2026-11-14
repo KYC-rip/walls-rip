@@ -38,7 +38,7 @@ export default function GhostMailPro() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center text-current relative">
+    <div className="min-h-screen flex flex-col items-center text-current relative font-mono antialiased">
       <SEO title="Ghost Mail Pro — persistent private email with send + aliases"
         description="Persistent, send-capable, no-KYC private email. Fixed address + aliases, compose & reply, pay monthly with Monero or Lightning." path="/mail/pro" />
       <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
@@ -50,16 +50,16 @@ export default function GhostMailPro() {
             <Dashboard session={session} onSignOut={() => saveSession(null)} />
           </div>
         ) : (
-          <div className="max-w-5xl mx-auto pb-8 md:pb-12">
+          <div className="max-w-6xl mx-auto pb-8 md:pb-12">
             {/* Hero */}
-            <div className="text-center py-8 md:py-10 scale-90 md:scale-100 origin-top">
-              <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-wr-accent/30 bg-wr-accent/10 text-wr-accent px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] mb-5">
-                <Crown size={13} /> {t('gmpro.premium_tier', 'Premium Tier')}
+            <div className="pt-8 md:pt-12 pb-6 md:pb-8 mb-8 md:mb-10 border-b border-wr-border/70">
+              <div className="inline-flex items-center gap-2 border border-wr-secondary/40 bg-wr-secondary/10 text-wr-secondary px-2.5 py-1 rounded-xs text-[10px] font-bold uppercase tracking-[0.18em] mb-4">
+                <Crown size={12} /> {t('gmpro.premium_tier', 'Premium Tier')}
               </div>
-              <h1 className="font-display text-4xl md:text-6xl font-black tracking-tight mb-3">
-                {t('gmpro.title_a', 'Ghost Mail')} <span className="text-wr-accent">{t('gmpro.title_b', 'Pro')}</span>
+              <h1 className="font-display text-4xl md:text-6xl font-black tracking-tight leading-none mb-4">
+                {t('gmpro.title_a', 'Ghost Mail')} <span className="text-wr-secondary">{t('gmpro.title_b', 'Pro')}</span>
               </h1>
-              <p className="text-wr-dim text-sm md:text-base max-w-xl mx-auto leading-relaxed">{t('gmpro.subtitle', 'A persistent private inbox you can send from — fixed address, aliases, compose & reply. No KYC, pay monthly in Monero or Lightning.')}</p>
+              <p className="text-wr-dim text-sm md:text-base max-w-xl leading-relaxed">{t('gmpro.subtitle', 'A persistent private inbox you can send from — fixed address, aliases, compose & reply. No KYC, pay monthly in Monero or Lightning.')}</p>
             </div>
             <Subscribe onActivated={saveSession} />
           </div>
@@ -129,21 +129,21 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
   const walletUri = pay ? (pay.method === 'XMR' ? qrValue : pay.method === 'LN' ? `lightning:${pay.address}` : (pay.paymentUrl || '')) : '';
   if (pay) {
     return (
-      <div className="max-w-md w-full mx-auto bg-wr-surface border border-wr-border rounded-lg p-6 text-center space-y-4">
-        <div className="flex items-center justify-center gap-2 text-sm font-bold text-wr-accent"><Loader2 size={16} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
-        <p className="text-xs text-wr-dim">{pay.email} · {t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
-        {pay.method === 'USDT' && <p className="text-[11px] text-wr-accent font-bold uppercase tracking-wider">{CHAIN_LABEL[(pay.chain as UsdtChain)] || pay.chain} {t('gmpro.network_only', '— send on this network only')}</p>}
+      <div className="max-w-md w-full mx-auto bg-wr-surface border border-wr-border rounded-sm p-6 text-center space-y-4">
+        <div className="flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-wr-warning"><Loader2 size={14} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
+        <p className="text-[11px] text-wr-dim font-mono">{pay.email} · {t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
+        {pay.method === 'USDT' && <p className="text-[11px] text-wr-warning font-bold uppercase tracking-[0.14em]">{CHAIN_LABEL[(pay.chain as UsdtChain)] || pay.chain} {t('gmpro.network_only', '— send on this network only')}</p>}
         <div className="bg-white p-4 rounded-sm inline-block"><QRCodeCanvas value={qrValue} size={190} /></div>
-        <button onClick={() => copy(pay.address)} className="w-full flex items-center justify-between gap-2 bg-wr-base border border-wr-border rounded-sm px-3 py-2.5 text-[11px] font-mono">
+        <button onClick={() => copy(pay.address)} className="w-full min-h-[44px] flex items-center justify-between gap-2 bg-wr-base border border-wr-border rounded-sm px-3 py-2.5 text-[11px] font-mono">
           <span className="truncate text-wr-dim">{pay.address}</span><Copy size={13} className="text-wr-dim shrink-0" />
         </button>
         {walletUri && (
-          <a href={walletUri} className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm bg-wr-accent text-black hover:bg-wr-accent/90 transition-all">
+          <a href={walletUri} className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3 text-[11px] font-bold uppercase tracking-[0.16em] rounded-sm bg-wr-accent text-black hover:brightness-110 transition-all">
             <Wallet size={14} /> {pay.method === 'USDT' ? t('gmpro.open_pay', 'Open payment page') : t('gmpro.open_wallet', 'Open in wallet')}
           </a>
         )}
         {polling && <p className="text-[11px] text-wr-dim">{t('gmpro.auto_activate', 'Activates automatically once the payment confirms. Keep this page open.')}</p>}
-        <button onClick={() => setPay(null)} className="text-xs text-wr-dim hover:text-current uppercase tracking-widest">{t('common.cancel', 'Cancel')}</button>
+        <button onClick={() => setPay(null)} className="min-h-[44px] text-[11px] text-wr-dim hover:text-current uppercase tracking-[0.16em]">{t('common.cancel', 'Cancel')}</button>
       </div>
     );
   }
@@ -154,63 +154,76 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
   const features = [
     { icon: ShieldHalf, title: t('gmpro.feat_fixed_title', 'Fixed address'), body: t('gmpro.feat_fixed_body', "A permanent inbox that's yours — not a burner that vanishes in 10 minutes.") },
     { icon: Send, title: t('gmpro.feat_send_title', 'Send & reply'), body: t('gmpro.feat_send_body', 'Full two-way mail. Compose, reply and thread from your address or any alias.') },
-    { icon: AtSign, title: t('gmpro.feat_alias_title', 'Unlimited aliases'), body: t('gmpro.feat_alias_body', 'Spin up per-service aliases; every one lands in the same inbox. Kill any at will.') },
+    { icon: AtSign, title: t('gmpro.feat_alias_title', 'Aliases per plan'), body: t('gmpro.feat_alias_body', 'Up to 10 aliases on PRO or 20 on PRO+. Every alias lands in the same inbox.') },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Feature strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {features.map((f) => (
-          <div key={f.title} className="border border-wr-border bg-wr-surface rounded-lg p-5">
-            <div className="text-wr-accent mb-3"><f.icon size={20} /></div>
-            <div className="text-sm font-bold mb-1">{f.title}</div>
-            <div className="text-xs text-wr-dim leading-relaxed">{f.body}</div>
+          <div key={f.title} className="border border-wr-border bg-wr-surface rounded-sm p-5">
+            <div className="text-wr-secondary mb-3"><f.icon size={18} /></div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.14em] mb-1.5">{f.title}</div>
+            <div className="text-[11px] text-wr-dim leading-relaxed">{f.body}</div>
           </div>
         ))}
       </div>
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-5 items-start">
         {/* Left: plan + address + method */}
-        <div className="space-y-4">
-          <div className="text-[11px] text-wr-dim uppercase tracking-widest font-bold">{t('gmpro.choose_plan', 'Choose your plan')}</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {plans && (Object.keys(plans.plans) as ProPlan[]).map((p) => {
-              const d = plans.plans[p]; const active = plan === p; const popular = p === 'PRO_PLUS';
-              return (
-                <button key={p} onClick={() => setPlan(p)} className={`text-left rounded-lg p-5 border transition-all ${active ? 'border-wr-accent bg-wr-accent/5' : 'border-wr-border bg-wr-surface hover:border-wr-accent/40'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-black tracking-wide flex items-center gap-2">{d.label}{popular && <span className="text-[9px] px-1.5 py-0.5 rounded-xs bg-wr-accent/15 text-wr-accent tracking-widest">{t('gmpro.popular', 'POPULAR')}</span>}</span>
-                    {active && <Check size={16} className="text-wr-accent" />}
-                  </div>
-                  <div className="text-3xl font-black text-wr-accent leading-none">${d.monthlyUSD}<span className="text-xs text-wr-dim font-bold">/mo</span></div>
-                  <div className="text-[11px] text-wr-dim mt-2">{d.aliasLimit} {t('gmpro.aliases', 'aliases')} · {t('gmpro.send_recv', 'send + receive')} · {t('gmpro.persistent', 'persistent')}</div>
-                </button>
-              );
-            })}
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <div className="text-[11px] text-wr-dim uppercase tracking-[0.18em] font-bold">#01 // {t('gmpro.choose_plan', 'Choose your plan')}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {plans && (Object.keys(plans.plans) as ProPlan[]).map((p) => {
+                const d = plans.plans[p]; const active = plan === p; const popular = p === 'PRO_PLUS';
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPlan(p)}
+                    className={`text-left rounded-sm p-5 border transition-colors ${active ? 'border-wr-secondary bg-wr-secondary/[0.08]' : 'border-wr-border bg-wr-surface hover:border-wr-secondary/40'}`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em]">
+                        {d.label}
+                        {popular && <span className="text-[9px] px-1.5 py-0.5 rounded-xs border border-wr-secondary/40 bg-wr-secondary/10 text-wr-secondary tracking-[0.12em]">{t('gmpro.popular', 'POPULAR')}</span>}
+                      </span>
+                      {active && <Check size={15} className="text-wr-secondary shrink-0" />}
+                    </div>
+                    <div className="flex items-baseline gap-1 font-mono">
+                      <span className={`text-3xl font-black leading-none ${active ? 'text-wr-secondary' : 'text-current'}`}>${d.monthlyUSD}</span>
+                      <span className="text-[11px] text-wr-dim font-bold">/mo</span>
+                    </div>
+                    <div className="mt-3 text-[11px] text-wr-dim font-mono">{d.aliasLimit} {t('gmpro.aliases', 'aliases')} · {t('gmpro.send_recv', 'send + receive')} · {t('gmpro.persistent', 'persistent')}</div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="bg-wr-surface border border-wr-border rounded-lg p-5 space-y-4">
-            <label className="text-[11px] text-wr-dim uppercase tracking-widest font-bold">{t('gmpro.choose_address', 'Choose your address')}</label>
+          <div className="bg-wr-surface border border-wr-border rounded-sm p-5 space-y-4">
+            <label className="block text-[11px] text-wr-dim uppercase tracking-[0.16em] font-bold">{t('gmpro.choose_address', 'Choose your address')}</label>
             <div className="flex gap-2">
-              <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="yourname" className="flex-1 px-3 py-2.5 bg-wr-base border border-wr-border rounded-sm font-mono text-sm outline-none focus:border-wr-accent/50" />
+              <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="yourname" className="flex-1 min-w-0 min-h-[44px] px-3 py-2.5 bg-wr-base border border-wr-border rounded-sm font-mono text-sm outline-none focus:border-wr-accent/60" />
               <span className="flex items-center text-wr-dim font-mono text-sm">@</span>
-              <select value={domain} onChange={(e) => setDomain(e.target.value)} className="px-2 py-2.5 bg-wr-base border border-wr-border rounded-sm font-mono text-sm outline-none">
+              <select value={domain} onChange={(e) => setDomain(e.target.value)} className="min-h-[44px] px-2 py-2.5 bg-wr-base border border-wr-border rounded-sm font-mono text-sm outline-none focus:border-wr-accent/60">
                 {(plans?.domains || ['vigilpro.xyz', 'vigilplus.xyz']).map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
-            <div className="text-[11px] text-wr-dim uppercase tracking-widest font-bold pt-1">{t('gmpro.payment_method', 'Payment method')}</div>
-            <div className="flex gap-2">
+
+            <div className="text-[11px] text-wr-dim uppercase tracking-[0.16em] font-bold pt-1">{t('gmpro.payment_method', 'Payment method')}</div>
+            <div className="grid grid-cols-3 gap-2">
               {(['XMR', 'LN', 'USDT'] as const).map((m) => (
-                <button key={m} onClick={() => setMethod(m)} className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border transition-all ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim hover:text-current'}`}>
+                <button key={m} onClick={() => setMethod(m)} className={`min-h-[44px] py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] rounded-sm border transition-colors ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim hover:border-wr-accent/40 hover:text-current'}`}>
                   {m === 'XMR' ? 'Monero' : m === 'LN' ? 'Lightning' : 'USDT'}
                 </button>
               ))}
             </div>
             {method === 'USDT' && (
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {(['tron', 'eth'] as const).map((ch) => (
-                  <button key={ch} onClick={() => setChain(ch)} className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider rounded-sm border transition-all ${chain === ch ? 'border-wr-accent text-wr-accent bg-wr-accent/5' : 'border-wr-border text-wr-dim hover:text-current'}`}>
+                  <button key={ch} onClick={() => setChain(ch)} className={`min-h-[44px] py-2.5 text-[11px] font-bold uppercase tracking-[0.1em] rounded-sm border transition-colors ${chain === ch ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/40'}`}>
                     {CHAIN_LABEL[ch]}
                   </button>
                 ))}
@@ -220,20 +233,20 @@ function Subscribe({ onActivated }: { onActivated: (s: Session) => void }) {
         </div>
 
         {/* Right: summary + subscribe */}
-        <div className="border border-wr-accent/25 rounded-xl bg-wr-surface p-6 space-y-5 lg:sticky lg:top-6">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-wr-accent"><Crown size={15} /> {t('gmpro.your_subscription', 'Your subscription')}</div>
-          <div className="space-y-2.5 text-sm">
-            <div className="flex justify-between gap-3"><span className="text-wr-dim">{t('gmpro.address', 'Address')}</span><span className="font-mono truncate">{username || 'yourname'}@{domain}</span></div>
-            <div className="flex justify-between"><span className="text-wr-dim">{t('gmpro.plan', 'Plan')}</span><span className="font-bold">{plans?.plans[plan].label || (plan === 'PRO_PLUS' ? 'Ghost Pro+' : 'Ghost Pro')}</span></div>
-            <div className="flex justify-between"><span className="text-wr-dim">{t('gmpro.pay_with', 'Pay with')}</span><span className="font-bold">{methodName}</span></div>
-            <div className="h-px bg-wr-border my-1" />
-            <div className="flex justify-between items-baseline"><span className="text-wr-dim">{t('gmpro.billed_monthly', 'Billed monthly')}</span><span className="text-2xl font-black text-wr-accent">{monthlyUSD != null ? `$${monthlyUSD}` : '—'}</span></div>
+        <div className="border border-wr-secondary/30 rounded-sm bg-wr-surface p-6 space-y-5 lg:sticky lg:top-6">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-wr-secondary"><Crown size={14} /> {t('gmpro.your_subscription', 'Your subscription')}</div>
+          <div className="space-y-2.5 text-[11px] font-mono">
+            <div className="flex justify-between gap-3"><span className="text-wr-dim uppercase tracking-[0.1em]">{t('gmpro.address', 'Address')}</span><span className="truncate text-current">{username || 'yourname'}@{domain}</span></div>
+            <div className="flex justify-between gap-3"><span className="text-wr-dim uppercase tracking-[0.1em]">{t('gmpro.plan', 'Plan')}</span><span className="font-bold text-current">{plans?.plans[plan].label || (plan === 'PRO_PLUS' ? 'Ghost Pro+' : 'Ghost Pro')}</span></div>
+            <div className="flex justify-between gap-3"><span className="text-wr-dim uppercase tracking-[0.1em]">{t('gmpro.pay_with', 'Pay with')}</span><span className="font-bold text-current">{methodName}</span></div>
+            <div className="h-px bg-wr-border my-2" />
+            <div className="flex justify-between items-baseline pt-0.5"><span className="text-wr-dim uppercase tracking-[0.1em]">{t('gmpro.billed_monthly', 'Billed monthly')}</span><span className="text-2xl font-black text-wr-secondary">{monthlyUSD != null ? `$${monthlyUSD}` : '—'}</span></div>
           </div>
-          <button onClick={start} disabled={busy || !username} className="w-full py-3.5 text-xs font-black uppercase tracking-widest rounded-md bg-wr-accent text-black hover:bg-wr-accent/90 disabled:opacity-50 flex items-center justify-center gap-2">
+          <button onClick={start} disabled={busy || !username} className="w-full min-h-[48px] py-3.5 text-[11px] font-black uppercase tracking-[0.18em] rounded-sm bg-wr-accent text-black hover:brightness-110 disabled:opacity-40 flex items-center justify-center gap-2 transition-all">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Crown size={14} />} {t('gmpro.subscribe', 'Subscribe')} — ${monthlyUSD ?? ''}/mo
           </button>
           <div className="flex items-center justify-center gap-2 text-[11px] text-wr-dim"><ShieldCheck size={13} /> {t('gmpro.auto_activate_short', 'Activates automatically once payment confirms')}</div>
-          <button onClick={restore} className="w-full text-[11px] text-wr-dim hover:text-current">{t('gmpro.have_account', 'Already have a Pro account? Restore it →')}</button>
+          <button onClick={restore} className="w-full min-h-[44px] text-[11px] text-wr-dim hover:text-wr-secondary transition-colors">{t('gmpro.have_account', 'Already have a Pro account? Restore it →')}</button>
         </div>
       </div>
     </div>
@@ -275,53 +288,61 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
   return (
     <div className="space-y-3">
       {(expiringSoon || sendDisabled) && (
-        <div className={`text-[11px] rounded-md p-3 flex items-center justify-between gap-2 ${sendDisabled ? 'text-wr-error bg-wr-error/5 border border-wr-error/20' : 'text-wr-accent bg-wr-accent/5 border border-wr-accent/20'}`}>
-          <span className="flex items-center gap-2"><Clock size={13} />
+        <div className={`text-[11px] rounded-sm p-3 flex flex-wrap items-center justify-between gap-2 border ${sendDisabled ? 'text-wr-error bg-wr-error/[0.06] border-wr-error/30' : 'text-wr-warning bg-wr-warning/[0.06] border-wr-warning/30'}`}>
+          <span className="flex items-center gap-2 font-mono">
+            <Clock size={13} />
             {sendDisabled ? t('gmpro.lapsed', 'Subscription lapsed — renew to re-enable sending.') : `${t('gmpro.expiring', 'Subscription renews in')} ${daysLeft} ${t('gmpro.days', 'days')}.`}
           </span>
-          <button onClick={() => setShowRenew(true)} className="shrink-0 font-bold uppercase tracking-widest hover:underline">{t('gmpro.renew_now', 'Renew now')} →</button>
+          <button onClick={() => setShowRenew(true)} className="shrink-0 min-h-[36px] font-bold uppercase tracking-[0.14em] hover:underline">{t('gmpro.renew_now', 'Renew now')} →</button>
         </div>
       )}
 
       {showRenew && <RenewModal session={session} monthlyUSD={monthlyUSD} onClose={() => setShowRenew(false)} onRenewed={() => { setShowRenew(false); loadAcct(); }} />}
 
-      <div className="grid md:grid-cols-[236px_1fr] gap-0 border border-wr-border rounded-lg overflow-hidden bg-wr-surface h-[calc(100dvh-190px)] min-h-[560px]">
+      <div className="grid md:grid-cols-[236px_1fr] gap-0 border border-wr-border rounded-sm overflow-hidden bg-wr-surface md:h-[calc(100dvh-190px)] md:min-h-[560px]">
         {/* Rail */}
         <aside className="border-b md:border-b-0 md:border-r border-wr-border bg-wr-base/40 flex flex-col min-h-0">
           <div className="p-4">
-            <div className="border border-wr-border rounded-lg bg-wr-surface p-3.5">
-              <div className="flex items-center gap-2 mb-1"><Crown size={15} className="text-wr-accent" /><span className="text-xs font-bold tracking-wide">{acct?.plan === 'PRO_PLUS' ? 'GHOST PRO+' : 'GHOST PRO'}</span></div>
-              <div className="font-mono text-xs text-wr-info truncate" title={session.email}>{session.email}</div>
-              <div className="text-[10px] text-wr-dim mt-1.5 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-wr-accent" />
+            <div className="border border-wr-secondary/30 bg-wr-surface rounded-sm p-3.5">
+              <div className="flex items-center gap-2 mb-1.5 text-wr-secondary">
+                <Crown size={14} />
+                <span className="text-[11px] font-bold uppercase tracking-[0.16em]">{acct?.plan === 'PRO_PLUS' ? 'GHOST PRO+' : 'GHOST PRO'}</span>
+              </div>
+              <div className="font-mono text-[11px] text-current truncate" title={session.email}>{session.email}</div>
+              <div className="text-[11px] text-wr-dim mt-2 flex flex-wrap items-center gap-1.5 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-wr-accent shrink-0" />
                 {acct ? `${acct.aliasesRemaining}/${acct.aliasLimit} ${t('gmpro.aliases_left', 'aliases free')}` : '…'}
                 {acct?.nextBillingAt ? ` · ${t('gmpro.renews', 'renews')} ${new Date(acct.nextBillingAt).toLocaleDateString()}` : ''}
               </div>
             </div>
           </div>
 
-          <nav className="px-3 flex flex-row md:flex-col gap-1 overflow-x-auto">
+          <nav className="px-3 pb-1 grid grid-cols-2 md:grid-cols-1 gap-1.5">
             {navItems.map(([id, Icon, label]) => {
               const active = tab === id;
               return (
-                <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md text-[13px] font-semibold transition-all shrink-0 ${active ? 'bg-wr-accent/12 text-wr-accent' : 'text-wr-dim hover:text-current'}`}>
-                  <Icon size={16} /><span className="flex-1 text-left">{label}</span>
+                <button
+                  key={id}
+                  onClick={() => setTab(id)}
+                  className={`flex items-center gap-2.5 min-h-[44px] px-3 rounded-sm border text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${active ? 'border-wr-accent/50 bg-wr-accent/10 text-wr-accent' : 'border-wr-border text-wr-dim hover:text-current hover:border-wr-accent/30'}`}
+                >
+                  <Icon size={15} /><span className="flex-1 text-left">{label}</span>
                 </button>
               );
             })}
           </nav>
 
-          <div className="mt-auto p-3 flex flex-col gap-1 border-t border-wr-border/60">
-            <button onClick={() => setShowRenew(true)} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-xs font-semibold text-wr-accent hover:bg-wr-accent/10 transition-all"><RefreshCw size={15} /> {t('gmpro.renew_sub', 'Renew subscription')}</button>
-            <button onClick={() => { navigator.clipboard.writeText(session.token); toast.success(t('gmpro.token_copied', 'Access token copied — keep it safe to restore your account')); }} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-xs font-semibold text-wr-dim hover:text-current transition-all"><KeyRound size={15} /> {t('gmpro.copy_token', 'Copy token')}</button>
-            <button onClick={onSignOut} className="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-xs font-semibold text-wr-dim hover:text-current transition-all"><LogOut size={15} /> {t('gmpro.sign_out', 'Sign out')}</button>
+          <div className="mt-auto p-3 flex flex-col gap-1.5 border-t border-wr-border/60">
+            <button onClick={() => setShowRenew(true)} className="flex items-center gap-2.5 min-h-[44px] px-3 rounded-sm border border-wr-border text-[11px] font-bold uppercase tracking-[0.12em] text-wr-accent hover:border-wr-accent/40 hover:bg-wr-accent/5 transition-colors"><RefreshCw size={14} /> {t('gmpro.renew_sub', 'Renew subscription')}</button>
+            <button onClick={() => { navigator.clipboard.writeText(session.token); toast.success(t('gmpro.token_copied', 'Access token copied — keep it safe to restore your account')); }} className="flex items-center gap-2.5 min-h-[44px] px-3 rounded-sm text-[11px] font-bold uppercase tracking-[0.12em] text-wr-dim hover:text-current transition-colors"><KeyRound size={14} /> {t('gmpro.copy_token', 'Copy token')}</button>
+            <button onClick={onSignOut} className="flex items-center gap-2.5 min-h-[44px] px-3 rounded-sm text-[11px] font-bold uppercase tracking-[0.12em] text-wr-dim hover:text-current transition-colors"><LogOut size={14} /> {t('gmpro.sign_out', 'Sign out')}</button>
           </div>
         </aside>
 
         {/* Content */}
-        <section className="min-h-0 flex flex-col bg-wr-base/10">
+        <section className="min-h-[70vh] md:min-h-0 flex flex-col bg-wr-base/10">
           {sendDisabled && tab === 'compose' && (
-            <div className="text-[11px] text-wr-accent bg-wr-accent/5 border-b border-wr-accent/20 p-3 flex items-center gap-2">
+            <div className="text-[11px] text-wr-warning bg-wr-warning/[0.06] border-b border-wr-warning/25 p-3 flex items-center gap-2">
               <ShieldCheck size={14} /> {t('gmpro.send_gated', 'Sending activates once the send-domain finishes onboarding. Receiving works now.')}
             </div>
           )}
@@ -370,40 +391,40 @@ function RenewModal({ session, monthlyUSD, onClose, onRenewed }: { session: Sess
   const qr = pay ? (pay.method === 'XMR' ? `monero:${pay.address}?tx_amount=${pay.amount}` : pay.method === 'LN' ? pay.address.toUpperCase() : pay.address) : '';
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-wr-base border border-wr-border rounded-lg w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-wr-base border border-wr-border rounded-sm w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-3 border-b border-wr-border flex justify-between items-center">
-          <span className="text-sm font-bold flex items-center gap-2"><RefreshCw size={15} className="text-wr-accent" /> {t('gmpro.renew', 'Renew')} — ${monthlyUSD}/mo</span>
-          <button onClick={onClose} className="text-wr-dim"><X size={17} /></button>
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] flex items-center gap-2"><RefreshCw size={14} className="text-wr-secondary" /> {t('gmpro.renew', 'Renew')} — ${monthlyUSD}/mo</span>
+          <button onClick={onClose} className="p-2 -mr-2 text-wr-dim hover:text-current" title={t('common.cancel', 'Cancel')}><X size={17} /></button>
         </div>
         <div className="p-5 space-y-3 text-center">
           {!pay ? (
             <>
-              <p className="text-xs text-wr-dim">{t('gmpro.renew_desc', 'Extend your Pro subscription by one month. Aliases, sending and inbox all continue.')}</p>
-              <div className="flex gap-2">
+              <p className="text-[11px] text-wr-dim leading-relaxed">{t('gmpro.renew_desc', 'Extend your Pro subscription by one month. Aliases, sending and inbox all continue.')}</p>
+              <div className="grid grid-cols-3 gap-2">
                 {(['XMR', 'LN', 'USDT'] as const).map((m) => (
-                  <button key={m} onClick={() => setMethod(m)} className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim'}`}>{m === 'XMR' ? 'Monero' : m === 'LN' ? 'Lightning' : 'USDT'}</button>
+                  <button key={m} onClick={() => setMethod(m)} className={`min-h-[44px] text-[11px] font-bold uppercase tracking-[0.1em] rounded-sm border transition-colors ${method === m ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim hover:border-wr-accent/40'}`}>{m === 'XMR' ? 'Monero' : m === 'LN' ? 'Lightning' : 'USDT'}</button>
                 ))}
               </div>
               {method === 'USDT' && (
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {(['tron', 'eth'] as const).map((ch) => (
-                    <button key={ch} onClick={() => setChain(ch)} className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider rounded-sm border ${chain === ch ? 'border-wr-accent text-wr-accent bg-wr-accent/5' : 'border-wr-border text-wr-dim'}`}>{CHAIN_LABEL[ch]}</button>
+                    <button key={ch} onClick={() => setChain(ch)} className={`min-h-[44px] text-[11px] font-bold uppercase tracking-[0.1em] rounded-sm border transition-colors ${chain === ch ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim'}`}>{CHAIN_LABEL[ch]}</button>
                   ))}
                 </div>
               )}
-              <button onClick={start} disabled={busy} className="w-full py-3 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-accent text-black disabled:opacity-50 flex items-center justify-center gap-2">
+              <button onClick={start} disabled={busy} className="w-full min-h-[48px] py-3 text-[11px] font-black uppercase tracking-[0.16em] rounded-sm bg-wr-accent text-black disabled:opacity-40 flex items-center justify-center gap-2">
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {t('gmpro.renew_now', 'Renew now')}
               </button>
             </>
           ) : (
             <>
-              <div className="flex items-center justify-center gap-2 text-xs font-bold text-wr-accent"><Loader2 size={14} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
-              <p className="text-[11px] text-wr-dim">{t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
-              {pay.method === 'USDT' && <p className="text-[11px] text-wr-accent font-bold uppercase tracking-wider">{CHAIN_LABEL[(pay.chain as UsdtChain)] || pay.chain} {t('gmpro.network_only', '— send on this network only')}</p>}
+              <div className="flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-wr-warning"><Loader2 size={14} className="animate-spin" /> {t('gmpro.awaiting_pay', 'Awaiting payment…')}</div>
+              <p className="text-[11px] text-wr-dim font-mono">{t('gmpro.pay_send', 'Send')} <b className="text-current">{pay.amount} {pay.method === 'XMR' ? 'XMR' : pay.method === 'USDT' ? 'USDT' : 'sats'}</b> (${pay.usd})</p>
+              {pay.method === 'USDT' && <p className="text-[11px] text-wr-warning font-bold uppercase tracking-[0.12em]">{CHAIN_LABEL[(pay.chain as UsdtChain)] || pay.chain} {t('gmpro.network_only', '— send on this network only')}</p>}
               <div className="bg-white p-3 rounded-sm inline-block"><QRCodeCanvas value={qr} size={170} /></div>
-              <button onClick={() => { navigator.clipboard.writeText(pay.address); toast.success('Copied'); }} className="w-full flex items-center justify-between gap-2 bg-wr-surface border border-wr-border rounded-sm px-3 py-2 text-[11px] font-mono"><span className="truncate text-wr-dim">{pay.address}</span><Copy size={12} className="shrink-0 text-wr-dim" /></button>
+              <button onClick={() => { navigator.clipboard.writeText(pay.address); toast.success('Copied'); }} className="w-full min-h-[44px] flex items-center justify-between gap-2 bg-wr-surface border border-wr-border rounded-sm px-3 py-2 text-[11px] font-mono"><span className="truncate text-wr-dim">{pay.address}</span><Copy size={12} className="shrink-0 text-wr-dim" /></button>
               {(pay.method === 'XMR' ? qr : pay.method === 'LN' ? `lightning:${pay.address}` : pay.paymentUrl) && (
-                <a href={pay.method === 'XMR' ? qr : pay.method === 'LN' ? `lightning:${pay.address}` : pay.paymentUrl} className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm bg-wr-accent text-black hover:bg-wr-accent/90 transition-all">
+                <a href={pay.method === 'XMR' ? qr : pay.method === 'LN' ? `lightning:${pay.address}` : pay.paymentUrl} className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3 text-[11px] font-bold uppercase tracking-[0.16em] rounded-sm bg-wr-accent text-black hover:brightness-110 transition-all">
                   <Wallet size={13} /> {pay.method === 'USDT' ? t('gmpro.open_pay', 'Open payment page') : t('gmpro.open_wallet', 'Open in wallet')}
                 </a>
               )}
@@ -478,15 +499,18 @@ function InboxTab({ session, onReply }: { session: Session; onReply: (e: any) =>
   const Row = ({ e, nested }: { e: any; nested?: boolean }) => {
     const selected = open?.id === e.id;
     return (
-      <button onClick={() => setOpen(e)} className={`w-full text-left px-3.5 py-3 border-l-2 border-b border-wr-border/60 transition-colors ${selected ? 'border-l-wr-accent bg-wr-accent/8' : `border-l-transparent hover:bg-wr-accent/5 ${nested ? 'bg-wr-base/30' : ''}`}`}>
-        <div className="flex justify-between gap-2 items-baseline"><span className={`text-[13px] font-bold truncate ${selected ? 'text-wr-accent' : ''}`}>{e.fromName || e.from}</span><span className="text-[10px] text-wr-dim shrink-0">{new Date(e.receivedAt).toLocaleString()}</span></div>
+      <button onClick={() => setOpen(e)} className={`w-full text-left px-3.5 py-3 border-l-2 border-b border-wr-border/60 transition-colors ${selected ? 'border-l-wr-accent bg-wr-accent/10' : `border-l-transparent hover:bg-wr-accent/5 ${nested ? 'bg-wr-base/30' : ''}`}`}>
+        <div className="flex justify-between gap-2 items-baseline">
+          <span className={`text-xs font-bold truncate ${selected ? 'text-wr-accent' : 'text-current'}`}>{e.fromName || e.from}</span>
+          <span className="text-[10px] text-wr-dim shrink-0 font-mono">{new Date(e.receivedAt).toLocaleString()}</span>
+        </div>
         <div className="flex items-center gap-1.5 mt-1">
           {!!e.attachments?.length && (
-            <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-wr-accent" title={`${e.attachments.length} attachment${e.attachments.length > 1 ? 's' : ''}`}>
+            <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-wr-info" title={`${e.attachments.length} attachment${e.attachments.length > 1 ? 's' : ''}`}>
               <Paperclip size={11} />{e.attachments.length > 1 ? e.attachments.length : ''}
             </span>
           )}
-          <span className="text-xs text-wr-dim truncate">{e.subject}</span>
+          <span className="text-[11px] text-wr-dim truncate font-mono">{e.subject}</span>
         </div>
       </button>
     );
@@ -496,22 +520,21 @@ function InboxTab({ session, onReply }: { session: Session; onReply: (e: any) =>
   if (open) {
     return (
       <div className="flex flex-col flex-1 min-h-0">
-        <div className="px-4 py-2.5 border-b border-wr-border flex items-center justify-between gap-3 shrink-0">
-          <button onClick={() => setOpen(null)} className="flex items-center gap-1.5 text-xs font-semibold text-wr-dim hover:text-wr-accent"><ChevronLeft size={16} /> {t('gmpro.back_to_inbox', 'Back to inbox')}</button>
+        <div className="px-3 md:px-4 py-2 border-b border-wr-border flex items-center justify-between gap-3 shrink-0 bg-wr-surface">
+          <button onClick={() => setOpen(null)} className="flex items-center gap-1.5 min-h-[44px] md:min-h-[36px] px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-wr-dim hover:text-wr-accent transition-colors"><ChevronLeft size={16} /> {t('gmpro.back_to_inbox', 'Back to inbox')}</button>
           {confirmDel ? (
-            <span className="flex items-center gap-2.5 text-xs">
-              <span className="text-wr-dim">{t('gmpro.delete_msg_confirm', 'Delete this message?')}</span>
-              <button onClick={() => deleteMsg(open.id)} disabled={deleting} className="font-bold text-red-400 hover:text-red-300 disabled:opacity-50 flex items-center gap-1">{deleting && <Loader2 size={12} className="animate-spin" />}{t('gmpro.yes_delete', 'Delete')}</button>
-              <button onClick={() => setConfirmDel(false)} disabled={deleting} className="text-wr-dim hover:text-current">{t('gmpro.cancel', 'Cancel')}</button>
+            <span className="flex items-center gap-3 text-[11px]">
+              <span className="hidden sm:inline text-wr-dim">{t('gmpro.delete_msg_confirm', 'Delete this message?')}</span>
+              <button onClick={() => deleteMsg(open.id)} disabled={deleting} className="min-h-[44px] md:min-h-[36px] font-bold uppercase tracking-[0.14em] text-wr-error hover:brightness-125 disabled:opacity-50 flex items-center gap-1">{deleting && <Loader2 size={12} className="animate-spin" />}{t('gmpro.yes_delete', 'Delete')}</button>
+              <button onClick={() => setConfirmDel(false)} disabled={deleting} className="min-h-[44px] md:min-h-[36px] text-wr-dim hover:text-current uppercase tracking-[0.14em]">{t('gmpro.cancel', 'Cancel')}</button>
             </span>
-          ) : (
-            <button onClick={() => setConfirmDel(true)} className="flex items-center gap-1.5 text-xs font-semibold text-wr-dim hover:text-red-400" title={t('gmpro.delete_msg', 'Delete message')}><Trash2 size={14} /> {t('gmpro.delete', 'Delete')}</button>
-          )}
+          ) : null}
         </div>
         <EmailReader
           key={open.id}
           email={open}
           onReply={() => onReply(open)}
+          onDelete={() => setConfirmDel(true)}
           attachmentHref={(att: ReaderAttachment) =>
             `${getMailApiBase()}/v1/mail/pro/attachment?email=${encodeURIComponent(session.email)}&token=${encodeURIComponent(session.token)}&emailId=${encodeURIComponent(open.id)}&attId=${encodeURIComponent(att.id)}`}
         />
@@ -522,20 +545,37 @@ function InboxTab({ session, onReply }: { session: Session; onReply: (e: any) =>
   // Inbox list — fills the content pane.
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="p-3.5 border-b border-wr-border/60 shrink-0">
+      <div className="p-3 md:p-3.5 border-b border-wr-border shrink-0 bg-wr-surface">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-wr-dim" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('gmpro.search', 'Search mail…')} className="w-full pl-8 pr-3 py-2 bg-wr-base border border-wr-border rounded-sm text-xs outline-none focus:border-wr-accent/50" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('gmpro.search', 'Search mail…')}
+              className="w-full min-h-[44px] md:min-h-[38px] pl-8 pr-3 bg-wr-base border border-wr-border rounded-sm text-xs outline-none focus:border-wr-accent/60 font-mono"
+            />
           </div>
-          <button onClick={load} className="p-2 border border-wr-border rounded-sm text-wr-dim hover:text-wr-accent hover:border-wr-accent/40 shrink-0" title={t('gmpro.refresh', 'Refresh')}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
+          <button onClick={load} className="min-h-[44px] min-w-[44px] md:min-h-[38px] md:min-w-[38px] flex items-center justify-center border border-wr-border rounded-sm text-wr-dim hover:text-wr-accent hover:border-wr-accent/40 shrink-0 transition-colors" title={t('gmpro.refresh', 'Refresh')}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
         </div>
-        <div className="mt-2.5 text-[10px] text-wr-dim uppercase tracking-widest">
+        <div className="mt-2.5 text-[10px] text-wr-dim uppercase tracking-[0.16em] font-bold">
           {filtered.length} {t('gmpro.messages', 'messages')}{threads.length !== filtered.length ? ` · ${threads.length} ${t('gmpro.threads', 'threads')}` : ''}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
-        {filtered.length === 0 && !loading && <div className="text-center py-10 px-4 text-wr-dim text-sm">{search ? t('gmpro.no_match', 'No mail matches your search.') : t('gmpro.empty_inbox', 'No mail yet. Give your address (or an alias) to someone.')}</div>}
+      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 relative">
+        {loading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-wr-dim pointer-events-none">
+            <RefreshCw size={18} className="animate-spin text-wr-accent" />
+            <span className="text-[11px] uppercase tracking-[0.18em] font-bold">{t('gmpro.loading', 'Loading')}</span>
+          </div>
+        )}
+        {filtered.length === 0 && !loading && (
+          <div className="flex flex-col items-center justify-center text-center px-6 py-16 gap-3">
+            <Inbox size={26} className="text-wr-dim/40" />
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-wr-dim">{search ? t('gmpro.no_results', 'No results') : 'NO MESSAGES YET'}</div>
+            <div className="text-[11px] text-wr-dim/70 font-mono max-w-xs leading-relaxed">{search ? t('gmpro.no_match', 'No mail matches your search.') : t('gmpro.empty_inbox', 'No mail yet. Give your address (or an alias) to someone.')}</div>
+          </div>
+        )}
         {threads.map(([k, msgs]) => {
           if (msgs.length === 1) return <Row key={msgs[0].id} e={msgs[0]} />;
           const isOpen = expanded.has(k);
@@ -543,7 +583,7 @@ function InboxTab({ session, onReply }: { session: Session; onReply: (e: any) =>
             <div key={k}>
               <div className="flex items-stretch">
                 <div className="flex-1 min-w-0"><Row e={msgs[0]} /></div>
-                <button onClick={() => toggle(k)} className="shrink-0 px-2 border-b border-wr-border/60 text-[10px] font-bold text-wr-dim hover:text-wr-accent flex items-center gap-1" title={t('gmpro.thread_toggle', 'Show thread')}>
+                <button onClick={() => toggle(k)} className="shrink-0 px-2.5 min-h-[44px] border-b border-wr-border/60 text-[10px] font-bold text-wr-dim hover:text-wr-accent flex items-center gap-1" title={t('gmpro.thread_toggle', 'Show thread')}>
                   {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />} {msgs.length}
                 </button>
               </div>
@@ -586,34 +626,34 @@ function ComposeTab({ session, acct, disabled, prefill }: { session: Session; ac
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="px-6 py-4 border-b border-wr-border flex items-center justify-between gap-4 shrink-0">
-        <h2 className="text-base font-bold flex items-center gap-2.5"><MailPlus size={17} className="text-wr-accent" /> {t('gmpro.new_message', 'New message')}</h2>
+      <div className="px-4 md:px-6 py-3.5 border-b border-wr-border flex items-center justify-between gap-4 shrink-0 bg-wr-surface">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.16em] flex items-center gap-2.5"><MailPlus size={15} className="text-wr-accent" /> {t('gmpro.new_message', 'New message')}</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 flex flex-col">
-        <div className="flex items-center gap-4 px-6 py-3 border-b border-wr-border/60">
-          <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-widest text-wr-dim">{t('gmpro.from', 'From')}</span>
-          <select value={from} onChange={(e) => setFrom(e.target.value)} className="flex-1 px-3 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-[13px] text-wr-accent outline-none focus:border-wr-accent/50">
+        <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2.5 border-b border-wr-border/60">
+          <span className="w-12 shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-wr-dim">{t('gmpro.from', 'From')}</span>
+          <select value={from} onChange={(e) => setFrom(e.target.value)} className="flex-1 min-w-0 min-h-[44px] px-3 bg-wr-base border border-wr-border rounded-sm font-mono text-[11px] md:text-xs text-current outline-none focus:border-wr-accent/60">
             {froms.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
-          <span className="hidden sm:flex items-center gap-1.5 text-[10px] text-wr-dim"><AtSign size={12} /> {t('gmpro.send_from_alias', 'Send from alias')}</span>
+          <span className="hidden sm:flex items-center gap-1.5 text-[10px] text-wr-dim shrink-0"><AtSign size={12} /> {t('gmpro.send_from_alias', 'Send from alias')}</span>
         </div>
-        <div className="flex items-center gap-4 px-6 py-3 border-b border-wr-border/60">
-          <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-widest text-wr-dim">{t('gmpro.to', 'To')}</span>
-          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="someone@example.com" className="flex-1 bg-transparent font-mono text-[13px] outline-none" />
+        <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2.5 border-b border-wr-border/60">
+          <span className="w-12 shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-wr-dim">{t('gmpro.to', 'To')}</span>
+          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="someone@example.com" className="flex-1 min-w-0 min-h-[44px] bg-transparent font-mono text-xs outline-none" />
         </div>
-        <div className="flex items-center gap-4 px-6 py-3 border-b border-wr-border/60">
-          <span className="w-14 shrink-0 text-[10px] font-bold uppercase tracking-widest text-wr-dim">{t('gmpro.subject', 'Subject')}</span>
-          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t('gmpro.subject', 'Subject')} className="flex-1 bg-transparent text-sm font-semibold outline-none" />
+        <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2.5 border-b border-wr-border/60">
+          <span className="w-12 shrink-0 text-[11px] font-bold uppercase tracking-[0.14em] text-wr-dim">{t('gmpro.subject', 'Subject')}</span>
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t('gmpro.subject', 'Subject')} className="flex-1 min-w-0 min-h-[44px] bg-transparent text-sm font-semibold outline-none" />
         </div>
-        <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={t('gmpro.write', 'Write your message…')} className="flex-1 min-h-[200px] w-full resize-none px-6 py-5 bg-transparent font-mono text-[13px] leading-relaxed text-wr-dim/90 outline-none" />
+        <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={t('gmpro.write', 'Write your message…')} className="flex-1 min-h-[200px] w-full resize-none px-4 md:px-6 py-4 bg-transparent font-mono text-xs md:text-[13px] leading-relaxed text-current/90 outline-none" />
       </div>
 
-      <div className="border-t border-wr-border px-6 py-3.5 flex items-center justify-between gap-3 shrink-0">
-        <button onClick={send} disabled={busy || disabled} className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-wr-accent text-black text-xs font-black uppercase tracking-widest hover:bg-wr-accent/90 disabled:opacity-50">
+      <div className="border-t border-wr-border px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 bg-wr-surface">
+        <button onClick={send} disabled={busy || disabled} className="flex items-center gap-2 min-h-[44px] px-6 rounded-sm bg-wr-accent text-black text-[11px] font-black uppercase tracking-[0.16em] hover:brightness-110 disabled:opacity-40 transition-all">
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {disabled ? t('gmpro.send_soon', 'Sending activates after onboarding') : t('gmpro.send', 'Send')}
         </button>
-        <span className="flex items-center gap-1.5 text-[10px] text-wr-dim uppercase tracking-wider"><Zap size={12} className="text-wr-accent" /> {t('gmpro.relayed', 'Routed through the relay')}</span>
+        <span className="flex items-center gap-1.5 text-[10px] text-wr-dim uppercase tracking-[0.12em]"><Zap size={12} className="text-wr-accent" /> {t('gmpro.relayed', 'Routed through the relay')}</span>
       </div>
     </div>
   );
@@ -652,48 +692,62 @@ function AliasesTab({ session, acct, reload, onDeleted }: { session: Session; ac
   const copy = (s: string) => { navigator.clipboard.writeText(s); setCopied(s); setTimeout(() => setCopied(''), 1500); };
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 p-4 md:p-6 space-y-3">
-      <div className="bg-wr-surface border border-wr-border rounded-lg p-4 space-y-3">
-        <div className="text-[11px] text-wr-dim uppercase tracking-widest font-bold">{t('gmpro.new_alias', 'New alias')} · {acct ? `${acct.aliasesRemaining}/${acct.aliasLimit} ${t('gmpro.free', 'free')}` : ''}</div>
-        <div className="flex gap-2">
-          <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="alias" className="flex-1 px-3 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-accent/50" />
+    <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 p-4 md:p-6 space-y-4">
+      <div className="bg-wr-surface border border-wr-border rounded-sm p-4 space-y-3">
+        <div className="text-[11px] text-wr-dim uppercase tracking-[0.16em] font-bold">
+          {t('gmpro.new_alias', 'New alias')}{acct ? <span className="text-wr-secondary"> · {acct.aliasesRemaining}/{acct.aliasLimit} {t('gmpro.free', 'free')}</span> : null}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} placeholder="alias" className="flex-1 min-w-[140px] min-h-[44px] px-3 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-accent/60" />
           <span className="flex items-center text-wr-dim text-xs">@</span>
-          <select value={domain} onChange={(e) => setDomain(e.target.value)} className="px-2 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none">
+          <select value={domain} onChange={(e) => setDomain(e.target.value)} className="min-h-[44px] px-2 bg-wr-base border border-wr-border rounded-sm font-mono text-[11px] outline-none focus:border-wr-accent/60">
             {(acct?.domains || ['vigilpro.xyz', 'vigilplus.xyz']).map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => create(false)} disabled={busy || !username} className="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm bg-wr-accent text-black disabled:opacity-50 flex items-center justify-center gap-1"><Plus size={13} /> {t('gmpro.add', 'Add')}</button>
-          <button onClick={() => create(true)} disabled={busy} className="px-4 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm border border-wr-border text-wr-dim hover:text-current disabled:opacity-50">{t('gmpro.random', 'Random')}</button>
+          <button onClick={() => create(false)} disabled={busy || !username} className="flex-1 min-h-[44px] text-[11px] font-bold uppercase tracking-[0.16em] rounded-sm bg-wr-accent text-black disabled:opacity-40 flex items-center justify-center gap-1">
+            <Plus size={13} /> {t('gmpro.add', 'Add')}
+          </button>
+          <button onClick={() => create(true)} disabled={busy} className="min-h-[44px] px-4 text-[11px] font-bold uppercase tracking-[0.16em] rounded-sm border border-wr-border text-wr-dim hover:text-current hover:border-wr-accent/40 disabled:opacity-40 transition-colors">{t('gmpro.random', 'Random')}</button>
         </div>
       </div>
+
       <div className="space-y-2">
         {acct?.aliases.map((a) => (
-          <div key={a} className="flex items-center justify-between bg-wr-surface border border-wr-border rounded-md px-3 py-2.5">
-            <button onClick={() => copy(a)} className="text-xs font-mono flex items-center gap-1.5 hover:text-wr-accent truncate">{a} {copied === a ? <Check size={12} className="text-wr-green" /> : <Copy size={11} className="text-wr-dim" />}</button>
-            <button onClick={() => del(a)} className="text-wr-dim hover:text-wr-error shrink-0"><Trash2 size={14} /></button>
+          <div key={a} className="flex items-center justify-between gap-3 bg-wr-surface border border-wr-border rounded-sm px-3 py-2 min-h-[44px]">
+            <button onClick={() => copy(a)} className="flex items-center gap-2.5 min-w-0 text-[11px] font-mono text-current hover:text-wr-secondary transition-colors">
+              <span className="w-7 h-7 shrink-0 flex items-center justify-center border border-wr-secondary/40 bg-wr-secondary/10 text-wr-secondary rounded-xs"><AtSign size={12} /></span>
+              <span className="truncate">{a}</span>
+              {copied === a ? <Check size={12} className="text-wr-accent shrink-0" /> : <Copy size={11} className="text-wr-dim shrink-0" />}
+            </button>
+            <button onClick={() => del(a)} className="min-h-[44px] min-w-[44px] md:min-h-[36px] md:min-w-[36px] flex items-center justify-center text-wr-dim hover:text-wr-error transition-colors shrink-0" title={t('common.cancel', 'Delete')}><Trash2 size={14} /></button>
           </div>
         ))}
-        {acct && acct.aliases.length === 0 && <div className="text-center py-8 text-wr-dim text-sm">{t('gmpro.no_aliases', 'No aliases yet. Create one — all mail lands in this inbox.')}</div>}
+        {acct && acct.aliases.length === 0 && (
+          <div className="text-center py-10 px-4">
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-wr-dim mb-2">{t('gmpro.no_aliases_title', 'No aliases yet')}</div>
+            <div className="text-[11px] text-wr-dim/70 font-mono">{t('gmpro.no_aliases', 'No aliases yet. Create one — all mail lands in this inbox.')}</div>
+          </div>
+        )}
       </div>
 
       {/* Danger zone — full account + data deletion */}
-      <div className="border border-wr-error/30 bg-wr-error/5 rounded-lg p-4 mt-4">
-        <button onClick={() => setDangerOpen((v) => !v)} className="w-full flex items-center justify-between text-[11px] uppercase tracking-widest font-bold text-wr-error/90">
+      <div className="border border-wr-error/30 bg-wr-error/[0.06] rounded-sm p-4 mt-6">
+        <button onClick={() => setDangerOpen((v) => !v)} className="w-full min-h-[44px] flex items-center justify-between text-[11px] uppercase tracking-[0.16em] font-bold text-wr-error/90">
           <span className="flex items-center gap-1.5"><Trash2 size={13} /> {t('gmpro.danger_zone', 'Delete account')}</span>
           {dangerOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
         {dangerOpen && (
           <div className="mt-3 space-y-3">
-            <p className="text-xs text-wr-dim leading-relaxed">
+            <p className="text-[11px] text-wr-dim leading-relaxed">
               {t('gmpro.delete_account_warn', 'Permanently erases this account and everything in it — all messages and attachments, every alias, and your sent history. This cannot be undone.')}
             </p>
-            <label className="block text-[10px] text-wr-dim uppercase tracking-wider">{t('gmpro.type_to_confirm', 'Type your address to confirm')}</label>
-            <input value={confirmAddr} onChange={(e) => setConfirmAddr(e.target.value.toLowerCase())} placeholder={session.email} className="w-full px-3 py-2 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-error/50" />
+            <label className="block text-[11px] text-wr-dim uppercase tracking-[0.14em]">{t('gmpro.type_to_confirm', 'Type your address to confirm')}</label>
+            <input value={confirmAddr} onChange={(e) => setConfirmAddr(e.target.value.toLowerCase())} placeholder={session.email} className="w-full min-h-[44px] px-3 bg-wr-base border border-wr-border rounded-sm font-mono text-xs outline-none focus:border-wr-error/60" />
             <button
               onClick={deleteAccount}
               disabled={wiping || confirmAddr.trim().toLowerCase() !== session.email.toLowerCase()}
-              className="w-full py-2.5 text-xs font-black uppercase tracking-widest rounded-sm bg-wr-error text-black disabled:opacity-40 flex items-center justify-center gap-1.5"
+              className="w-full min-h-[44px] text-[11px] font-black uppercase tracking-[0.16em] rounded-sm bg-wr-error text-black disabled:opacity-40 flex items-center justify-center gap-1.5"
             >
               {wiping ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} {t('gmpro.delete_forever', 'Delete forever')}
             </button>
@@ -710,12 +764,20 @@ function SentTab({ session }: { session: Session }) {
   useEffect(() => { mailApiClient<{ sent: SentItem[] }>(`/v1/mail/pro/sent?email=${encodeURIComponent(session.email)}&token=${encodeURIComponent(session.token)}`).then((r) => setSent(r.sent || [])).catch(() => {}); }, [session]);
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 p-4 md:p-6 space-y-2">
-      {sent.length === 0 && <div className="text-center py-10 text-wr-dim text-sm">{t('gmpro.no_sent', 'Nothing sent yet.')}</div>}
+      {sent.length === 0 && (
+        <div className="text-center py-12 px-4">
+          <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-wr-dim mb-2">NOTHING SENT YET</div>
+          <div className="text-[11px] text-wr-dim/70 font-mono">{t('gmpro.no_sent', 'Nothing sent yet.')}</div>
+        </div>
+      )}
       {sent.map((s) => (
-        <div key={s.id} className="bg-wr-surface border border-wr-border rounded-md p-3">
-          <div className="flex justify-between gap-2"><span className="text-xs font-bold font-mono truncate">→ {s.to}</span><span className="text-[10px] text-wr-dim shrink-0 flex items-center gap-1"><Clock size={10} /> {new Date(s.sentAt).toLocaleString()}</span></div>
-          <div className="text-xs text-wr-dim truncate mt-1">{s.subject}</div>
-          <div className="text-[10px] text-wr-dim mt-1 font-mono">{t('gmpro.from', 'From')}: {s.from}</div>
+        <div key={s.id} className="bg-wr-surface border border-wr-border rounded-sm p-3">
+          <div className="flex justify-between gap-2 items-baseline">
+            <span className="text-[11px] font-bold font-mono truncate">→ {s.to}</span>
+            <span className="text-[10px] text-wr-dim shrink-0 flex items-center gap-1 font-mono"><Clock size={10} /> {new Date(s.sentAt).toLocaleString()}</span>
+          </div>
+          <div className="text-[11px] text-wr-dim truncate mt-1">{s.subject}</div>
+          <div className="text-[10px] text-wr-dim/70 mt-1 font-mono">{t('gmpro.from', 'From')}: {s.from}</div>
         </div>
       ))}
     </div>

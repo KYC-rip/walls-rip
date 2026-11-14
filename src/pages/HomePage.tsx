@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import {
-  Mail, Flame, MessageSquare, Phone, Shield, EyeOff, Zap, Smartphone,
-  ArrowRight, ExternalLink, Lock, Globe, CreditCard, CheckCircle,
-  Server, KeyRound, UserX, Clock, ShieldCheck, Layers, Crown
+  Mail, Crown, MessageSquare, Phone, Shield, EyeOff, Zap, Smartphone,
+  ArrowRight, ExternalLink, Lock, CreditCard,
+  KeyRound, UserX, Clock, Layers, ShieldCheck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -19,142 +19,138 @@ function useLangPrefix() {
   return (path: string) => lang === 'en' ? path : `/${lang}${path === '/' ? '' : path}`;
 }
 
+type Status = 'LIVE' | 'PRO' | 'SOON';
+
+interface Tool {
+  icon: typeof Mail;
+  label: string;
+  nameKey: string;
+  nameFallback: string;
+  descKey: string;
+  descFallback: string;
+  path: string;
+  status: Status;
+  accent: string;
+  tile: string;
+}
+
+const TOOLS: Tool[] = [
+  {
+    icon: Mail,
+    label: 'COMM-01',
+    nameKey: 'home.tool_ghost_mail',
+    nameFallback: 'Ghost Mail',
+    descKey: 'home.v2_tool_mail_desc',
+    descFallback: 'Disposable encrypted inbox with burn timers, custom domains and attachments.',
+    path: '/mail',
+    status: 'LIVE',
+    accent: 'text-wr-accent',
+    tile: 'bg-wr-accent/10',
+  },
+  {
+    icon: Crown,
+    label: 'COMM-02',
+    nameKey: 'home.tool_ghost_mail_pro',
+    nameFallback: 'Ghost Mail Pro',
+    descKey: 'home.v2_tool_pro_desc',
+    descFallback: 'Persistent address, aliases, compose and reply — paid monthly in crypto.',
+    path: '/mail/pro',
+    status: 'PRO',
+    accent: 'text-wr-secondary',
+    tile: 'bg-wr-secondary/10',
+  },
+  {
+    icon: MessageSquare,
+    label: 'VERIFY-01',
+    nameKey: 'home.tool_sms_wall',
+    nameFallback: 'SMS verification',
+    descKey: 'home.v2_tool_sms_desc',
+    descFallback: 'One-time numbers for account activation. Undelivered codes are refunded.',
+    path: '/sms',
+    status: 'LIVE',
+    accent: 'text-wr-info',
+    tile: 'bg-wr-info/10',
+  },
+  {
+    icon: Smartphone,
+    label: 'CELL-01',
+    nameKey: 'home.tool_esim',
+    nameFallback: 'Data eSIM',
+    descKey: 'home.v2_tool_esim_desc',
+    descFallback: 'Prepaid travel data profiles; the QR code is issued after the provider provisions the plan.',
+    path: '/esim',
+    status: 'LIVE',
+    accent: 'text-wr-info',
+    tile: 'bg-wr-info/10',
+  },
+  {
+    icon: Phone,
+    label: 'NUM-01',
+    nameKey: 'home.tool_phone',
+    nameFallback: 'UK numbers',
+    descKey: 'home.v2_tool_phone_desc',
+    descFallback: 'Prepaid +44 eSIM numbers on 6, 12 or 24-month terms, renewable.',
+    path: '/uk-sim',
+    status: 'LIVE',
+    accent: 'text-wr-accent',
+    tile: 'bg-wr-accent/10',
+  },
+  {
+    icon: Shield,
+    label: 'TUNNEL-01',
+    nameKey: 'home.tool_vpn',
+    nameFallback: 'VPN',
+    descKey: 'home.v2_tool_vpn_desc',
+    descFallback: 'Prepaid WireGuard, OpenVPN or VLESS configs; terms and prices are shown in the app.',
+    path: '/vpn',
+    status: 'LIVE',
+    accent: 'text-wr-secondary',
+    tile: 'bg-wr-secondary/10',
+  },
+];
+
+const TRUST = [
+  { icon: UserX, key: 'home.v2_trust_account', fallback: 'No account required' },
+  { icon: Zap, key: 'home.v2_trust_pay', fallback: 'Pay in XMR or Lightning' },
+  { icon: ShieldCheck, key: 'home.v2_trust_kyc', fallback: 'No KYC documents' },
+  { icon: KeyRound, key: 'home.v2_trust_wallet', fallback: 'Prepaid wallet, no card' },
+];
+
+const FAQ = [
+  {
+    qKey: 'home.v2_faq_q1', q: 'Do I need an account?',
+    aKey: 'home.v2_faq_a1', a: 'No. Every flow runs from a prepaid wallet token; no email, phone number or identity is requested.',
+  },
+  {
+    qKey: 'home.v2_faq_q2', q: 'What if an SMS never arrives?',
+    aKey: 'home.v2_faq_a2', a: 'The charge is refunded automatically when the provider does not deliver a code.',
+  },
+  {
+    qKey: 'home.v2_faq_q3', q: 'Can I top up an existing eSIM?',
+    aKey: 'home.v2_faq_a3', a: 'Yes — open the eSIM page and use “Top up an existing eSIM”, or renew a number from the number page.',
+  },
+  {
+    qKey: 'home.v2_faq_q4', q: 'How does payment work?',
+    aKey: 'home.v2_faq_a4', a: 'Fund one prepaid balance with Monero or Bitcoin Lightning, then spend it across mail, SMS, eSIM, numbers and VPN.',
+  },
+];
+
 export default function HomePage() {
   const { t } = useTranslation();
   const lp = useLangPrefix();
   const [showSplash, setShowSplash] = useState(() => !localStorage.getItem('walls_smashed'));
 
-  const TOOLS = [
-    {
-      icon: Mail,
-      nameKey: 'home.tool_ghost_mail',
-      taglineKey: 'home.tool_ghost_mail_tagline',
-      descKey: 'home.tool_ghost_mail_desc',
-      path: '/mail',
-      status: 'LIVE' as const,
-      color: 'text-cyan-400',
-      borderColor: 'border-cyan-400/20 hover:border-cyan-400/50',
-      glowColor: 'from-cyan-400/20',
-      bgAccent: 'bg-cyan-400',
-    },
-    {
-      icon: Crown,
-      nameKey: 'home.tool_ghost_mail_pro',
-      taglineKey: 'home.tool_ghost_mail_pro_tagline',
-      descKey: 'home.tool_ghost_mail_pro_desc',
-      path: '/mail/pro',
-      status: 'PRO' as const,
-      color: 'text-wr-accent',
-      borderColor: 'border-wr-accent/25 hover:border-wr-accent/60',
-      glowColor: 'from-wr-accent/20',
-      bgAccent: 'bg-wr-accent',
-    },
-    {
-      icon: Flame,
-      nameKey: 'home.tool_dead_drop',
-      taglineKey: 'home.tool_dead_drop_tagline',
-      descKey: 'home.tool_dead_drop_desc',
-      path: '/drop',
-      status: 'LIVE' as const,
-      color: 'text-orange-400',
-      borderColor: 'border-orange-400/20 hover:border-orange-400/50',
-      glowColor: 'from-orange-400/20',
-      bgAccent: 'bg-orange-400',
-    },
-    {
-      icon: Phone,
-      nameKey: 'home.tool_sms_wall',
-      taglineKey: 'home.tool_sms_wall_tagline',
-      descKey: 'home.tool_sms_wall_desc',
-      path: '/sms',
-      status: 'LIVE' as const,
-      color: 'text-green-400',
-      borderColor: 'border-green-400/20 hover:border-green-400/50',
-      glowColor: 'from-green-400/20',
-      bgAccent: 'bg-green-400',
-    },
-    {
-      icon: MessageSquare,
-      nameKey: 'home.tool_ghost_chat',
-      taglineKey: 'home.tool_ghost_chat_tagline',
-      descKey: 'home.tool_ghost_chat_desc',
-      path: '/comms',
-      status: 'LIVE' as const,
-      color: 'text-purple-400',
-      borderColor: 'border-purple-400/20 hover:border-purple-400/50',
-      glowColor: 'from-purple-400/20',
-      bgAccent: 'bg-purple-400',
-    },
-    {
-      icon: Smartphone,
-      nameKey: 'home.tool_esim',
-      taglineKey: 'home.tool_esim_tagline',
-      descKey: 'home.tool_esim_desc',
-      path: '/esim',
-      status: 'SOON' as const,
-      color: 'text-yellow-400',
-      borderColor: 'border-yellow-400/20 hover:border-yellow-400/50',
-      glowColor: 'from-yellow-400/20',
-      bgAccent: 'bg-yellow-400',
-    },
-    {
-      icon: Phone,
-      nameKey: 'home.tool_phone',
-      taglineKey: 'home.tool_phone_tagline',
-      descKey: 'home.tool_phone_desc',
-      path: '/phone',
-      status: 'LIVE' as const,
-      color: 'text-orange-400',
-      borderColor: 'border-orange-400/20 hover:border-orange-400/50',
-      glowColor: 'from-orange-400/20',
-      bgAccent: 'bg-orange-400',
-    },
-    {
-      icon: Shield,
-      nameKey: 'home.tool_proxy',
-      taglineKey: 'home.tool_proxy_tagline',
-      descKey: 'home.tool_proxy_desc',
-      path: '/proxy',
-      status: 'SOON' as const,
-      color: 'text-teal-400',
-      borderColor: 'border-teal-400/20 hover:border-teal-400/50',
-      glowColor: 'from-teal-400/20',
-      bgAccent: 'bg-teal-400',
-    },
-  ];
-
-  const STATS: { value?: string; valueKey?: string; labelKey: string; icon: typeof Globe }[] = [
-    { value: '150+', labelKey: 'home.stat_countries', icon: Globe },
-    { value: '1,700+', labelKey: 'home.stat_services', icon: Phone },
-    { valueKey: 'home.stat_logs_value', labelKey: 'home.stat_logs', icon: EyeOff },
-    { value: 'AES-256', labelKey: 'home.stat_encryption', icon: Lock },
-  ];
-
   const HOW_IT_WORKS = [
-    { step: '01', titleKey: 'home.step1_title', descKey: 'home.step1_desc', icon: Layers },
-    { step: '02', titleKey: 'home.step2_title', descKey: 'home.step2_desc', icon: CreditCard },
-    { step: '03', titleKey: 'home.step3_title', descKey: 'home.step3_desc', icon: ShieldCheck },
+    { step: '01', titleKey: 'home.v2_step1_title', fallback: 'Choose a product', descKey: 'home.v2_step1_desc', descFallback: 'Pick Ghost Mail, SMS, eSIM, a UK number or VPN.', icon: Layers },
+    { step: '02', titleKey: 'home.v2_step2_title', fallback: 'Fund the balance', descKey: 'home.v2_step2_desc', descFallback: 'Pay in Monero or Lightning into one prepaid balance.', icon: CreditCard },
+    { step: '03', titleKey: 'home.v2_step3_title', fallback: 'Receive delivery', descKey: 'home.v2_step3_desc', descFallback: 'Inbox, QR code or config — issued after payment and provider provisioning. VPN configs are generated after purchase.', icon: ShieldCheck },
   ];
 
-  const FEATURES = [
-    { icon: UserX, titleKey: 'home.feat_zero_identity', descKey: 'home.feat_zero_identity_desc' },
-    { icon: Lock, titleKey: 'home.feat_client_encryption', descKey: 'home.feat_client_encryption_desc' },
-    { icon: EyeOff, titleKey: 'home.feat_no_logs', descKey: 'home.feat_no_logs_desc' },
-    { icon: KeyRound, titleKey: 'home.feat_pgp', descKey: 'home.feat_pgp_desc' },
-    { icon: Zap, titleKey: 'home.feat_xmr_ln', descKey: 'home.feat_xmr_ln_desc' },
-    { icon: Clock, titleKey: 'home.feat_auto_destruct', descKey: 'home.feat_auto_destruct_desc' },
-    { icon: Server, titleKey: 'home.feat_edge', descKey: 'home.feat_edge_desc' },
-    { icon: Shield, titleKey: 'home.feat_ecosystem', descKey: 'home.feat_ecosystem_desc' },
-  ];
-
-  const COMPARISONS = [
-    { featureKey: 'home.cmp_account', wallsKey: 'home.cmp_account_walls', othersKey: 'home.cmp_account_others' },
-    { featureKey: 'home.cmp_identity', wallsKey: 'home.cmp_identity_walls', othersKey: 'home.cmp_identity_others' },
-    { featureKey: 'home.cmp_payment', wallsKey: 'home.cmp_payment_walls', othersKey: 'home.cmp_payment_others' },
-    { featureKey: 'home.cmp_ip', wallsKey: 'home.cmp_ip_walls', othersKey: 'home.cmp_ip_others' },
-    { featureKey: 'home.cmp_encryption', wallsKey: 'home.cmp_encryption_walls', othersKey: 'home.cmp_encryption_others' },
-    { featureKey: 'home.cmp_retention', wallsKey: 'home.cmp_retention_walls', othersKey: 'home.cmp_retention_others' },
-    { featureKey: 'home.cmp_opensource', wallsKey: 'home.cmp_opensource_walls', othersKey: 'home.cmp_opensource_others' },
+  const WHY = [
+    { icon: UserX, titleKey: 'home.v2_why_identity', fallback: 'No identity', descKey: 'home.v2_why_identity_desc', descFallback: 'No account, no email, no KYC documents.' },
+    { icon: Lock, titleKey: 'home.v2_why_crypto', fallback: 'Client-side encryption', descKey: 'home.v2_why_crypto_desc', descFallback: 'Mail and drop content is encrypted before it leaves the browser.' },
+    { icon: EyeOff, titleKey: 'home.v2_why_session', fallback: 'Ephemeral sessions', descKey: 'home.v2_why_session_desc', descFallback: 'Access is a wallet token in your browser; there is no server-side account.' },
+    { icon: Clock, titleKey: 'home.v2_why_burn', fallback: 'Burn timers', descKey: 'home.v2_why_burn_desc', descFallback: 'Inboxes and messages expire on a timer you choose.' },
   ];
 
   return (
@@ -176,57 +172,17 @@ export default function HomePage() {
             url: 'https://walls.rip',
             applicationCategory: 'UtilitiesApplication',
             operatingSystem: 'Web',
-            description: 'Anonymous communication toolkit. Burner email, encrypted dead drops, anonymous SMS verification, PGP chat over Nostr.',
-            offers: { '@type': 'AggregateOffer', lowPrice: '0', highPrice: '5.00', priceCurrency: 'USD' },
+            description: 'Anonymous communication toolkit: burner email, encrypted dead drops, SMS verification, eSIM data, UK numbers and VPN configs. Paid in Monero or Lightning.',
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
           },
           {
             '@context': 'https://schema.org',
-            '@type': 'SoftwareApplication',
-            name: 'Ghost Mail',
-            url: 'https://walls.rip/mail',
-            applicationCategory: 'CommunicationApplication',
-            operatingSystem: 'Web',
-            description: 'Disposable encrypted email inboxes. No signup, no identity. PGP encryption, custom domains, auto-destruct timers.',
-          },
-          {
-            '@context': 'https://schema.org',
-            '@type': 'SoftwareApplication',
-            name: 'Dead Drop',
-            url: 'https://walls.rip/drop',
-            applicationCategory: 'SecurityApplication',
-            operatingSystem: 'Web',
-            description: 'Create encrypted, self-destructing messages. AES-256-GCM client-side encryption.',
-          },
-          {
-            '@context': 'https://schema.org',
-            '@type': 'SoftwareApplication',
-            name: 'SMS Wall',
-            url: 'https://walls.rip/sms',
-            applicationCategory: 'UtilitiesApplication',
-            operatingSystem: 'Web',
-            description: 'Get temporary phone numbers for SMS verification. 150+ countries, 300+ services.',
-          },
-          {
-            '@context': 'https://schema.org',
-            '@type': 'SoftwareApplication',
-            name: 'Ghost Chat',
-            url: 'https://walls.rip/comms',
-            applicationCategory: 'CommunicationApplication',
-            operatingSystem: 'Web',
-            description: 'End-to-end encrypted messaging via decentralized Nostr relays. Ephemeral identities, no server trust.',
-          },
-          {
-            '@context': 'https://schema.org',
-            '@type': 'BreadcrumbList',
-            itemListElement: [
-              { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://walls.rip/' },
-              { '@type': 'ListItem', position: 2, name: 'Ghost Mail', item: 'https://walls.rip/mail' },
-              { '@type': 'ListItem', position: 3, name: 'Dead Drop', item: 'https://walls.rip/drop' },
-              { '@type': 'ListItem', position: 4, name: 'SMS Wall', item: 'https://walls.rip/sms' },
-              { '@type': 'ListItem', position: 5, name: 'Ghost Chat', item: 'https://walls.rip/comms' },
-              { '@type': 'ListItem', position: 6, name: 'API', item: 'https://walls.rip/api' },
-            ],
+            '@type': 'FAQPage',
+            mainEntity: FAQ.map((item) => ({
+              '@type': 'Question',
+              name: t(item.qKey, item.q),
+              acceptedAnswer: { '@type': 'Answer', text: t(item.aKey, item.a) },
+            })),
           },
         ]}
       />
@@ -239,207 +195,209 @@ export default function HomePage() {
       <main className="w-full max-w-6xl mx-auto px-4 md:px-6 relative z-10">
 
         {/* HERO */}
-        <section className="py-20 md:py-32 text-center relative">
-          <div className="absolute inset-0 bg-gradient-to-b from-wr-accent/5 via-transparent to-transparent rounded-3xl" />
-
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-wr-accent/20 bg-wr-accent/5 text-wr-accent text-[10px] font-bold uppercase tracking-wider mb-8">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-wr-accent opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-wr-accent" />
-              </span>
-              {t('home.badge')}
-            </div>
-
-            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-black tracking-tight mb-6 leading-[0.9]">
-              {t('home.hero_break')} <span className="text-wr-accent">{t('home.hero_walls')}</span>
-              <br />
-              <span className="text-wr-dim text-3xl md:text-5xl lg:text-6xl">{t('home.hero_for')}</span>
-            </h1>
-
-            <p className="text-wr-dim text-sm md:text-base max-w-xl mx-auto mb-12 leading-relaxed">
-              {t('home.hero_desc_1')}
-              <br />{t('home.hero_desc_2')}
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
-              <Link
-                to={lp('/mail')}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-wr-accent text-black font-bold text-xs uppercase tracking-wider rounded-sm hover:brightness-110 transition-all shadow-lg shadow-wr-accent/20"
-              >
-                <Mail size={14} />
-                {t('home.cta_ghost_mail')}
-              </Link>
-              <Link
-                to={lp('/sms')}
-                className="inline-flex items-center gap-2 px-8 py-4 border-2 border-wr-accent/40 text-current font-bold text-xs uppercase tracking-wider rounded-sm hover:border-wr-accent hover:text-wr-accent hover:bg-wr-accent/5 transition-all"
-              >
-                <Phone size={14} />
-                {t('home.cta_sms')}
-              </Link>
-            </div>
-
-            <p className="text-[10px] text-wr-dim/50 uppercase tracking-wider">
-              {t('home.no_signup')}
-            </p>
-          </div>
-        </section>
-
-        {/* STATS BAR */}
-        <section className="py-8 mb-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {STATS.map((stat) => (
-              <div key={stat.labelKey} className="text-center p-5 rounded-sm border border-wr-border/50 bg-wr-surface/30">
-                <stat.icon size={18} className="mx-auto mb-2 text-wr-accent" />
-                <div className="text-2xl md:text-3xl font-black font-display text-wr-accent mb-1">
-                  {stat.valueKey ? t(stat.valueKey) : stat.value}
-                </div>
-                <div className="text-[10px] text-wr-dim uppercase tracking-wider font-bold">{t(stat.labelKey)}</div>
+        <section className="pt-14 md:pt-24 pb-14 md:pb-20">
+          <div className="border border-wr-border/70 bg-wr-surface/30 rounded-sm p-7 md:p-12 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-wr-accent/[0.04] to-transparent pointer-events-none" />
+            <div className="relative">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-8">
+                <span className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] font-bold text-wr-accent">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-wr-accent opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-wr-accent" />
+                  </span>
+                  {t('home.v2_kicker', 'Prepaid dispatch // no account')}
+                </span>
+                <span className="text-[11px] uppercase tracking-[0.18em] font-bold text-wr-dim">
+                  {t('home.v2_hero_note', 'Pay in XMR or Lightning')}
+                </span>
               </div>
-            ))}
+
+              <h1 className="font-display text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[0.95] max-w-3xl">
+                {t('home.v2_hero', 'Anonymous communication tools paid with cryptocurrency.')}
+              </h1>
+
+              <p className="text-wr-dim text-sm md:text-base max-w-2xl mt-6 leading-relaxed">
+                {t('home.v2_sub', 'Disposable email, SMS verification, mobile data eSIMs, UK numbers, temporary lines and encrypted VPN tunnels — without registration.')}
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 mt-8">
+                <Link to={lp('/mail')} className="inline-flex items-center justify-center gap-2 px-7 py-4 bg-wr-accent text-black font-bold text-[11px] uppercase tracking-[0.18em] rounded-sm hover:brightness-110 transition-all shadow-lg shadow-wr-accent/20">
+                  <Mail size={14} /> {t('home.v2_cta_mail', 'Open Ghost Mail')}
+                </Link>
+                <Link to={lp('/esim')} className="inline-flex items-center justify-center gap-2 px-7 py-4 border border-wr-border text-current font-bold text-[11px] uppercase tracking-[0.18em] rounded-sm hover:border-wr-accent hover:text-wr-accent transition-all">
+                  <Smartphone size={14} /> {t('home.v2_cta_esim', 'Browse eSIM plans')}
+                </Link>
+              </div>
+
+              <div className="flex flex-wrap gap-x-6 gap-y-2 mt-8">
+                {TRUST.map((item) => (
+                  <span key={item.key} className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] font-bold text-wr-dim">
+                    <item.icon size={12} className="text-wr-accent" /> {t(item.key, item.fallback)}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* TOOL CARDS */}
-        <section className="py-12">
-          <div className="text-center mb-10">
-            <h2 className="font-display text-2xl md:text-3xl font-black tracking-tight mb-3">
-              {t('home.tools_title_1')} <span className="text-wr-accent">{t('home.tools_title_2')}</span>
-            </h2>
-            <p className="text-wr-dim text-xs max-w-lg mx-auto">
-              {t('home.tools_desc')}
-            </p>
+        {/* PRODUCT MATRIX */}
+        <section className="pb-16">
+          <div className="flex items-end justify-between gap-4 mb-6">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.18em] font-bold text-wr-dim mb-1">
+                {t('home.v2_matrix_kicker', '#01 // Product matrix')}
+              </div>
+              <h2 className="font-display text-xl md:text-2xl font-black tracking-tight">
+                {t('home.v2_matrix_title', 'Six deployable primitives')}
+              </h2>
+            </div>
+            <span className="hidden sm:block text-[11px] uppercase tracking-[0.18em] font-bold text-wr-dim">
+              {t('home.v2_matrix_note', 'One prepaid balance')}
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {TOOLS.map((tool) => (
               <Link
                 key={tool.path}
                 to={lp(tool.path)}
-                className={`group relative p-6 rounded-sm border bg-wr-surface/50 transition-all duration-300 ${tool.borderColor}`}
+                className="group relative border border-wr-border/70 bg-wr-surface/40 rounded-sm p-5 hover:border-wr-accent/50 transition-colors"
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${tool.glowColor} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-sm`} />
-
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-sm ${tool.bgAccent}/10 flex items-center justify-center`}>
-                        <tool.icon size={20} className={tool.color} />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-sm tracking-wide">{t(tool.nameKey)}</h3>
-                        <p className={`text-[10px] font-bold ${tool.color}`}>{t(tool.taglineKey)}</p>
-                      </div>
-                    </div>
-                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tool.status === 'SOON' ? 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10' : tool.status === 'PRO' ? 'text-wr-accent border-wr-accent/30 bg-wr-accent/10' : 'text-green-400 border-green-400/30 bg-green-400/10'}`}>
-                      {tool.status === 'SOON' ? t('home.status_soon') : tool.status === 'PRO' ? t('home.status_pro') : t('home.status_live')}
-                    </span>
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-9 h-9 rounded-sm ${tool.tile} flex items-center justify-center`}>
+                    <tool.icon size={17} className={tool.accent} />
                   </div>
-
-                  <p className="text-[11px] text-wr-dim leading-relaxed mb-4">{t(tool.descKey)}</p>
-
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-wr-dim group-hover:text-wr-accent transition-colors">
-                    {t('home.launch')} <ArrowRight size={10} className="group-hover:translate-x-1 transition-transform" />
-                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border ${
+                    tool.status === 'PRO'
+                      ? 'text-wr-secondary border-wr-secondary/30 bg-wr-secondary/10'
+                      : 'text-wr-accent border-wr-accent/30 bg-wr-accent/10'
+                  }`}>
+                    {tool.status === 'PRO' ? t('home.status_pro', 'PRO') : t('home.status_live', 'LIVE')}
+                  </span>
                 </div>
+
+                <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-wr-dim mb-1">{tool.label}</div>
+                <h3 className="font-display text-base font-bold tracking-tight mb-2">
+                  {t(tool.nameKey, tool.nameFallback)}
+                </h3>
+                <p className="text-[12px] text-wr-dim leading-relaxed mb-4">
+                  {t(tool.descKey, tool.descFallback)}
+                </p>
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.14em] text-wr-dim group-hover:text-wr-accent transition-colors">
+                  {t('home.launch', 'Open')} <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+                </span>
               </Link>
             ))}
           </div>
         </section>
 
         {/* HOW IT WORKS */}
-        <section className="py-16">
-          <div className="text-center mb-12">
-            <h2 className="font-display text-2xl md:text-3xl font-black tracking-tight mb-3">
-              {t('home.how_title_1')} <span className="text-wr-accent">{t('home.how_title_2')}</span>
-            </h2>
-            <p className="text-wr-dim text-xs">{t('home.how_subtitle')}</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {HOW_IT_WORKS.map((item) => (
-              <div key={item.step} className="relative p-6 rounded-sm border border-wr-border/50 bg-wr-surface/30">
-                <div className="absolute top-4 right-4 text-4xl font-black text-wr-accent/10 font-display">{item.step}</div>
-                <item.icon size={24} className="text-wr-accent mb-4" />
-                <h3 className="text-sm font-bold mb-2">{t(item.titleKey)}</h3>
-                <p className="text-[11px] text-wr-dim leading-relaxed">{t(item.descKey)}</p>
+        <section className="pb-16">
+          <div className="flex items-end justify-between gap-4 mb-6">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.18em] font-bold text-wr-dim mb-1">
+                {t('home.v2_how_kicker', '#02 // How it works')}
               </div>
-            ))}
-          </div>
-        </section>
-
-        {/* FEATURES GRID */}
-        <section className="py-16">
-          <div className="text-center mb-12">
-            <h2 className="font-display text-2xl md:text-3xl font-black tracking-tight mb-3">
-              {t('home.features_title_1')} <span className="text-wr-accent">{t('home.features_title_2')}</span>
-            </h2>
-            <p className="text-wr-dim text-xs max-w-lg mx-auto">
-              {t('home.features_desc')}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {FEATURES.map((feat) => (
-              <div key={feat.titleKey} className="p-5 rounded-sm border border-wr-border/50 bg-wr-surface/30 hover:border-wr-accent/20 transition-colors">
-                <feat.icon size={18} className="text-wr-accent mb-3" />
-                <h3 className="text-xs font-bold mb-2">{t(feat.titleKey)}</h3>
-                <p className="text-[10px] text-wr-dim leading-relaxed">{t(feat.descKey)}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* COMPARISON TABLE */}
-        <section className="py-16">
-          <div className="text-center mb-10">
-            <h2 className="font-display text-2xl md:text-3xl font-black tracking-tight mb-3">
-              {t('home.compare_title')} <span className="text-wr-accent">walls.rip</span>
-            </h2>
-            <p className="text-wr-dim text-xs">{t('home.compare_desc')}</p>
-          </div>
-
-          <div className="max-w-2xl mx-auto border border-wr-border rounded-sm overflow-hidden">
-            <div className="grid grid-cols-3 text-[10px] font-bold uppercase tracking-wider bg-wr-surface p-3 border-b border-wr-border">
-              <span className="text-wr-dim">{t('home.compare_feature')}</span>
-              <span className="text-wr-accent text-center">{t('home.compare_walls')}</span>
-              <span className="text-wr-dim text-center">{t('home.compare_others')}</span>
+              <h2 className="font-display text-xl md:text-2xl font-black tracking-tight">
+                {t('home.how_title_1', 'Three')} <span className="text-wr-accent">{t('home.how_title_2', 'steps')}</span>
+              </h2>
             </div>
-            {COMPARISONS.map((row, i) => (
-              <div key={row.featureKey} className={`grid grid-cols-3 text-[11px] p-3 ${i % 2 === 0 ? 'bg-wr-surface/30' : ''} ${i < COMPARISONS.length - 1 ? 'border-b border-wr-border/30' : ''}`}>
-                <span className="text-wr-dim font-bold">{t(row.featureKey)}</span>
-                <span className="text-wr-green text-center flex items-center justify-center gap-1">
-                  <CheckCircle size={10} /> {t(row.wallsKey)}
-                </span>
-                <span className="text-wr-dim/60 text-center">{t(row.othersKey)}</span>
+            <span className="hidden sm:block text-[11px] uppercase tracking-[0.18em] font-bold text-wr-dim">
+              {t('home.v2_how_note', 'No sign-up')}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {HOW_IT_WORKS.map((item) => (
+              <div key={item.step} className="border border-wr-border/70 bg-wr-surface/30 rounded-sm p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <item.icon size={18} className="text-wr-accent" />
+                  <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-wr-dim">{item.step}</span>
+                </div>
+                <h3 className="text-sm font-bold mb-1.5">{t(item.titleKey, item.fallback)}</h3>
+                <p className="text-[12px] text-wr-dim leading-relaxed">{t(item.descKey, item.descFallback)}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* PAYMENT SECTION */}
-        <section className="py-16">
-          <div className="p-8 md:p-12 rounded-sm border border-wr-border bg-wr-surface/50 text-center">
-            <h2 className="font-display text-2xl md:text-3xl font-black tracking-tight mb-3">
-              {t('home.pay_title_1')} <span className="text-wr-accent">{t('home.pay_title_2')}</span>
+        {/* WHY WALLS.RIP */}
+        <section className="pb-16">
+          <div className="mb-6">
+            <div className="text-[11px] uppercase tracking-[0.18em] font-bold text-wr-dim mb-1">
+              {t('home.v2_why_kicker', '#03 // Why walls.rip')}
+            </div>
+            <h2 className="font-display text-xl md:text-2xl font-black tracking-tight">
+              {t('home.v2_why_title', 'Privacy that is verifiable, not a slogan')}
             </h2>
-            <p className="text-wr-dim text-xs max-w-md mx-auto mb-8">
-              {t('home.pay_desc')}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {WHY.map((item) => (
+              <div key={item.titleKey} className="border border-wr-border/70 bg-wr-surface/30 rounded-sm p-5">
+                <item.icon size={17} className="text-wr-secondary mb-3" />
+                <h3 className="text-xs font-bold mb-1.5">{t(item.titleKey, item.fallback)}</h3>
+                <p className="text-[11px] text-wr-dim leading-relaxed">{t(item.descKey, item.descFallback)}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="pb-16">
+          <div className="flex items-end justify-between gap-4 mb-6">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.18em] font-bold text-wr-dim mb-1">
+                {t('home.v2_faq_kicker', '#04 // Frequently asked')}
+              </div>
+              <h2 className="font-display text-xl md:text-2xl font-black tracking-tight">
+                {t('home.v2_faq_title', 'Questions, answered plainly')}
+              </h2>
+            </div>
+            <Link to={lp('/faq')} className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.14em] text-wr-secondary hover:text-wr-accent transition-colors">
+              {t('header.faq', 'FAQ')} <ArrowRight size={11} />
+            </Link>
+          </div>
+
+          <div className="border border-wr-border/70 rounded-sm divide-y divide-wr-border/50 bg-wr-surface/20">
+            {FAQ.map((item) => (
+              <details key={item.qKey} className="group px-5 py-4">
+                <summary className="list-none cursor-pointer flex items-center justify-between gap-4 text-sm font-bold">
+                  {t(item.qKey, item.q)}
+                  <span className="text-wr-dim group-open:rotate-45 transition-transform text-lg leading-none">+</span>
+                </summary>
+                <p className="text-[12px] text-wr-dim leading-relaxed mt-3 max-w-2xl">{t(item.aKey, item.a)}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        {/* PAYMENT */}
+        <section className="pb-16">
+          <div className="border border-wr-border/70 bg-wr-warm rounded-sm p-7 md:p-10">
+            <div className="text-[11px] uppercase tracking-[0.18em] font-bold text-wr-stone mb-1">
+              {t('home.v2_pay_kicker', 'Settlement')}
+            </div>
+            <h2 className="font-display text-xl md:text-2xl font-black tracking-tight mb-2">
+              {t('home.pay_title_1', 'One balance,')} <span className="text-wr-accent">{t('home.pay_title_2', 'paid in crypto')}</span>
+            </h2>
+            <p className="text-[12px] text-wr-dim max-w-xl leading-relaxed mb-6">
+              {t('home.v2_pay_desc', 'Top up with Monero or Bitcoin Lightning. No card, no processor, no chargeback trail.')}
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-8">
-              <div className="flex items-center gap-3 px-6 py-3 rounded-sm border border-wr-border bg-wr-base">
-                <img src="/monero-xmr-logo.png" className="w-8 h-8" alt="Monero" />
-                <div className="text-left">
-                  <div className="text-sm font-bold">{t('home.pay_xmr')}</div>
-                  <div className="text-[10px] text-wr-dim">{t('home.pay_xmr_desc')}</div>
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <div className="flex items-center gap-3 px-4 py-3 rounded-sm border border-wr-warm-border bg-wr-base">
+                <img src="/monero-xmr-logo.png" className="w-7 h-7" alt="Monero" />
+                <div>
+                  <div className="text-sm font-bold">{t('home.pay_xmr', 'Monero')}</div>
+                  <div className="text-[11px] text-wr-dim">{t('home.pay_xmr_desc', 'XMR on Mainnet')}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 px-6 py-3 rounded-sm border border-wr-border bg-wr-base">
-                <Zap size={28} className="text-yellow-400" />
-                <div className="text-left">
-                  <div className="text-sm font-bold">{t('home.pay_ln')}</div>
-                  <div className="text-[10px] text-wr-dim">{t('home.pay_ln_desc')}</div>
+              <div className="flex items-center gap-3 px-4 py-3 rounded-sm border border-wr-warm-border bg-wr-base">
+                <Zap size={24} className="text-wr-warning" />
+                <div>
+                  <div className="text-sm font-bold">{t('home.pay_ln', 'Lightning')}</div>
+                  <div className="text-[11px] text-wr-dim">{t('home.pay_ln_desc', 'Instant sats')}</div>
                 </div>
               </div>
             </div>
@@ -448,41 +406,41 @@ export default function HomePage() {
               href="https://kyc.rip/swap?to=xmr"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 text-[10px] font-bold text-wr-accent hover:underline"
+              className="inline-flex items-center gap-2 text-[11px] font-bold text-wr-secondary hover:text-wr-accent transition-colors"
             >
-              {t('home.pay_need_xmr')} <ExternalLink size={10} />
+              {t('home.pay_need_xmr', 'Need XMR? Swap for it')} <ExternalLink size={11} />
             </a>
           </div>
         </section>
 
         {/* ECOSYSTEM */}
-        <section className="py-12 mb-8">
-          <div className="p-6 rounded-sm border border-wr-border bg-wr-surface/50 text-center">
-            <p className="text-[10px] text-wr-dim uppercase tracking-[0.2em] font-bold mb-4">{t('home.ecosystem_title')}</p>
-            <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+        <section className="pb-10">
+          <div className="border border-wr-border/70 bg-wr-surface/30 rounded-sm p-5">
+            <p className="text-[11px] text-wr-dim uppercase tracking-[0.18em] font-bold mb-4">
+              {t('home.ecosystem_title', 'rip.family')}
+            </p>
+            <div className="flex flex-wrap gap-2 text-xs">
               {[
-                { name: 'kyc.rip', url: 'https://kyc.rip', descKey: 'footer.no_kyc_swaps' },
-                { name: 'stables.rip', url: 'https://stables.rip', descKey: 'footer.freeze_tracker' },
-                { name: 'xmrprice.live', url: 'https://xmrprice.live', descKey: 'footer.xmr_price' },
-                { name: 'ripley.run', url: 'https://ripley.run', descKey: 'footer.monero_toolkit' },
-                { name: 'xmr402.org', url: 'https://xmr402.org', descKey: 'footer.xmr_paywall' },
+                { name: 'kyc.rip', url: 'https://kyc.rip' },
+                { name: 'stables.rip', url: 'https://stables.rip' },
+                { name: 'xmrprice.live', url: 'https://xmrprice.live' },
+                { name: 'ripley.run', url: 'https://ripley.run' },
+                { name: 'xmr402.org', url: 'https://xmr402.org' },
               ].map((site) => (
                 <a
                   key={site.name}
                   href={site.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-sm border border-wr-border hover:border-wr-accent/30 transition-colors"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-sm border border-wr-border hover:border-wr-secondary/50 hover:text-wr-secondary transition-colors"
                 >
-                  <span className="font-bold group-hover:text-wr-accent transition-colors">{site.name}</span>
-                  <span className="text-[9px] text-wr-dim hidden sm:inline">— {t(site.descKey)}</span>
+                  <span className="font-bold">{site.name}</span>
                   <ExternalLink size={10} className="text-wr-dim" />
                 </a>
               ))}
             </div>
           </div>
         </section>
-
       </main>
 
       {/* Smash the Wall — replay button */}
