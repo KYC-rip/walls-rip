@@ -117,6 +117,7 @@ const SERVICE_SLUGS: Record<string, string> = {
   twitter: 'x', x: 'x', instagram: 'instagram', tiktok: 'tiktok', snapchat: 'snapchat',
   linkedin: 'linkedin', signal: 'signal', tinder: 'tinder', uber: 'uber',
   paypal: 'paypal', apple: 'apple', netflix: 'netflix', spotify: 'spotify',
+  kraken: 'kraken', kucoin: 'kucoin', okx: 'okx',
   reddit: 'reddit', twitch: 'twitch', pinterest: 'pinterest', ebay: 'ebay',
   aliexpress: 'aliexpress', alibaba: 'alibaba', binance: 'binance', coinbase: 'coinbase',
   revolut: 'revolut', wise: 'wise', line: 'line', viber: 'viber', wechat: 'wechat',
@@ -186,7 +187,7 @@ export function SMSWall() {
   const countryListRef = useRef<HTMLDivElement>(null);
   const servicePanelRef = useRef<HTMLElement>(null);
   const quoteRef = useRef<HTMLDivElement>(null);
-  const [servicePickerOpen, setServicePickerOpen] = useState(true);
+  const [servicePickerOpen, setServicePickerOpen] = useState(() => !smsInitial.service);
   const [countrySearch, setCountrySearch] = useState('');
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
   const [poolOptions, setPoolOptions] = useState<PoolOption[]>([]);
@@ -1125,6 +1126,27 @@ export function SMSWall() {
                           ))}
                         </div>
                       )}
+                      {poolOptions.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {poolOptions.map((pool, i) => {
+                            const active = selectedPool === pool.pool;
+                            const count = pool.stock ?? stockInfo?.count ?? 0;
+                            return (
+                              <button
+                                key={pool.pool}
+                                onClick={() => {
+                                  setSelectedPool(pool.pool);
+                                  setPriceInfo({ ...(priceInfo || {}), price: pool.price.toFixed(2), success_rate: pool.successRate, pool: pool.pool } as PriceInfo);
+                                  setStockInfo({ available: count > 0, count });
+                                }}
+                                className={`min-h-9 rounded-sm border px-2.5 text-[10px] font-mono uppercase tracking-[0.12em] transition-colors ${active ? 'border-wr-secondary text-wr-secondary bg-wr-secondary/10' : 'border-wr-border text-wr-dim hover:border-wr-secondary/40 hover:text-wr-secondary'}`}
+                              >
+                                {t('sms.operator', 'Operator')} {String.fromCharCode(65 + i)} · ${pool.price.toFixed(2)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                       {priceInfo && (
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-wr-accent/20 pt-3">
                           <div className="text-[11px] font-mono text-wr-dim">
@@ -1151,126 +1173,6 @@ export function SMSWall() {
                   ) : null}
                 </section>
               </div>
-
-            {/* ═══ PROVIDER SELECTION (top-level: engine comparison) ═══ */}
-            {compareResults.length > 1 && priceInfo && (
-              <div className="pt-6 border-t border-wr-border/30">
-                <div className="text-[11px] text-wr-dim font-mono uppercase tracking-[0.18em] mb-2">{t('sms.select_route', 'Select Route')}</div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {compareResults.map((r, idx) => {
-                    const isSelected = selectedProvider === r.engine;
-                    return (
-                      <button
-                        key={r.engine}
-                        onClick={async () => {
-                          setSelectedProvider(r.engine);
-                          setPriceInfo({
-                            price: r.price.toFixed(2),
-                            success_rate: r.successRate,
-                            engine: r.engine,
-                            pool: r.pool,
-                          });
-                          setStockInfo({ available: r.available, count: r.stock });
-                          // Refetch pools/operators for the newly selected engine.
-                          // Do NOT auto-select a specific pool — leave empty so "any" (cheapest) is the default.
-                          // User can optionally upgrade by clicking a specific pool card.
-                          try {
-                            const pools = await apiClient<PoolOption[]>(
-                              `/v1/tools/sms/pools?country=${r.countryId}&service=${r.serviceId}&engine=${r.engine}`
-                            );
-                            setPoolOptions(pools || []);
-                            setSelectedPool('');
-                          } catch {
-                            setPoolOptions([]);
-                            setSelectedPool('');
-                          }
-                        }}
-                        className={`min-h-14 py-3 px-3 rounded-sm border text-xs font-mono transition-colors text-left ${
-                          isSelected
-                            ? 'border-wr-accent bg-wr-accent/10 text-wr-accent'
-                            : 'border-wr-border text-wr-dim hover:border-wr-accent/50 hover:text-current'
-                        }`}
-                      >
-                        <div className="font-bold text-sm tabular-nums">${r.price.toFixed(2)}</div>
-                        <div className="text-[11px] opacity-70 mt-0.5 tabular-nums">
-                          {t('sms.route', 'Route')} {String.fromCharCode(65 + idx)}
-                          {r.stock > 0 ? ` · ${r.stock.toLocaleString()}` : ''}
-                          {r.successRate > 0 ? ` · ${r.successRate}%` : ''}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ═══ Sub-route variants (pools for smspool, operators for 5sim) ═══ */}
-            {poolOptions.length > 0 && priceInfo && (
-              <div className={compareResults.length > 1 ? 'mt-3' : 'pt-6 border-t border-wr-border/30'}>
-                <div className="text-[11px] text-wr-dim font-mono uppercase tracking-[0.18em] mb-2">{t('sms.select_pool', 'Sub-Route')}</div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {/* "Auto" card — shows when the route's default tier is cheaper than any specific pool */}
-                  {(() => {
-                    const route = compareResults.find(r => r.engine === selectedProvider);
-                    if (!route) return null;
-                    const cheapestPoolPrice = Math.min(...poolOptions.map(p => p.price));
-                    // Only show Auto if it's meaningfully cheaper (avoids showing a duplicate of Pool A)
-                    if (route.price >= cheapestPoolPrice - 0.01) return null;
-                    const isAutoSelected = selectedPool === '';
-                    return (
-                      <button
-                        key="__auto__"
-                        onClick={() => {
-                          setSelectedPool('');
-                          setPriceInfo({
-                            price: route.price.toFixed(2),
-                            success_rate: route.successRate,
-                            engine: route.engine,
-                          });
-                        }}
-                        className={`min-h-14 py-3 px-3 rounded-sm border text-xs font-mono transition-colors text-left ${
-                          isAutoSelected
-                            ? 'border-wr-accent bg-wr-accent/10 text-wr-accent'
-                            : 'border-wr-border text-wr-dim hover:border-wr-accent/50 hover:text-current'
-                        }`}
-                      >
-                        <div className="font-bold text-sm tabular-nums">${route.price.toFixed(2)}</div>
-                        <div className="text-[11px] opacity-70 mt-0.5 tabular-nums">
-                          {t('sms.auto', 'Auto')}
-                          {route.stock > 0 ? ` · ${route.stock.toLocaleString()}` : ''}
-                        </div>
-                      </button>
-                    );
-                  })()}
-                  {poolOptions.map((p, idx) => {
-                    const isSelected = selectedPool === p.pool;
-                    return (
-                      <button
-                        key={p.pool}
-                        onClick={() => {
-                          setSelectedPool(p.pool);
-                          setPriceInfo({ ...priceInfo, price: p.price.toFixed(2), pool: p.pool, success_rate: p.successRate });
-                        }}
-                        className={`min-h-14 py-3 px-3 rounded-sm border text-xs font-mono transition-colors text-left ${
-                          isSelected
-                            ? 'border-wr-secondary bg-wr-secondary/10 text-wr-secondary'
-                            : 'border-wr-border text-wr-dim hover:border-wr-secondary/50 hover:text-current'
-                        }`}
-                      >
-                        <div className="font-bold text-sm tabular-nums">${p.price.toFixed(2)}</div>
-                        <div className="text-[11px] opacity-70 mt-0.5 tabular-nums">
-                          {t('sms.pool', 'Pool')} {String.fromCharCode(65 + idx)}
-                          {p.successRate > 0 ? ` · ${p.successRate}%` : ''}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                {!selectedPool && (
-                  <p className="text-[11px] text-wr-dim/60 mt-2">{t('sms.auto_price_note', 'Auto selects the cheapest available number. Actual price may vary from estimate.')}</p>
-                )}
-              </div>
-            )}
 
             {/* ═══ ACTION BAR ═══ */}
             {servicePickerOpen && (
