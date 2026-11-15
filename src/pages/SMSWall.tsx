@@ -509,13 +509,22 @@ export function SMSWall() {
       } else {
         toast.error('Failed to get number');
       }
-    } catch { toast.error('Purchase failed'); }
+    } catch (e) {
+      const msg = (e as { data?: { error?: string }; message?: string })?.data?.error
+        || (e as { message?: string })?.message
+        || 'Purchase failed';
+      console.error('[sms purchase]', e);
+      toast.error(msg);
+    }
   };
 
   const handleGetNumber = async () => {
     if (!priceInfo || !selectedCountry || !selectedService || purchasing) return;
     const provider = compareResults.find(r => r.engine === selectedProvider) || compareResults[0];
-    if (!provider) return;
+    if (!provider) {
+      toast.error('No provider route available — try another service or country');
+      return;
+    }
     // Use the currently displayed price (reflects pool selection: auto or specific operator)
     const price = parseFloat(priceInfo.price);
 
