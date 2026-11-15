@@ -404,6 +404,7 @@ export function SMSWall() {
         setCompareResults(results || []);
         if (!results || results.length === 0) {
           setPriceInfo(null); setStockInfo(null); setPoolOptions([]); setSelectedProvider('');
+          toast.error('No route for this service — try the GENERIC “Other” route at the top of the list.');
           return;
         }
         // Default to the top-ranked result (cheapest/highest success)
@@ -500,7 +501,7 @@ export function SMSWall() {
         || 'Purchase failed';
       console.error('[sms purchase]', e);
       const msg = /no free phones|no numbers|out of stock|no stock/i.test(raw)
-        ? 'No numbers available on this route right now — pick another route or country.'
+        ? 'No numbers available on this route right now — pick another route, another country, or the GENERIC “Other” service.'
         : /max price/i.test(raw)
           ? 'The provider price moved above the quote — retry or pick another route.'
           : /whitelist/i.test(raw)
@@ -705,7 +706,13 @@ export function SMSWall() {
 
   const orderedServices = useMemo(() => {
     const rank = new Map(POPULAR_SERVICES.map((n, i) => [n.toLowerCase(), i]));
+    const isGeneric = (n: string) => /^(other|any other|not listed\s*\/\s*other\s*\/\s*any)$/i.test(n.trim());
     return [...services].sort((a, b) => {
+      // "Other / Not listed" routes are the fallback when an exact service is
+      // out of stock — keep them at the top, above the popular brands.
+      const ag = isGeneric(a.name) ? -1 : 0;
+      const bg = isGeneric(b.name) ? -1 : 0;
+      if (ag !== bg) return ag - bg;
       const ar = rank.get(a.name.toLowerCase()) ?? 999;
       const br = rank.get(b.name.toLowerCase()) ?? 999;
       return ar !== br ? ar - br : a.name.localeCompare(b.name);
@@ -989,6 +996,7 @@ export function SMSWall() {
                     {(serviceSearch ? filteredServices : orderedServices).slice(0, visibleServices).map((s, idx) => {
                       const active = selectedService === s.id;
                       const logo = serviceLogo(s.name);
+                      const isGeneric = /^(other|any other|not listed\s*\/\s*other\s*\/\s*any)$/i.test(s.name.trim());
                       const shownPrice = active && priceInfo ? `$${priceInfo.price}` : '';
                       return (
                         <button key={s.id} onClick={() => chooseService(s.id)}
@@ -1001,12 +1009,14 @@ export function SMSWall() {
                                     onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
                                 : <Phone size={14} className="text-wr-dim" />}
                             </div>
-                            <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-wr-dim">
-                              {t('sms.service_card_label', 'SERVICE')} {String(idx + 1).padStart(2, '0')}
+                            <span className={`text-[10px] font-mono uppercase tracking-[0.18em] ${isGeneric ? 'text-wr-info font-bold' : 'text-wr-dim'}`}>
+                              {isGeneric ? t('sms.generic_route', 'GENERIC') : `${t('sms.service_card_label', 'SERVICE')} ${String(idx + 1).padStart(2, '0')}`}
                             </span>
                           </div>
                           <div className="text-sm font-bold truncate">{s.name}</div>
-                          <div className="text-[11px] text-wr-dim mt-1">{t('sms.service_card_desc', 'One-time verification')}</div>
+                          <div className="text-[11px] text-wr-dim mt-1">
+                            {isGeneric ? t('sms.generic_desc', 'Any unlisted service') : t('sms.service_card_desc', 'One-time verification')}
+                          </div>
                           <div className="flex items-center justify-between gap-2 mt-3">
                             <span className={`text-[11px] font-mono tabular-nums ${shownPrice ? 'text-wr-accent font-bold' : 'text-wr-dim'}`}>
                               {shownPrice || t('sms.check_price', 'Check price')}
