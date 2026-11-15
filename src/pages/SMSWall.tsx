@@ -1141,6 +1141,23 @@ export function SMSWall() {
                       )}
                       {poolOptions.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
+                          {(() => {
+                            const route = compareResults.find(r => r.engine === selectedProvider);
+                            if (!route) return null;
+                            const active = selectedPool === '';
+                            return (
+                              <button
+                                onClick={() => {
+                                  setSelectedPool('');
+                                  setPriceInfo({ price: route.price.toFixed(2), success_rate: route.successRate, engine: route.engine });
+                                  setStockInfo({ available: route.available, count: route.stock });
+                                }}
+                                className={`min-h-9 rounded-sm border px-2.5 text-[10px] font-mono uppercase tracking-[0.12em] transition-colors ${active ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/40 hover:text-wr-accent'}`}
+                              >
+                                {t('sms.auto', 'Auto')} · ${route.price.toFixed(2)}
+                              </button>
+                            );
+                          })()}
                           {poolOptions.map((pool, i) => {
                             const active = selectedPool === pool.pool;
                             const count = pool.stock ?? stockInfo?.count ?? 0;
