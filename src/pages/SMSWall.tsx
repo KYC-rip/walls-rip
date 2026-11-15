@@ -1110,14 +1110,27 @@ export function SMSWall() {
                       </div>
                       {compareResults.length > 1 && (
                         <div className="mt-3 flex flex-wrap gap-1.5">
+                          <span className="w-full text-[9px] font-mono uppercase tracking-[0.14em] text-wr-dim">
+                            {t('sms.route_hint', 'Route = provider · Operator = price tier')}
+                          </span>
                           {compareResults.map((r, i) => (
                             <button
                               key={r.engine}
-                              onClick={() => {
+                              onClick={async () => {
                                 setSelectedProvider(r.engine);
                                 setPriceInfo({ price: r.price.toFixed(2), success_rate: r.successRate, engine: r.engine, pool: r.pool });
                                 setStockInfo({ available: r.available, count: r.stock });
                                 setSelectedPool('');
+                                // Operators belong to the selected route; refetch or the
+                                // chips keep showing the previous provider's tiers.
+                                try {
+                                  const pools = await apiClient<PoolOption[]>(
+                                    `/v1/tools/sms/pools?country=${r.countryId}&service=${r.serviceId}&engine=${r.engine}`
+                                  );
+                                  setPoolOptions(pools || []);
+                                } catch {
+                                  setPoolOptions([]);
+                                }
                               }}
                               className={`min-h-9 rounded-sm border px-2.5 text-[10px] font-mono uppercase tracking-[0.12em] transition-colors ${selectedProvider === r.engine ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/40 hover:text-wr-accent'}`}
                             >
