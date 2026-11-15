@@ -23,6 +23,7 @@ interface CompareResult {
   price: number;
   successRate: number;
   pool?: string;
+  lineType?: 'mobile' | 'voip' | 'unknown';
   available: boolean;
   stock: number;
 }
@@ -1179,9 +1180,16 @@ export function SMSWall() {
                       )}
                       {priceInfo && (
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-wr-accent/20 pt-3">
-                          <div className="text-[11px] font-mono text-wr-dim">
-                            {priceInfo.success_rate > 0 && `${priceInfo.success_rate}% ${t('sms.success_rate')}`}
-                            {stockInfo && stockInfo.count !== undefined ? ` · ${stockInfo.count.toLocaleString()} ${t('sms.in_stock').toLowerCase()}` : ''}
+                          <div className="flex items-center gap-2 text-[11px] font-mono text-wr-dim">
+                            {(() => {
+                              const lt = compareResults.find(r => r.engine === selectedProvider)?.lineType;
+                              if (!lt || lt === 'unknown') return null;
+                              return <span className={`rounded-sm border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${lt === 'mobile' ? 'border-wr-accent/40 text-wr-accent bg-wr-accent/10' : 'border-wr-warning/40 text-wr-warning bg-wr-warning/10'}`}>{lt === 'mobile' ? 'MOBILE' : 'VOIP'}</span>;
+                            })()}
+                            <span>
+                              {priceInfo.success_rate > 0 && `${priceInfo.success_rate}% ${t('sms.success_rate')}`}
+                              {stockInfo && stockInfo.count !== undefined ? ` · ${stockInfo.count.toLocaleString()} ${t('sms.in_stock').toLowerCase()}` : ''}
+                            </span>
                           </div>
                           <button
                             onClick={handleGetNumber}
