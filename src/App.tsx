@@ -15,6 +15,7 @@ import FAQ from './pages/FAQ';
 import { PGPTerminal } from './pages/PGPTerminal';
 import { InvitePage } from './pages/InvitePage';
 import APIPage from './pages/APIPage';
+import PwaPayTest from './pages/PwaPayTest';
 import NotFound from './pages/NotFound';
 import { InstallPrompt } from './components/InstallPrompt';
 import { QuoteConfirmation } from './components/QuoteConfirmation';
@@ -40,6 +41,7 @@ const PAGES = [
   { path: '/comms', element: <PGPTerminal /> },
   { path: '/comms/invite', element: <InvitePage /> },
   { path: '/api', element: <APIPage /> },
+  { path: '/pay-test', element: <PwaPayTest /> },
 ];
 
 // Language prefixes (en has no prefix)
