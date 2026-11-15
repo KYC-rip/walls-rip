@@ -183,7 +183,6 @@ export function SMSWall() {
   }, [setSelectedService]);
   const [serviceSearch, setServiceSearch] = useState('');
   const [visibleServices, setVisibleServices] = useState(24);
-  const [popularPrices, setPopularPrices] = useState<Record<string, number>>({});
   const countryListRef = useRef<HTMLDivElement>(null);
   const servicePanelRef = useRef<HTMLElement>(null);
   const quoteRef = useRef<HTMLDivElement>(null);
@@ -455,26 +454,6 @@ export function SMSWall() {
     const el = countryListRef.current?.querySelector(`[data-country="${selectedCountry}"]`) as HTMLElement | null;
     el?.scrollIntoView({ block: 'nearest' });
   }, [selectedCountry, countries]);
-
-  // Prefetch top-route prices so popular service cards show a real "from" price.
-  useEffect(() => {
-    if (!selectedCountry || !services.length) { setPopularPrices({}); return; }
-    let cancelled = false;
-    const targets = POPULAR_SERVICES
-      .map(name => services.find(s => s.name.toLowerCase() === name.toLowerCase()))
-      .filter((s): s is Service => Boolean(s));
-    Promise.all(targets.map(s =>
-      apiClient<{ results: CompareResult[] }>(`/v1/tools/sms/compare?country=${selectedCountry}&service=${s.id}`)
-        .then(r => ({ id: s.id, price: r.results?.[0]?.price }))
-        .catch(() => ({ id: s.id, price: undefined }))
-    )).then(rows => {
-      if (cancelled) return;
-      const map: Record<string, number> = {};
-      for (const row of rows) if (typeof row.price === 'number') map[row.id] = row.price;
-      setPopularPrices(map);
-    });
-    return () => { cancelled = true; };
-  }, [selectedCountry, services]);
 
   // Poll for SMS
   useEffect(() => {
@@ -1010,10 +989,7 @@ export function SMSWall() {
                     {(serviceSearch ? filteredServices : orderedServices).slice(0, visibleServices).map((s, idx) => {
                       const active = selectedService === s.id;
                       const logo = serviceLogo(s.name);
-                      const prefetched = popularPrices[s.id];
-                      const shownPrice = active && priceInfo
-                        ? `$${priceInfo.price}`
-                        : prefetched != null ? `From $${prefetched.toFixed(2)}` : '';
+                      const shownPrice = active && priceInfo ? `$${priceInfo.price}` : '';
                       return (
                         <button key={s.id} onClick={() => chooseService(s.id)}
                           className={`group text-left p-4 rounded-sm border bg-wr-base transition-colors ${active ? 'border-wr-accent bg-wr-accent/5' : 'border-wr-border hover:border-wr-accent/40'}`}>
