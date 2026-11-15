@@ -213,6 +213,8 @@ export function SMSWall() {
   // SMS flow
   const [purchase, setPurchase] = useState<PurchaseResult | null>(null);
   const [smsResult, setSmsResult] = useState<SMSCheckResult | null>(null);
+  const [smsCodes, setSmsCodes] = useState<{ code: string; full?: string }[]>([]);
+  const [requestingAnother, setRequestingAnother] = useState(false);
   const [polling, setPolling] = useState(false);
   const [step, setStep] = useState<'SELECT' | 'WAITING' | 'RECEIVED'>('SELECT');
   const [copied, setCopied] = useState(false);
@@ -463,6 +465,7 @@ export function SMSWall() {
       try {
         const result = await apiClient<SMSCheckResult>(`/v1/tools/sms/check?order_id=${purchase.orderId}&token=${walletToken}`);
         if (result.status === 'RECEIVED' && result.sms) {
+          setSmsCodes(prev => prev.some(c => c.code === result.sms) ? prev : [...prev, { code: result.sms!, full: result.fullSms }]);
           setSmsResult(result); setPolling(false); setStep('RECEIVED');
           toast.success('SMS received!');
           fireNotification('SMS Received', `Code: ${result.sms}`);
@@ -479,6 +482,30 @@ export function SMSWall() {
     }, 5000);
     return () => clearInterval(interval);
   }, [polling, purchase, walletToken, balanceUSD]);
+
+  /** Ask the provider for another code on the SAME number, then keep polling. */
+  const requestAnotherCode = async () => {
+    if (!purchase || !walletToken || requestingAnother || polling) return;
+    setRequestingAnother(true);
+    try {
+      const r = await apiClient<{ success: boolean; message?: string }>(
+        `/v1/tools/sms/resend?order_id=${encodeURIComponent(purchase.orderId)}&token=${encodeURIComponent(walletToken)}`
+      );
+      if (!r.success) {
+        toast.error(r.message || 'Could not request another code');
+        return;
+      }
+      toast.success('Another code requested — keep this page open');
+      setPolling(true);
+    } catch (e) {
+      const msg = (e as { data?: { error?: string }; message?: string })?.data?.error
+        || (e as { message?: string })?.message
+        || 'Could not request another code';
+      toast.error(msg);
+    } finally {
+      setRequestingAnother(false);
+    }
+  };
 
   const executePurchase = async (
     countryId: string, serviceId: string, token: string,
@@ -565,7 +592,7 @@ export function SMSWall() {
   };
 
   const reset = () => {
-    setPurchase(null); setSmsResult(null); setPolling(false);
+    setPurchase(null); setSmsResult(null); setSmsCodes([]); setPolling(false);
     setStep('SELECT'); setSelectedService(''); setPriceInfo(null);
     window.history.replaceState(null, '', window.location.pathname);
   };
@@ -812,13 +839,31 @@ export function SMSWall() {
                 <p className="text-wr-dim text-xs">{t('sms.wallet')}: <span className="tabular-nums">${balanceUSD.toFixed(2)}</span></p>
               </div>
             </div>
-            <button onClick={() => copyText(smsResult.sms || '')} className="min-h-14 w-full p-5 rounded-sm bg-wr-base border border-wr-accent/50 flex items-center justify-between gap-4 hover:bg-wr-accent/5 transition-colors text-left">
-              <div className="min-w-0">
-                <div className="font-mono text-2xl font-bold text-wr-accent mb-1 break-all">{smsResult.sms}</div>
-                {smsResult.fullSms && <div className="text-xs text-wr-dim break-all">{smsResult.fullSms}</div>}
-              </div>
-              {copied ? <Check size={18} className="text-wr-accent shrink-0" /> : <Copy size={18} className="text-wr-dim shrink-0" />}
-            </button>
+            <div className="space-y-2">
+              {(smsCodes.length ? smsCodes : smsResult.sms ? [{ code: smsResult.sms, full: smsResult.fullSms }] : []).map((c, i) => (
+                <button key={`${c.code}-${i}`} onClick={() => copyText(c.code)} className="min-h-14 w-full p-5 rounded-sm bg-wr-base border border-wr-accent/50 flex items-center justify-between gap-4 hover:bg-wr-accent/5 transition-colors text-left">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-wr-dim mb-1">
+                      {t('sms.code_label', 'CODE')} {String(i + 1).padStart(2, '0')}
+                    </div>
+                    <div className="font-mono text-2xl font-bold text-wr-accent mb-1 break-all">{c.code}</div>
+                    {c.full && <div className="text-xs text-wr-dim break-all">{c.full}</div>}
+                  </div>
+                  {copied ? <Check size={18} className="text-wr-accent shrink-0" /> : <Copy size={18} className="text-wr-dim shrink-0" />}
+                </button>
+              ))}
+            </div>
+            {purchase?.engine === 'herosms' && (
+              <button
+                onClick={requestAnotherCode}
+                disabled={requestingAnother || polling}
+                className="min-h-11 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-wr-info hover:text-wr-accent disabled:opacity-50 transition-colors"
+              >
+                {requestingAnother || polling
+                  ? <><RefreshCw size={12} className="animate-spin" /> {t('sms.waiting_for_sms')}</>
+                  : <><Timer size={12} /> {t('sms.wait_another_code', 'Wait for another code')}</>}
+              </button>
+            )}
             <button onClick={reset} className="min-h-11 inline-flex items-center text-xs font-bold uppercase tracking-[0.16em] text-wr-secondary hover:underline">{t('sms.get_another')}</button>
           </div>
         </main>
