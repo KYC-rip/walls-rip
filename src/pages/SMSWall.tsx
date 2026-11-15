@@ -854,7 +854,7 @@ export function SMSWall() {
                 </button>
               ))}
             </div>
-            {purchase?.engine === 'herosms' && (
+            {(purchase?.engine === 'herosms' || purchase?.engine === 'mock') && (
               <button
                 onClick={requestAnotherCode}
                 disabled={requestingAnother || polling}
