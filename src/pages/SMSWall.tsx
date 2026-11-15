@@ -24,6 +24,7 @@ interface CompareResult {
   successRate: number;
   pool?: string;
   lineType?: 'mobile' | 'voip' | 'unknown';
+  quoteId?: string;
   available: boolean;
   stock: number;
 }
@@ -516,7 +517,7 @@ export function SMSWall() {
     try {
       const data = await apiClient<PurchaseResult>('/v1/tools/sms/purchase', {
         method: 'POST',
-        body: { country: countryId, service: serviceId, token, pool, engine },
+        body: { country: countryId, service: serviceId, token, pool, engine, quoteId: compareResults.find(r => r.engine === engine)?.quoteId },
       });
       if (data.orderId) {
         setPurchase(data); setBalanceUSD(data.balanceUSD); setPolling(true); setStep('WAITING');
