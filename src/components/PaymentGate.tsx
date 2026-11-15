@@ -832,7 +832,8 @@ function LegacyPaymentGate({
  */
 export function PaymentGate(props: PaymentGateProps) {
   const isWalletDeposit = !props.onPaymentConfirmed;
-  const isSmsWalletEndpoint = !props.createEndpoint || props.createEndpoint === '/v1/tools/sms/payment/create';
+  const walletEndpoint = props.createEndpoint || '/v1/tools/sms/payment/create';
+  const isSmsWalletEndpoint = walletEndpoint === '/v1/tools/sms/payment/create' || walletEndpoint === '/v1/tools/esim/payment/create';
   if (import.meta.env.VITE_PWA_PAYMENTS === '1' && isWalletDeposit && isSmsWalletEndpoint) {
     return (
       <PwaCashGate
@@ -840,6 +841,8 @@ export function PaymentGate(props: PaymentGateProps) {
         onClose={props.onClose || (() => {})}
         initialAmount={props.amount || 5}
         walletToken={props.walletToken}
+        createEndpoint={walletEndpoint}
+        checkEndpoint={props.checkEndpoint || '/v1/tools/sms/payment/check'}
         onWalletCreated={props.onWalletCreated}
         onDeposit={props.onDeposit}
       />

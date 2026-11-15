@@ -20,6 +20,8 @@ interface PwaCashGateProps {
   onClose: () => void;
   initialAmount?: number;
   walletToken?: string | null;
+  createEndpoint?: string;
+  checkEndpoint?: string;
   onWalletCreated?: (token: string) => void;
   onDeposit?: (usd: number, method: string, walletToken?: string) => void;
 }
@@ -33,6 +35,8 @@ const PRESETS = [3, 5, 10, 20];
  */
 export function PwaCashGate({
   isOpen, onClose, initialAmount = 5, walletToken, onWalletCreated, onDeposit,
+  createEndpoint = '/v1/tools/sms/payment/create',
+  checkEndpoint = '/v1/tools/sms/payment/check',
 }: PwaCashGateProps) {
   const [amount, setAmount] = useState(initialAmount);
   const [invoice, setInvoice] = useState<PwaInvoice | null>(null);
@@ -54,7 +58,7 @@ export function PwaCashGate({
     if (busy || amount < 0.05) return;
     setBusy(true);
     try {
-      const inv = await apiClient<PwaInvoice>('/v1/tools/sms/payment/create', {
+      const inv = await apiClient<PwaInvoice>(createEndpoint, {
         method: 'POST',
         body: {
           amount,
@@ -82,7 +86,7 @@ export function PwaCashGate({
     const poll = async () => {
       try {
         const r = await apiClient<{ status: string; walletToken?: string; balanceUSD?: number }>(
-          `/v1/tools/sms/payment/check?paymentId=${encodeURIComponent(invoice.paymentId)}`
+          `${checkEndpoint}?paymentId=${encodeURIComponent(invoice.paymentId)}`
         );
         if (r.status === 'COMPLETED') {
           setStatus('done');
