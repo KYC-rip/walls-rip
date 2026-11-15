@@ -1070,6 +1070,24 @@ export function SMSWall() {
                           {t('sms.change_service', 'Change')}
                         </button>
                       </div>
+                      {compareResults.length > 1 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {compareResults.map((r, i) => (
+                            <button
+                              key={r.engine}
+                              onClick={() => {
+                                setSelectedProvider(r.engine);
+                                setPriceInfo({ price: r.price.toFixed(2), success_rate: r.successRate, engine: r.engine, pool: r.pool });
+                                setStockInfo({ available: r.available, count: r.stock });
+                                setSelectedPool('');
+                              }}
+                              className={`min-h-9 rounded-sm border px-2.5 text-[10px] font-mono uppercase tracking-[0.12em] transition-colors ${selectedProvider === r.engine ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/40 hover:text-wr-accent'}`}
+                            >
+                              {t('sms.route', 'Route')} {String.fromCharCode(65 + i)} · ${r.price.toFixed(2)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       {priceInfo && (
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-wr-accent/20 pt-3">
                           <div className="text-[11px] font-mono text-wr-dim">
@@ -1218,6 +1236,7 @@ export function SMSWall() {
             )}
 
             {/* ═══ ACTION BAR ═══ */}
+            {servicePickerOpen && (
             <div ref={quoteRef} className="sticky bottom-0 z-20 -mx-4 md:-mx-10 mt-6 px-4 md:px-10 py-4 bg-wr-surface/95 backdrop-blur border-t border-wr-border flex flex-col md:flex-row justify-between md:items-center gap-3 md:gap-4">
               <div className="text-[11px] text-wr-dim font-mono uppercase tracking-[0.14em]">
                 {priceInfo ? (
@@ -1256,6 +1275,7 @@ export function SMSWall() {
                 </div>
               )}
             </div>
+            )}
 
             {stockInfo && !stockInfo.available && (
               <div className="mt-4 flex items-start gap-2 text-xs text-wr-error p-3 rounded-sm bg-wr-error/10 border border-wr-error/20">
