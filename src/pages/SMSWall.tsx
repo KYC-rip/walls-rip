@@ -15,7 +15,7 @@ interface UnifiedService { id: string; name: string; category?: string; engines:
 interface Country { id: string; name: string; shortName: string; engines: string[] } // id = ISO (shortName), dedupped
 interface Service { id: string; name: string; category?: string; engines: string[] }
 interface PriceInfo { price: string; success_rate: number; engine: string; pool?: string }
-interface PoolOption { pool: string; poolName: string; price: number; successRate: number }
+interface PoolOption { pool: string; poolName: string; price: number; successRate: number; stock?: number }
 interface CompareResult {
   engine: string; // e.g. "fivesim", "smspool"
   countryId: string; // engine-specific ID
@@ -410,23 +410,29 @@ export function SMSWall() {
         // Default to the top-ranked result (cheapest/highest success)
         const top = results[0];
         setSelectedProvider(top.engine);
-        setPriceInfo({
-          price: top.price.toFixed(2),
-          success_rate: top.successRate,
-          engine: top.engine,
-        });
         setStockInfo({ available: top.available, count: top.stock });
 
-        // Fetch pool/operator variants — leave selectedPool empty (Auto/cheapest tier)
+        // Fetch pool/operator variants first, then publish one final price. Setting
+        // the route price before the pool price let StrictMode's second run flip it
+        // back to the cheaper "any" price that the provider refuses.
+        let pools: PoolOption[] = [];
         try {
-          const pools = await apiClient<PoolOption[]>(
+          pools = await apiClient<PoolOption[]>(
             `/v1/tools/sms/pools?country=${top.countryId}&service=${top.serviceId}&engine=${top.engine}`
-          );
-          setPoolOptions(pools || []);
-          setSelectedPool('');
+          ) || [];
         } catch {
-          setPoolOptions([]);
+          pools = [];
+        }
+        setPoolOptions(pools);
+        if (results.length === 1 && pools.length) {
+          const cheapest = [...pools].sort((a, b) => a.price - b.price)[0];
+          const stock = cheapest.stock ?? top.stock;
+          setSelectedPool(cheapest.pool);
+          setPriceInfo({ price: cheapest.price.toFixed(2), success_rate: cheapest.successRate, engine: top.engine, pool: cheapest.pool });
+          setStockInfo({ available: stock > 0, count: stock });
+        } else {
           setSelectedPool('');
+          setPriceInfo({ price: top.price.toFixed(2), success_rate: top.successRate, engine: top.engine });
         }
       })
       .catch(() => {
