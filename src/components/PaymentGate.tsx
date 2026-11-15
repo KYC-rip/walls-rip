@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'react-hot-toast';
+import { PwaCashGate } from './PwaCashGate';
 import { useTranslation } from 'react-i18next';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -136,7 +137,7 @@ function Xmr402Countdown({ timestamp, onExpired }: { timestamp: string; onExpire
 
 // ── Main Component ──────────────────────────────────────────────────
 
-export function PaymentGate({
+function LegacyPaymentGate({
   amount,
   methods = ['XMR', 'LN', 'XMR402', 'USDT'],
   walletToken,
@@ -822,4 +823,27 @@ export function PaymentGate({
       </div>
     </div>
   );
+}
+
+/**
+ * Payment entry point. With VITE_PWA_PAYMENTS=1, wallet deposits go through the
+ * external pwa.cash processor (SMS wallet endpoints); direct mail payments and
+ * the legacy rails remain on LegacyPaymentGate until the migration is complete.
+ */
+export function PaymentGate(props: PaymentGateProps) {
+  const isWalletDeposit = !props.onPaymentConfirmed;
+  const isSmsWalletEndpoint = !props.createEndpoint || props.createEndpoint === '/v1/tools/sms/payment/create';
+  if (import.meta.env.VITE_PWA_PAYMENTS === '1' && isWalletDeposit && isSmsWalletEndpoint) {
+    return (
+      <PwaCashGate
+        isOpen={props.isOpen !== false}
+        onClose={props.onClose || (() => {})}
+        initialAmount={props.amount || 5}
+        walletToken={props.walletToken}
+        onWalletCreated={props.onWalletCreated}
+        onDeposit={props.onDeposit}
+      />
+    );
+  }
+  return <LegacyPaymentGate {...props} />;
 }
