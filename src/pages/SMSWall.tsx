@@ -510,11 +510,22 @@ export function SMSWall() {
         toast.error('Failed to get number');
       }
     } catch (e) {
-      const msg = (e as { data?: { error?: string }; message?: string })?.data?.error
+      const raw = (e as { data?: { error?: string }; message?: string })?.data?.error
         || (e as { message?: string })?.message
         || 'Purchase failed';
       console.error('[sms purchase]', e);
-      toast.error(msg);
+      const msg = /no free phones|no numbers|out of stock|no stock/i.test(raw)
+        ? 'No numbers available on this route right now — pick another route or country.'
+        : /max price/i.test(raw)
+          ? 'The provider price moved above the quote — retry or pick another route.'
+          : /whitelist/i.test(raw)
+            ? 'This service is not available from this provider — pick another route.'
+            : /insufficient|balance/i.test(raw)
+              ? 'Insufficient wallet balance — deposit and try again.'
+              : /duplicate/i.test(raw)
+                ? 'This purchase was already submitted — check the open order before retrying.'
+                : raw;
+      toast.error(msg, { duration: 6000 });
     }
   };
 
