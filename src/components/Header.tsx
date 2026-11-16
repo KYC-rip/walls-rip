@@ -30,8 +30,14 @@ const NAV_KEYS = [
   { path: '/faq', key: 'header.faq' },
   { path: '/api', key: 'header.api' },
 ];
-const PRIMARY_NAV = NAV_KEYS.filter(item => ['/', '/mail', '/sms', '/esim', '/phone', '/vpn'].includes(item.path));
-const MORE_NAV = NAV_KEYS.filter(item => !PRIMARY_NAV.includes(item));
+const NETWORK_CHILDREN = [
+  { path: '/vpn', key: 'header.vpn', descKey: 'network.nav_vpn_desc', desc: 'Encrypted access with WireGuard, OpenVPN and VLESS configs' },
+  { path: '/proxy', key: 'header.proxy', descKey: 'network.nav_proxy_desc', desc: 'Residential IPs by country; HTTP sessions for one app or script' },
+];
+const NETWORK_PATHS = ['/network', ...NETWORK_CHILDREN.map(item => item.path)];
+
+const PRIMARY_NAV = NAV_KEYS.filter(item => ['/', '/mail', '/sms', '/esim', '/phone'].includes(item.path));
+const MORE_NAV = NAV_KEYS.filter(item => !PRIMARY_NAV.includes(item) && !NETWORK_PATHS.includes(item.path));
 
 function stripLangPrefix(path: string): string {
   const segments = path.split('/');
@@ -65,14 +71,17 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [networkOpen, setNetworkOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
+  const networkRef = useRef<HTMLDivElement>(null);
 
   const currentLang = (SUPPORTED_LANGS as readonly string[]).includes(i18n.language)
     ? i18n.language
     : 'en';
 
   const strippedPath = stripLangPrefix(pathname);
+  const networkActive = NETWORK_PATHS.includes(strippedPath);
 
   // Close lang dropdown on outside click
   useEffect(() => {
@@ -81,6 +90,7 @@ export function Header() {
         setLangOpen(false);
       }
       if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
+      if (networkRef.current && !networkRef.current.contains(e.target as Node)) setNetworkOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -120,6 +130,51 @@ export function Header() {
               {t(item.key)}
             </Link>
           ))}
+          <div
+            className={`relative flex items-center rounded-sm transition-colors ${networkActive ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}
+            ref={networkRef}
+            onKeyDown={e => { if (e.key === 'Escape') setNetworkOpen(false); }}
+          >
+            <Link
+              to={navLinkPath('/network', currentLang)}
+              className="text-[11px] font-bold pl-2.5 pr-1 py-1.5 rounded-l-sm"
+            >
+              {t('header.network', 'Network')}
+            </Link>
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={networkOpen}
+              aria-label={t('header.network_menu', 'Network menu')}
+              onClick={() => setNetworkOpen(open => !open)}
+              className="pr-2 pl-0.5 py-1.5 rounded-r-sm"
+            >
+              <ChevronDown size={12} className={`transition-transform ${networkOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {networkOpen && (
+              <div role="menu" className="absolute left-0 top-full mt-1 min-w-64 py-1 bg-wr-surface border border-wr-border rounded-sm shadow-xl z-50">
+                <Link
+                  to={navLinkPath('/network', currentLang)}
+                  onClick={() => setNetworkOpen(false)}
+                  className={`block px-3 py-2 text-[11px] font-bold border-b border-wr-border/50 transition-colors ${strippedPath === '/network' ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}
+                >
+                  {t('network.nav_overview', 'Network overview')}
+                  <span className="block text-[10px] font-normal text-wr-dim mt-0.5">{t('network.nav_overview_desc', 'VPN vs proxy: which one fits')}</span>
+                </Link>
+                {NETWORK_CHILDREN.map(item => (
+                  <Link
+                    key={item.path}
+                    to={navLinkPath(item.path, currentLang)}
+                    onClick={() => setNetworkOpen(false)}
+                    className={`block px-3 py-2 text-[11px] font-bold transition-colors ${strippedPath === item.path ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}
+                  >
+                    {t(item.key)}
+                    <span className="block text-[10px] font-normal text-wr-dim mt-0.5">{t(item.descKey, item.desc)}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="relative" ref={moreRef}>
             <button type="button" aria-haspopup="menu" aria-expanded={moreOpen} onClick={() => setMoreOpen(open => !open)}
               onKeyDown={e => { if (e.key === 'Escape') setMoreOpen(false); }}
@@ -236,6 +291,31 @@ export function Header() {
                 {t(item.key)}
               </Link>
             ))}
+            <details className={`group border-t border-wr-border/50 mt-2 pt-2 ${networkActive ? 'text-wr-accent' : ''}`}>
+              <summary className="list-none cursor-pointer text-sm font-bold px-3 py-2 hover:text-current flex items-center justify-between">
+                {t('header.network', 'Network')} <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="flex flex-col gap-1 pl-3">
+                <Link
+                  to={navLinkPath('/network', currentLang)}
+                  onClick={() => setMenuOpen(false)}
+                  className={`text-sm font-bold px-3 py-2 rounded-sm transition-colors ${strippedPath === '/network' ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}
+                >
+                  {t('network.nav_overview', 'Network overview')}
+                </Link>
+                {NETWORK_CHILDREN.map(item => (
+                  <Link
+                    key={item.path}
+                    to={navLinkPath(item.path, currentLang)}
+                    onClick={() => setMenuOpen(false)}
+                    className={`text-sm font-bold px-3 py-2 rounded-sm transition-colors ${strippedPath === item.path ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}
+                  >
+                    {t(item.key)}
+                  </Link>
+                ))}
+              </div>
+            </details>
+
             <details className="group border-t border-wr-border/50 mt-2 pt-2">
               <summary className="list-none cursor-pointer text-sm font-bold px-3 py-2 text-wr-dim hover:text-current flex items-center justify-between">
                 {t('header.more', 'More')} <ChevronDown size={14} className="transition-transform group-open:rotate-180" />

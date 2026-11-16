@@ -98,8 +98,9 @@ JSON responses.
 - /phone — US and Global phone plans
 - /uk-sim — UK numbers (6/12/24 months)
 - /topup — renew a UK number
-- /vpn — VPN configs
-- /proxy — placeholder (unavailable)
+- /network — VPN vs residential proxy comparison hub
+- /vpn — VPN configs (WireGuard, OpenVPN, VLESS)
+- /proxy — residential HTTP proxies (0.5–100 GB, 5-minute sticky sessions)
 - /comms — Ghost Chat encrypted messaging
 - /api — API documentation
 - /faq — frequently asked questions

@@ -53,6 +53,7 @@ interface ProxyOrder {
   createdAt: number;
   balanceUSD: number;
   charged: number;
+  warning?: string;
 }
 
 interface PaymentData {
@@ -118,7 +119,8 @@ export function ProxyWall() {
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedPlan, setSelectedPlan] = useState<string>('');
   const [locationSearch, setLocationSearch] = useState('');
-  const [selectedProtocol, setSelectedProtocol] = useState<ProxyProtocol>('socks5');
+  // ProxyApp is HTTP-only (provider product page). No SOCKS5 selector.
+  const selectedProtocol: ProxyProtocol = 'http';
 
   // Wallet
   const [walletToken, setWalletToken] = useState<string | null>(() => localStorage.getItem(WALLET_KEY));
@@ -153,8 +155,10 @@ export function ProxyWall() {
       const allMaint = h.length > 0 && h.every(e => e.status === 'MAINTENANCE');
       setEngineError(p.length === 0 || allMaint);
       if (l.length > 0 && !selectedLocation) {
-        const us = l.find(loc => loc.countryCode === 'US');
-        if (us) setSelectedLocation(us.id);
+        // Prefer US, otherwise the first country the provider offers — the
+        // live ProxyApp list does not always include US.
+        const preferred = l.find(loc => loc.countryCode === 'US') || l[0];
+        if (preferred) setSelectedLocation(preferred.id);
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -276,6 +280,17 @@ export function ProxyWall() {
   const selectedLocationObj = locations.find(l => l.id === selectedLocation);
   const selectedPlanObj = plans.find(p => p.id === selectedPlan);
   const typeConfig = PROXY_TYPE_CONFIG[selectedType];
+  // Only show tabs the live catalog can fill (ProxyApp is residential-only).
+  const availableTypes = (Object.keys(PROXY_TYPE_CONFIG) as ProxyType[]).filter(t => plans.some(p => p.type === t));
+  const providerOnline = healthData.some(e => e.status === 'ONLINE');
+
+  useEffect(() => {
+    if (availableTypes.length > 0 && !availableTypes.includes(selectedType)) {
+      setSelectedType(availableTypes[0]);
+      setSelectedPlan('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plans, selectedType]);
 
   // ─── Loading ───
 
@@ -295,9 +310,7 @@ export function ProxyWall() {
 
   if (step === 'CREDENTIALS' && order) {
     const cred = order.credentials;
-    const connString = selectedProtocol === 'socks5'
-      ? `socks5://${cred.username}:${cred.password}@${cred.host}:${cred.port}`
-      : `http://${cred.username}:${cred.password}@${cred.host}:${cred.port}`;
+    const connString = `http://${cred.username}:${cred.password}@${cred.host}:${cred.port}`;
 
     return (
       <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
@@ -311,18 +324,6 @@ export function ProxyWall() {
             </div>
             <h2 className="text-lg font-bold tracking-wider text-wr-green">{t('proxy.proxy_active')}</h2>
             <p className="text-xs text-wr-dim">{t('proxy.proxy_active_desc')}</p>
-
-            {/* Protocol toggle */}
-            <div className="flex items-center justify-center gap-2">
-              <button onClick={() => setSelectedProtocol('socks5')}
-                className={`text-xs px-4 py-2 rounded-sm border font-bold transition-all ${selectedProtocol === 'socks5' ? 'border-wr-green bg-wr-green/10 text-wr-green' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                SOCKS5
-              </button>
-              <button onClick={() => setSelectedProtocol('http')}
-                className={`text-xs px-4 py-2 rounded-sm border font-bold transition-all ${selectedProtocol === 'http' ? 'border-wr-accent bg-wr-accent/10 text-wr-accent' : 'border-wr-border text-wr-dim hover:border-wr-dim'}`}>
-                HTTP
-              </button>
-            </div>
 
             {/* Connection string */}
             <div className="relative group">
@@ -369,10 +370,17 @@ export function ProxyWall() {
               </div>
             </div>
 
+            {order.warning && (
+              <div className="flex items-start gap-2 text-xs text-wr-warning p-3 rounded bg-wr-warning/10 border border-wr-warning/30 text-left">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>{order.warning}</span>
+              </div>
+            )}
+
             {/* Connection test hint */}
             <div className="flex items-start gap-2 text-xs text-wr-dim p-3 rounded bg-wr-base border border-wr-border/50">
               <Eye size={14} className="shrink-0 mt-0.5 text-wr-accent" />
-              <span>Test: <code className="text-wr-accent">curl --proxy {selectedProtocol === 'socks5' ? '--socks5' : ''} {cred.host}:{cred.port} -U {cred.username}:{cred.password} https://api.ipify.org</code></span>
+              <span>Test: <code className="text-wr-accent">curl --proxy {cred.host}:{cred.port} -U {cred.username}:{cred.password} https://api.ipify.org</code></span>
             </div>
 
             <div className="text-[10px] text-wr-dim">{t('sms.wallet')}: ${balanceUSD.toFixed(2)}</div>
@@ -389,8 +397,8 @@ export function ProxyWall() {
   return (
     <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased transition-colors duration-300">
       <SEO
-        title="Proxy Wall — Anonymous proxy access"
-        description="Get anonymous residential, datacenter, and mobile proxies. Global coverage, SOCKS5/HTTP. Pay with XMR or Lightning."
+        title="Proxy Wall — Anonymous residential proxies"
+        description="Residential HTTP proxies by country in 0.5–100 GB prepaid packages. 5-minute sticky sessions. Pay with XMR or Lightning."
         path="/proxy"
         image="/og-proxy.jpg"
         schemas={[
@@ -401,7 +409,7 @@ export function ProxyWall() {
             url: 'https://walls.rip/proxy',
             applicationCategory: 'UtilitiesApplication',
             operatingSystem: 'Web',
-            description: 'Anonymous residential, datacenter, and mobile proxies. SOCKS5 & HTTP. Global coverage.',
+            description: 'Anonymous residential HTTP proxies. Country targeting, 5-minute sticky sessions, prepaid GB packages.',
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
           },
           {
@@ -410,7 +418,7 @@ export function ProxyWall() {
             name: 'Proxy Wall — Anonymous Proxy Access',
             serviceType: 'Anonymous Proxy Access',
             areaServed: 'Worldwide',
-            description: 'Residential, datacenter, and mobile proxies with SOCKS5/HTTP support. Pay with Monero or Lightning.',
+            description: 'Residential HTTP proxies with country targeting and 5-minute sticky sessions. Pay with Monero or Lightning.',
             provider: { '@type': 'Organization', name: 'walls.rip', url: 'https://walls.rip' },
           },
         ]}
@@ -442,9 +450,11 @@ export function ProxyWall() {
                   <AlertTriangle size={24} />
                 </div>
                 <div>
-                  <h3 className="text-wr-warning font-bold tracking-widest text-sm mb-1 uppercase">{t('proxy.coming_soon')}</h3>
+                  <h3 className="text-wr-warning font-bold tracking-widest text-sm mb-1 uppercase">
+                    {providerOnline && plans.length === 0 ? t('proxy.temporarily_unavailable_title') : t('proxy.coming_soon')}
+                  </h3>
                   <p className="text-xs text-wr-dim font-mono leading-relaxed max-w-lg">
-                    {t('proxy.coming_soon_config')}
+                    {providerOnline && plans.length === 0 ? t('proxy.temporarily_unavailable') : t('proxy.coming_soon_config')}
                   </p>
                   {healthData.length > 0 && healthData[0].message && (
                     <p className="text-[10px] text-wr-dim/60 mt-2 font-mono">{healthData[0].message}</p>
@@ -492,8 +502,10 @@ export function ProxyWall() {
 
           {/* ═══ PROXY TYPE TABS ═══ */}
           <div className="mx-2 md:mx-0">
-            <div className="grid grid-cols-3 gap-3">
-              {(Object.entries(PROXY_TYPE_CONFIG) as [ProxyType, typeof PROXY_TYPE_CONFIG[ProxyType]][]).map(([type, config]) => {
+            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.max(availableTypes.length, 1)}, minmax(0, 1fr))` }}>
+              {(Object.entries(PROXY_TYPE_CONFIG) as [ProxyType, typeof PROXY_TYPE_CONFIG[ProxyType]][])
+                .filter(([type]) => availableTypes.includes(type))
+                .map(([type, config]) => {
                 const Icon = config.icon;
                 const count = plans.filter(p => p.type === type).length;
                 return (
@@ -654,7 +666,7 @@ export function ProxyWall() {
           {/* ═══ INFO CARDS ═══ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center mx-2 md:mx-0">
             {[
-              { title: t('proxy.info_protocols_title'), desc: t('proxy.info_protocols_desc') },
+              { title: t('proxy.info_http_title', 'HTTP sessions'), desc: t('proxy.info_http_desc', '5-minute sticky IPs. HTTP only — no SOCKS5.') },
               { title: t('proxy.info_global_title'), desc: t('proxy.info_global_desc') },
               { title: t('proxy.info_pay_title'), desc: t('proxy.info_pay_desc') },
             ].map(item => (

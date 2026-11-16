@@ -10,6 +10,7 @@ import { ESIMWall } from './pages/ESIMWall';
 import PhoneWall from './pages/PhoneWall';
 import TopupWall from './pages/TopupWall';
 import { ProxyWall } from './pages/ProxyWall';
+import NetworkHub from './pages/NetworkHub';
 import { ConnectivityWall } from './pages/ConnectivityWall';
 import FAQ from './pages/FAQ';
 import { PGPTerminal } from './pages/PGPTerminal';
@@ -30,6 +31,7 @@ const PAGES = [
   { path: '/esim/topup', element: <TopupWall /> },
   { path: '/phone', element: <PhoneWall /> },
   { path: '/proxy', element: <ProxyWall /> },
+  { path: '/network', element: <NetworkHub /> },
   { path: '/vpn', element: <ConnectivityWall key="vpn" kind="vpn" /> },
   { path: '/uk-sim', element: <ConnectivityWall key="uk-sim" kind="phone" /> },
   { path: '/topup', element: <ConnectivityWall key="topup" kind="phone" mode="topup" /> },
