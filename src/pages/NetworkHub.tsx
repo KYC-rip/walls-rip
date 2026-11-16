@@ -288,7 +288,7 @@ export default function NetworkHub() {
             <ul className="space-y-2 text-xs text-current">
               {[
                 t('network.card_proxy_f1', 'HTTP only — no SOCKS5'),
-                proxyCountries != null
+                proxyCountries != null && proxyCountries > 0
                   ? t('network.card_proxy_f2_count', { count: proxyCountries, defaultValue: '150+ countries (provider coverage); {{count}} live now' })
                   : t('network.card_proxy_f2', '150+ countries, country targeting'),
                 t('network.card_proxy_f3', '5-minute sticky sessions, then rotation'),
