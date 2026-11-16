@@ -372,6 +372,10 @@
     "decryption_failed": "復号化に失敗"
   },
   "esim": {
+    "all_destinations": "すべての目的地",
+    "destination_search": "どこへ旅行しますか？",
+    "from_price": "最低",
+    "browse_plans": "プランを見る",
     "title_e": "e",
     "title_sim": "SIM",
     "subtitle": "匿名モバイルデータ。100以上の国。KYCなし。",

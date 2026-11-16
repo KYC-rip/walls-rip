@@ -372,6 +372,10 @@
     "decryption_failed": "Расшифровка не удалась"
   },
   "esim": {
+    "all_destinations": "Все направления",
+    "destination_search": "Куда вы едете?",
+    "from_price": "от",
+    "browse_plans": "Тарифы",
     "title_e": "e",
     "title_sim": "SIM",
     "subtitle": "Анонимный мобильный интернет. Без KYC.",

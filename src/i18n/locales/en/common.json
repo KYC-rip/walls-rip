@@ -484,6 +484,10 @@
     "decryption_failed": "Decryption failed"
   },
   "esim": {
+    "all_destinations": "All destinations",
+    "destination_search": "Where are you traveling?",
+    "from_price": "from",
+    "browse_plans": "Browse plans",
     "title_e": "e",
     "title_sim": "SIM",
     "subtitle": "Anonymous mobile data. No KYC.",

@@ -9,6 +9,7 @@ import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
 import { PaymentGate } from '../components/PaymentGate';
+import { DestinationsGrid, type Destination } from '../components/esim/DestinationsGrid';
 
 // ─── Types ───
 
@@ -295,6 +296,8 @@ export function ESIMWall() {
   const { t } = useTranslation();
   const initial = useMemo(getInitialParams, []);
   const [countries, setCountries] = useState<MergedCountry[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [destinationsLoading, setDestinationsLoading] = useState(true);
   const [comparePlans, setComparePlans] = useState<ComparePlan[]>([]);
   const [, setActiveEngines] = useState<string[]>([]);
   const [, setCheapestId] = useState<string | null>(null);
@@ -379,25 +382,6 @@ export function ESIMWall() {
     apiClient<MergedCountry[]>('/v1/tools/esim/countries/all')
       .then(c => {
         setCountries(c);
-        // Auto-select user's territory from CF geo header (skip if URL already has selection)
-        const geo = (window as any).__GEO_COUNTRY as string | undefined;
-        if (geo && !selectedCountry && !initial.country && !initial.region) {
-          if (c.some(cc => cc.code === geo)) {
-            // Exact match — select the user's territory
-            setSelectedCountry(geo);
-          } else {
-            // Fallback: try regional tab with user's continent
-            const continent = COUNTRY_TO_CONTINENT[geo];
-            if (continent) {
-              // Will auto-load regional plans; region selection happens after allPlans load
-              setActiveTab('regional');
-              setSelectedRegion(continent);
-            } else {
-              // Ultimate fallback: US
-              if (c.some(cc => cc.code === 'US')) setSelectedCountry('US');
-            }
-          }
-        }
       })
       .catch((e) => {
         if (e?.data?.code === 'ESIM_NOT_CONFIGURED' || e?.message?.includes('ESIM_NOT_CONFIGURED')) {
@@ -405,6 +389,16 @@ export function ESIMWall() {
         }
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  // ─── Destination index (compact country → from-price) ───
+  useEffect(() => {
+    let cancelled = false;
+    apiClient<{ destinations?: Destination[] }>('/v1/tools/esim/destinations')
+      .then(r => { if (!cancelled && Array.isArray(r.destinations)) setDestinations(r.destinations); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setDestinationsLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   // ─── Check wallet balance (shared with SMS) ───
@@ -579,7 +573,9 @@ export function ESIMWall() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [countries, countrySearch]);
 
-  const selectedCountryName = countries.find(c => c.code === selectedCountry)?.name || '';
+  const destinationName = (code: string, fallback: string) =>
+    destinations.find(d => d.code === code)?.name || fallback;
+  const selectedCountryName = destinationName(selectedCountry, countries.find(c => c.code === selectedCountry)?.name || '');
 
   const filteredPlans = useMemo(() => {
     let plans = [...comparePlans];
@@ -686,6 +682,19 @@ export function ESIMWall() {
     }
     return counts;
   }, [allPlans, countries]);
+
+  // Cheapest regional plan per region (allPlans already carries retail prices).
+  const regionFromPrices = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const region of Object.keys(REGIONS)) {
+      const prices = allPlans
+        .filter(p => isRegionalPlan(p) && planMatchesRegion(p, region))
+        .map(p => p.price)
+        .filter(Number.isFinite);
+      if (prices.length > 0) map[region] = Math.min(...prices);
+    }
+    return map;
+  }, [allPlans]);
 
   // ─── Global plans ───
   const globalPlans = useMemo(() => {
@@ -932,6 +941,23 @@ export function ESIMWall() {
                   {t('esim.hero_title', 'Global data eSIMs')}
                 </h1>
                 <p className="mt-2 text-sm text-wr-dim">{t('esim.compare_subtitle')}</p>
+                {!notConfigured && (
+                  <div className="relative mt-4 max-w-md">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
+                    <input
+                      type="search"
+                      value={countrySearch}
+                      onChange={e => {
+                        setCountrySearch(e.target.value);
+                        if (activeTab !== 'country') setActiveTab('country');
+                        if (selectedCountry) setSelectedCountry('');
+                      }}
+                      placeholder={t('esim.destination_search', 'Where are you traveling?')}
+                      aria-label={t('esim.destination_search', 'Where are you traveling?')}
+                      className="min-h-12 w-full rounded-sm border border-wr-border bg-wr-base py-3 pl-10 pr-3 font-mono text-base text-current outline-none transition-colors placeholder-wr-dim/50 focus:border-wr-accent md:text-sm"
+                    />
+                  </div>
+                )}
               </div>
               <a href="/esim/topup" className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-wr-secondary transition-colors hover:text-wr-secondary/80 md:min-h-0 md:pb-1">
                 <Zap size={12} /> {t('esim.topup_link', 'Top up an existing eSIM')} <span aria-hidden>→</span>
@@ -1001,8 +1027,9 @@ export function ESIMWall() {
 
                   {/* ═══ TAB: Country ═══ */}
                   {activeTab === 'country' && (
-                    <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 md:gap-8">
-                      {/* LEFT: Country Selection */}
+                    <div className={`grid grid-cols-1 gap-6 md:gap-8 ${selectedCountry ? 'md:grid-cols-[280px_1fr]' : ''}`}>
+                      {/* LEFT: Country Selection (only while browsing plans) */}
+                      {selectedCountry && (
                       <div className="space-y-3">
                         <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
                           <Globe size={12} className="text-wr-accent" /> {t('esim.select_country')}
@@ -1033,7 +1060,7 @@ export function ESIMWall() {
                             <button key={c.code} onClick={() => { setSelectedCountry(c.code); scrollToPlans(); }}
                               className={`flex min-h-11 items-center gap-2 rounded-sm px-3 py-2 text-left text-xs transition-colors md:min-h-0 ${selectedCountry === c.code ? 'bg-wr-accent/10 font-bold text-wr-accent' : 'text-current hover:bg-wr-surface hover:text-wr-accent'}`}>
                               <img src={`https://flagcdn.com/w20/${c.code.toLowerCase()}.png`} alt={c.code} loading="lazy" className="h-3 w-4 rounded-xs object-cover opacity-70" />
-                              <span className="truncate">{c.name}</span>
+                              <span className="truncate">{destinationName(c.code, c.name)}</span>
                             </button>
                           ))}
                           {filteredCountries.length === 0 && !loading && (
@@ -1043,10 +1070,17 @@ export function ESIMWall() {
                           )}
                         </div>
                       </div>
+                      )}
 
                       {/* RIGHT: Plans */}
                       {selectedCountry ? (
                         <div ref={plansRef} className="space-y-4">
+                          <button
+                            onClick={() => { setSelectedCountry(''); setCountrySearch(''); }}
+                            className="inline-flex min-h-9 items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-wr-dim transition-colors hover:text-wr-accent"
+                          >
+                            <span aria-hidden>←</span> {t('esim.all_destinations', 'All destinations')}
+                          </button>
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                             <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
                               <Wifi size={12} className="text-wr-accent" />
@@ -1111,10 +1145,14 @@ export function ESIMWall() {
                           )}
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                          <Globe size={40} className="text-wr-dim/30 mb-4" />
-                          <p className="text-sm text-wr-dim">{t('esim.select_country_prompt', 'Select a territory to browse available plans')}</p>
-                        </div>
+                        <DestinationsGrid
+                          destinations={destinations}
+                          fallbackCountries={countries}
+                          loading={destinationsLoading}
+                          search={countrySearch}
+                          onSearch={setCountrySearch}
+                          onSelect={(code) => { setSelectedCountry(code); scrollToPlans(); }}
+                        />
                       )}
                     </div>
                   )}
@@ -1151,7 +1189,12 @@ export function ESIMWall() {
                                     {t(REGION_I18N_KEYS[region] || region)}
                                   </div>
                                   {count > 0 && (
-                                    <div className="mt-0.5 text-[11px] font-mono text-wr-dim">{count} {t('esim.plans_available', 'plans')}</div>
+                                    <div className="mt-0.5 text-[11px] font-mono text-wr-dim">
+                                      {regionFromPrices[region] != null && (
+                                        <span className="text-wr-accent">{t('esim.from_price', 'from')} ${regionFromPrices[region].toFixed(2)} · </span>
+                                      )}
+                                      {count} {t('esim.plans_available', 'plans')}
+                                    </div>
                                   )}
                                 </button>
                               );

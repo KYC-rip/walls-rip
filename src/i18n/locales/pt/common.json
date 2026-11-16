@@ -372,6 +372,10 @@
     "decryption_failed": "Descriptografia falhou"
   },
   "esim": {
+    "all_destinations": "Todos os destinos",
+    "destination_search": "Para onde você vai?",
+    "from_price": "desde",
+    "browse_plans": "Ver planos",
     "title_e": "e",
     "title_sim": "SIM",
     "subtitle": "Dados móveis anônimos. Sem KYC.",

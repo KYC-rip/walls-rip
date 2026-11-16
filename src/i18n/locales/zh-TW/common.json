@@ -372,6 +372,10 @@
     "decryption_failed": "解密失敗"
   },
   "esim": {
+    "all_destinations": "所有目的地",
+    "destination_search": "你要去哪裡？",
+    "from_price": "最低",
+    "browse_plans": "瀏覽方案",
     "title_e": "e",
     "title_sim": "SIM",
     "subtitle": "匿名行動數據。免 KYC。",
