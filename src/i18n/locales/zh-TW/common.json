@@ -2,6 +2,7 @@
   "header": {
     "home": "首頁",
     "ghost_mail": "幽靈信箱",
+    "ghost_mail_menu": "Ghost Mail 選單",
     "sms_wall": "簡訊牆",
     "esim": "eSIM",
     "phone": "電話號碼",
@@ -289,6 +290,8 @@
     "select_pool": "次要路線"
   },
   "mail": {
+    "nav_burner_desc": "自動失效的一次性信箱",
+    "nav_pro_desc": "可寄送、別名與自訂網域的永久地址",
     "title": "幽靈信箱",
     "subtitle": "燃燒的一次性信箱",
     "desc": "拋棄式加密電子信箱。無需註冊、無需身份。PGP 加密、自訂網域、自動銷毀計時器。使用 XMR 付款。",

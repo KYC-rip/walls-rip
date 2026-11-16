@@ -36,8 +36,19 @@ const NETWORK_CHILDREN = [
 ];
 const NETWORK_PATHS = ['/network', ...NETWORK_CHILDREN.map(item => item.path)];
 
-const PRIMARY_NAV = NAV_KEYS.filter(item => ['/', '/mail', '/sms', '/esim', '/phone'].includes(item.path));
-const MORE_NAV = NAV_KEYS.filter(item => !PRIMARY_NAV.includes(item) && !NETWORK_PATHS.includes(item.path));
+const MAIL_CHILDREN = [
+  { path: '/mail', key: 'header.ghost_mail', descKey: 'mail.nav_burner_desc', desc: 'One-time burner inbox that expires on its own' },
+  { path: '/mail/pro', key: 'header.ghost_mail_pro', descKey: 'mail.nav_pro_desc', desc: 'Persistent address with sending, aliases and custom domains' },
+];
+const MAIL_PATHS = MAIL_CHILDREN.map(item => item.path);
+
+const HOME_NAV = NAV_KEYS.filter(item => item.path === '/');
+const PRIMARY_NAV = NAV_KEYS.filter(item => ['/sms', '/esim', '/phone'].includes(item.path));
+const MORE_NAV = NAV_KEYS.filter(item =>
+  !HOME_NAV.includes(item)
+  && !PRIMARY_NAV.includes(item)
+  && !NETWORK_PATHS.includes(item.path)
+  && !MAIL_PATHS.includes(item.path));
 
 function stripLangPrefix(path: string): string {
   const segments = path.split('/');
@@ -72,9 +83,11 @@ export function Header() {
   const [langOpen, setLangOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [networkOpen, setNetworkOpen] = useState(false);
+  const [mailOpen, setMailOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<HTMLDivElement>(null);
+  const mailRef = useRef<HTMLDivElement>(null);
 
   const currentLang = (SUPPORTED_LANGS as readonly string[]).includes(i18n.language)
     ? i18n.language
@@ -82,6 +95,7 @@ export function Header() {
 
   const strippedPath = stripLangPrefix(pathname);
   const networkActive = NETWORK_PATHS.includes(strippedPath);
+  const mailActive = MAIL_PATHS.includes(strippedPath);
 
   // Close lang dropdown on outside click
   useEffect(() => {
@@ -91,6 +105,7 @@ export function Header() {
       }
       if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
       if (networkRef.current && !networkRef.current.contains(e.target as Node)) setNetworkOpen(false);
+      if (mailRef.current && !mailRef.current.contains(e.target as Node)) setMailOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -117,6 +132,56 @@ export function Header() {
         </Link>
 
         <nav className="hidden xl:flex items-center gap-1" aria-label="Main navigation">
+          {HOME_NAV.map((item) => (
+            <Link
+              key={item.path}
+              to={navLinkPath(item.path, currentLang)}
+              className={`text-[11px] font-bold px-2.5 py-1.5 rounded-sm transition-colors ${
+                strippedPath === item.path
+                  ? 'text-wr-accent bg-wr-accent/10'
+                  : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'
+              }`}
+            >
+              {t(item.key)}
+            </Link>
+          ))}
+          <div
+            className={`relative flex items-center rounded-sm transition-colors ${mailActive ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}
+            ref={mailRef}
+            onKeyDown={e => { if (e.key === 'Escape') setMailOpen(false); }}
+          >
+            <Link
+              to={navLinkPath('/mail', currentLang)}
+              className="text-[11px] font-bold pl-2.5 pr-1 py-1.5 rounded-l-sm"
+            >
+              {t('header.ghost_mail')}
+            </Link>
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={mailOpen}
+              aria-label={t('header.ghost_mail_menu', 'Ghost Mail menu')}
+              onClick={() => setMailOpen(open => !open)}
+              className="pr-2 pl-0.5 py-1.5 rounded-r-sm"
+            >
+              <ChevronDown size={12} className={`transition-transform ${mailOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {mailOpen && (
+              <div role="menu" className="absolute left-0 top-full mt-1 min-w-64 py-1 bg-wr-surface border border-wr-border rounded-sm shadow-xl z-50">
+                {MAIL_CHILDREN.map(item => (
+                  <Link
+                    key={item.path}
+                    to={navLinkPath(item.path, currentLang)}
+                    onClick={() => setMailOpen(false)}
+                    className={`block px-3 py-2 text-[11px] font-bold transition-colors ${strippedPath === item.path ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}
+                  >
+                    {t(item.key)}
+                    <span className="block text-[10px] font-normal text-wr-dim mt-0.5">{t(item.descKey, item.desc)}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
           {PRIMARY_NAV.map((item) => (
             <Link
               key={item.path}
@@ -277,6 +342,37 @@ export function Header() {
       {menuOpen && (
         <div className="absolute top-full left-0 right-0 bg-wr-surface border-b border-wr-border p-4 xl:hidden z-50">
           <nav className="flex flex-col gap-1" aria-label="Mobile navigation">
+            {HOME_NAV.map((item) => (
+              <Link
+                key={item.path}
+                to={navLinkPath(item.path, currentLang)}
+                onClick={() => setMenuOpen(false)}
+                className={`text-sm font-bold px-3 py-2 rounded-sm transition-colors ${
+                  strippedPath === item.path
+                    ? 'text-wr-accent bg-wr-accent/10'
+                    : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'
+                }`}
+              >
+                {t(item.key)}
+              </Link>
+            ))}
+            <details className={`group border-t border-wr-border/50 mt-2 pt-2 ${mailActive ? 'text-wr-accent' : ''}`}>
+              <summary className="list-none cursor-pointer text-sm font-bold px-3 py-2 hover:text-current flex items-center justify-between">
+                {t('header.ghost_mail')} <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="flex flex-col gap-1 pl-3">
+                {MAIL_CHILDREN.map(item => (
+                  <Link
+                    key={item.path}
+                    to={navLinkPath(item.path, currentLang)}
+                    onClick={() => setMenuOpen(false)}
+                    className={`text-sm font-bold px-3 py-2 rounded-sm transition-colors ${strippedPath === item.path ? 'text-wr-accent bg-wr-accent/10' : 'text-wr-dim hover:text-current hover:bg-wr-accent/5'}`}
+                  >
+                    {t(item.key)}
+                  </Link>
+                ))}
+              </div>
+            </details>
             {PRIMARY_NAV.map((item) => (
               <Link
                 key={item.path}

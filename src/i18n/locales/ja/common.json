@@ -2,6 +2,7 @@
   "header": {
     "home": "ホーム",
     "ghost_mail": "Ghost Mail",
+    "ghost_mail_menu": "Ghost Mail メニュー",
     "sms_wall": "SMS Wall",
     "esim": "eSIM",
     "phone": "電話番号",
@@ -289,6 +290,8 @@
     "select_pool": "サブルート"
   },
   "mail": {
+    "nav_burner_desc": "自動で失効する使い捨て受信箱",
+    "nav_pro_desc": "送信・エイリアス・独自ドメイン付きの永続アドレス",
     "title": "Ghost Mail",
     "subtitle": "燃え尽きる使い捨てメール",
     "desc": "使い捨て暗号化メールボックス。登録不要、身元不要。PGP暗号化、カスタムドメイン、自動破棄タイマー。XMRで支払い。",

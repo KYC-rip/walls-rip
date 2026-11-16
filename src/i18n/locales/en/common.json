@@ -2,6 +2,7 @@
   "header": {
     "home": "Home",
     "ghost_mail": "Ghost Mail",
+    "ghost_mail_menu": "Ghost Mail menu",
     "ghost_mail_pro": "Mail Pro",
     "sms_wall": "SMS Wall",
     "esim": "eSIM",
@@ -356,6 +357,8 @@
     "purchasing": "PURCHASING..."
   },
   "mail": {
+    "nav_burner_desc": "One-time burner inbox that expires on its own",
+    "nav_pro_desc": "Persistent address with sending, aliases and custom domains",
     "title": "Ghost Mail",
     "subtitle": "Burner email that burns",
     "desc": "Disposable encrypted email inboxes. No signup, no identity. PGP encryption, custom domains, auto-destruct timers. Pay with XMR.",

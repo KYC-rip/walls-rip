@@ -221,6 +221,57 @@ export function GhostMail() {
               </span>
             </a>
 
+            {/* ═══ BURNER VS PRO ═══ */}
+            <div className="mx-2 md:mx-0 space-y-4">
+              <SectionHead kicker={t('mail.compare_kicker', '// Compare')} title={t('mail.compare_title', 'Burner inbox or Pro address?')} />
+              <p className="text-xs text-wr-dim leading-relaxed max-w-2xl">
+                {t('mail.compare_intro', 'Both are Ghost Mail. A burner inbox is a one-off address that expires on its own; Pro is a persistent address you can send from, with aliases and your own domain.')}
+              </p>
+              <div className="overflow-x-auto border border-wr-border">
+                <table className="w-full text-left text-[11px] border-collapse">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-[0.14em] text-wr-dim">
+                      <th className="p-3 font-bold w-1/4">&nbsp;</th>
+                      <th className="p-3 font-bold text-wr-accent">{t('mail.compare_burner', 'Burner inbox')}</th>
+                      <th className="p-3 font-bold text-wr-secondary">{t('mail.compare_pro', 'Ghost Mail Pro')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      [t('mail.compare_lifetime', 'Lifetime'), t('mail.compare_burner_lifetime', 'Expires automatically (hours to days)'), t('mail.compare_pro_lifetime', 'Stays until cancelled; monthly renewal')],
+                      [t('mail.compare_receiving', 'Receiving'), t('mail.compare_burner_receiving', 'Yes, on shared domains'), t('mail.compare_pro_receiving', 'Yes, on shared domains or yours')],
+                      [t('mail.compare_sending', 'Sending'), t('mail.compare_burner_sending', 'No — receive only'), t('mail.compare_pro_sending', 'Compose, reply and send')],
+                      [t('mail.compare_aliases', 'Aliases'), t('mail.compare_burner_aliases', 'One address'), t('mail.compare_pro_aliases', 'Multiple aliases (plan limit)')],
+                      [t('mail.compare_domain', 'Custom domain'), t('mail.compare_burner_domain', '—'), t('mail.compare_pro_domain', 'Available')],
+                      [t('mail.compare_billing', 'Billing'), t('mail.compare_burner_billing', 'Pay per inbox'), t('mail.compare_pro_billing', 'Prepaid monthly in crypto')],
+                      [t('mail.compare_fit', 'Best for'), t('mail.compare_burner_fit', 'One-off signups and verification'), t('mail.compare_pro_fit', 'A long-term address and identity')],
+                    ].map(row => (
+                      <tr key={row[0]} className="border-t border-wr-border/40 align-top">
+                        <th scope="row" className="p-3 text-[10px] uppercase tracking-[0.12em] text-wr-dim font-bold">{row[0]}</th>
+                        <td className="p-3 text-current">{row[1]}</td>
+                        <td className="p-3 text-current">{row[2]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {[
+                  { q: t('mail.compare_q_send', 'Can I send email from a burner address?'), a: t('mail.compare_a_send', 'No. Burner inboxes are receive-only. Sending, replying and composing are Pro features.') },
+                  { q: t('mail.compare_q_expire', 'Does a Ghost Mail address expire?'), a: t('mail.compare_a_expire', 'A burner inbox expires automatically after its window. A Pro address stays until you cancel, renewing monthly in crypto.') },
+                  { q: t('mail.compare_q_domain', 'Can I use my own domain?'), a: t('mail.compare_a_domain', 'Yes — Ghost Mail Pro supports aliases and custom domains on paid plans.') },
+                ].map(item => (
+                  <details key={item.q} className="group border border-wr-border bg-wr-surface">
+                    <summary className="list-none cursor-pointer p-3 text-[11px] font-bold flex items-start justify-between gap-2">
+                      {item.q}
+                      <ChevronDown size={14} className="text-wr-dim shrink-0 transition-transform group-open:rotate-180" />
+                    </summary>
+                    <p className="px-3 pb-3 text-[11px] text-wr-dim leading-relaxed">{item.a}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
+
             {/* ═══ WHY CHOOSE GHOST MAIL ═══ */}
             <div className="mx-2 md:mx-0 space-y-6">
               <SectionHead kicker={t('mail.v2_capabilities', '#01 // Capabilities')} title={t('mail.why_title')} />

@@ -2,6 +2,7 @@
   "header": {
     "home": "Inicio",
     "ghost_mail": "Ghost Mail",
+    "ghost_mail_menu": "Menú de Ghost Mail",
     "sms_wall": "SMS Wall",
     "esim": "eSIM",
     "phone": "Teléfono",
@@ -289,6 +290,8 @@
     "select_pool": "Ruta secundaria"
   },
   "mail": {
+    "nav_burner_desc": "Bandeja de un solo uso que caduca sola",
+    "nav_pro_desc": "Dirección persistente con envío, alias y dominios propios",
     "title": "Ghost Mail",
     "subtitle": "Correo desechable que se quema",
     "desc": "Bandejas de correo encriptadas desechables. Sin registro, sin identidad. Encriptacion PGP, dominios personalizados, temporizadores de autodestruccion. Paga con XMR.",

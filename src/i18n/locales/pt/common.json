@@ -2,6 +2,7 @@
   "header": {
     "home": "Inicio",
     "ghost_mail": "Ghost Mail",
+    "ghost_mail_menu": "Menu do Ghost Mail",
     "sms_wall": "SMS Wall",
     "esim": "eSIM",
     "phone": "Telefone",
@@ -289,6 +290,8 @@
     "select_pool": "Rota secundária"
   },
   "mail": {
+    "nav_burner_desc": "Caixa de uso único que expira sozinha",
+    "nav_pro_desc": "Endereço persistente com envio, aliases e domínios próprios",
     "title": "Ghost Mail",
     "subtitle": "Email descartavel que queima",
     "desc": "Caixas de email criptografadas descartaveis. Sem cadastro, sem identidade. Criptografia PGP, dominios personalizados, temporizadores de autodestruicao. Pague com XMR.",
