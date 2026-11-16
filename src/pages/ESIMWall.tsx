@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Smartphone, Globe, Search, Copy, Check, RefreshCw, Clock, AlertTriangle, ChevronDown, Wallet, Zap, X, Wifi, Signal, Shield, MapPin, Database, DollarSign } from 'lucide-react';
+import { Smartphone, Globe, Search, Copy, Check, RefreshCw, AlertTriangle, ChevronDown, Zap, Wifi, Signal, Shield, MapPin, DollarSign } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,8 @@ import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
 import { PaymentGate } from '../components/PaymentGate';
 import { DestinationsGrid, type Destination } from '../components/esim/DestinationsGrid';
+import { formatDataGB } from '../utils/format';
+import { ESIMCheckoutModal, ESIM_WALLET_KEY } from '../components/esim/ESIMCheckoutModal';
 
 // ─── Types ───
 
@@ -42,7 +44,7 @@ interface ProfileResult {
   activationUrl?: string;
 }
 
-const WALLET_KEY = 'walls_sms_wallet'; // Shared with SMS wallet
+const WALLET_KEY = ESIM_WALLET_KEY; // Shared with SMS wallet
 
 
 // ─── Data filter buckets ───
@@ -291,7 +293,7 @@ function PlanCard({ plan, isCheapest, onSelect }: { plan: ComparePlan; isCheapes
 
       {/* Capacity + price hierarchy */}
       <div className="mt-3 flex items-end justify-between gap-2">
-        <span className="font-mono text-2xl font-black tabular-nums text-current">{plan.dataGB}GB</span>
+        <span className="font-mono text-2xl font-black tabular-nums text-current">{formatDataGB(plan.dataGB)}</span>
         <span className="font-mono text-xl font-black tabular-nums text-wr-accent">${plan.price.toFixed(2)}</span>
       </div>
       <div className="mt-1 flex items-center justify-between gap-2 text-[11px] font-mono text-wr-dim">
@@ -372,10 +374,6 @@ export function ESIMWall() {
   // Payment
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Modal step state machine for unified purchase flow
-  const [modalStep, setModalStep] = useState<'details' | 'purchasing' | 'success' | 'error'>('details');
-  const [modalError, setModalError] = useState<string>('');
-
   // Purchase flow
   const [purchase, setPurchase] = useState<PurchaseResult | null>(null);
   const [profileData, setProfileData] = useState<ProfileResult | null>(null);
@@ -388,10 +386,6 @@ export function ESIMWall() {
   const [selectedPlanDetail, setSelectedPlanDetailRaw] = useState<ComparePlan | null>(null);
   const setSelectedPlanDetail = (plan: ComparePlan | null) => {
     setSelectedPlanDetailRaw(plan);
-    if (plan) {
-      setModalStep('details');
-      setModalError('');
-    }
   };
 
   // FAQ accordion
@@ -517,6 +511,7 @@ export function ESIMWall() {
     } else {
       throw new Error('Purchase failed — no order ID returned');
     }
+    return data;
   };
 
   const pollProfile = async (orderId: string, token: string) => {
@@ -532,22 +527,8 @@ export function ESIMWall() {
     }
   };
 
-  /** In-modal purchase: called when user has sufficient balance */
-  const handleModalPurchase = async (plan: ComparePlan) => {
-    if (walletToken && balanceUSD >= plan.price) {
-      setModalStep('purchasing');
-      try {
-        await executePurchase(plan.id, walletToken, plan.engine, plan.country);
-        setModalStep('success');
-      } catch (e: any) {
-        setModalStep('error');
-        setModalError(e?.message || 'Purchase failed');
-      }
-    }
-  };
-
-  /** Called by PaymentGate when a deposit is confirmed — with optional auto-purchase */
-  const handlePaymentDeposit = useCallback(async (usd: number, autoPurchase?: { planId: string; engine: string; country?: string }) => {
+  /** Called by PaymentGate when a deposit is confirmed; the modal then purchases. */
+  const handlePaymentDeposit = useCallback(async (usd: number) => {
     setBalanceUSD(prev => prev + usd);
     toast.success(`$${usd.toFixed(2)} deposited`);
 
@@ -558,18 +539,6 @@ export function ESIMWall() {
         const data = await apiClient<{ balanceUSD: number }>(`/v1/tools/esim/balance?token=${token}`);
         setBalanceUSD(data.balanceUSD);
       } catch { /* use optimistic balance */ }
-    }
-
-    // Auto-purchase if we have a plan to buy
-    if (autoPurchase && token) {
-      setModalStep('purchasing');
-      try {
-        await executePurchase(autoPurchase.planId, token, autoPurchase.engine, autoPurchase.country);
-        setModalStep('success');
-      } catch {
-        setModalStep('error');
-        setModalError('Purchase failed after payment');
-      }
     }
   }, [walletToken]);
 
@@ -1454,290 +1423,23 @@ export function ESIMWall() {
       </main>
       <Footer />
 
-      {/* ═══ UNIFIED PLAN DETAIL + PAYMENT MODAL ═══ */}
-      {selectedPlanDetail && (() => {
-        const plan = selectedPlanDetail;
-        const countryName = countries.find(c => c.code === plan.country)?.name || plan.country;
-        const isGlobal = isGlobalPlan(plan);
-        const isRegional = isRegionalPlan(plan);
-        const locationLabel = isGlobal ? 'Global' : isRegional ? plan.country : countryName;
-        const hasSufficientBalance = walletToken !== null && balanceUSD >= plan.price;
-        const modalMaxW = modalStep === 'details' ? 'max-w-lg' : 'max-w-xl';
-
-        return (
-          <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300" onClick={() => { if (modalStep === 'details') setSelectedPlanDetail(null); }}>
-            <div className={`border border-wr-border bg-wr-base ${modalMaxW} w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm max-h-[90vh] overflow-y-auto transition-all duration-300`} onClick={e => e.stopPropagation()}>
-              {/* Header */}
-              <div className="p-4 md:p-6 border-b border-wr-border/30 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-sm md:text-base font-bold text-current tracking-wide leading-tight">{plan.name}</h3>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs px-2.5 py-1 rounded border border-wr-accent/30 text-wr-accent bg-wr-accent/10 font-mono uppercase tracking-wider">
-                    {isGlobal ? 'Global' : plan.country}
-                  </span>
-                  <button onClick={() => setSelectedPlanDetail(null)} className="text-wr-dim hover:text-current transition-colors"><X size={18} /></button>
-                </div>
-              </div>
-
-              <div className="p-4 md:p-6 space-y-5">
-
-                {/* ═══ STEP: DETAILS ═══ */}
-                {modalStep === 'details' && (
-                  <>
-                    {/* Plan Details Grid (2x2) */}
-                    <div>
-                      <h4 className="text-xs font-bold uppercase text-wr-dim tracking-widest mb-3">{t('esim.detail_plan_details')}</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="p-3 rounded-sm border border-wr-border/50 bg-wr-surface/30 flex items-center gap-3">
-                          <div className="p-2 bg-wr-accent/10 text-wr-accent rounded-sm border border-wr-accent/20"><Database size={14} /></div>
-                          <div>
-                            <div className="text-[11px] text-wr-dim uppercase tracking-widest">{t('esim.detail_data')}</div>
-                            <div className="text-sm font-black font-mono text-current">{plan.dataGB} GB</div>
-                          </div>
-                        </div>
-                        <div className="p-3 rounded-sm border border-wr-border/50 bg-wr-surface/30 flex items-center gap-3">
-                          <div className="p-2 bg-wr-accent/10 text-wr-accent rounded-sm border border-wr-accent/20"><Clock size={14} /></div>
-                          <div>
-                            <div className="text-[11px] text-wr-dim uppercase tracking-widest">{t('esim.detail_duration')}</div>
-                            <div className="text-sm font-black font-mono text-current">{plan.durationDays} {t('esim.detail_days')}</div>
-                          </div>
-                        </div>
-                        <div className="p-3 rounded-sm border border-wr-border/50 bg-wr-surface/30 flex items-center gap-3">
-                          <div className="p-2 bg-wr-accent/10 text-wr-accent rounded-sm border border-wr-accent/20"><Zap size={14} /></div>
-                          <div>
-                            <div className="text-[11px] text-wr-dim uppercase tracking-widest">{t('esim.detail_speed')}</div>
-                            <div className="text-sm font-black font-mono text-current">3G/4G/5G</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 rounded-sm border border-wr-accent/30 bg-wr-accent/5 p-3">
-                          <div className="rounded-sm border border-wr-accent/20 bg-wr-accent/10 p-2 text-wr-accent"><DollarSign size={14} /></div>
-                          <div>
-                            <div className="text-[11px] uppercase tracking-widest text-wr-dim">{t('esim.detail_price')}</div>
-                            <div className="font-mono text-sm font-black tabular-nums text-wr-accent">${plan.price.toFixed(2)}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Additional Info (2-column layout) */}
-                    <div>
-                      <h4 className="text-xs font-bold uppercase text-wr-dim tracking-widest mb-3">{t('esim.detail_additional_info')}</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 text-xs">
-                        <div className="flex items-center justify-between py-2 border-b border-wr-border/20">
-                          <span className="text-wr-dim flex items-center gap-1.5 shrink-0"><MapPin size={10} /> {t('esim.detail_location')}</span>
-                          <span className="font-mono text-current text-right truncate ml-2">{locationLabel}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 border-b border-wr-border/20">
-                          <span className="text-wr-dim shrink-0">{t('esim.detail_topup')}</span>
-                          <span className="font-mono text-wr-dim">--</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 border-b border-wr-border/20">
-                          <span className="text-wr-dim shrink-0">{t('esim.detail_activation')}</span>
-                          <span className="font-mono text-current text-right">{t('esim.detail_first_install')}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 border-b border-wr-border/20">
-                          <span className="text-wr-dim flex items-center gap-1.5 shrink-0"><Shield size={10} /> {t('esim.detail_ip_location')}</span>
-                          <span className="flex items-center gap-1 ml-2">
-                            <span className="font-mono text-wr-accent text-right truncate">{plan.country}</span>
-                            <span className="whitespace-nowrap rounded-full border border-wr-info/30 bg-wr-info/10 px-1.5 py-0.5 text-[11px] text-wr-info">{t('esim.detail_standard_privacy')}</span>
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 border-b border-wr-border/20">
-                          <span className="text-wr-dim flex items-center gap-1.5 shrink-0"><Wifi size={10} /> {t('esim.detail_hotspot')}</span>
-                          <span className="font-mono text-current">{t('common.yes')}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Coverage */}
-                    <div className="flex items-center gap-2 p-3 rounded-sm bg-wr-surface/30 border border-wr-border/30">
-                      <Globe size={14} className="text-wr-accent shrink-0" />
-                      <div>
-                        <div className="text-[11px] text-wr-dim uppercase tracking-widest">{t('esim.detail_coverage')}</div>
-                        <div className="text-xs font-mono text-current">{locationLabel}</div>
-                      </div>
-                    </div>
-
-                    {/* Network Coverage List */}
-                    {(plan as any).coverage && (plan as any).coverage.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-bold uppercase text-wr-dim tracking-widest">
-                          {t('esim.detail_coverage')} ({(plan as any).coverage.length} {t('esim.detail_countries')})
-                        </h4>
-                        <div className="max-h-40 overflow-y-auto rounded-sm border border-wr-border/30 bg-wr-base/50 p-2 space-y-1">
-                          {(plan as any).coverage.map((c: { country: string; operators: { name: string; networkType: string }[] }, i: number) => (
-                            <div key={i} className="flex items-center justify-between text-xs py-0.5 border-b border-wr-border/10 last:border-0">
-                              <span className="text-current font-medium">{c.country}</span>
-                              <span className="text-wr-dim">
-                                {c.operators.length > 0
-                                  ? c.operators.map(o => `${o.name} (${o.networkType})`).join(', ')
-                                  : '--'}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Important Notices */}
-                    <div className="space-y-1.5">
-                      <h4 className="text-xs font-bold uppercase text-wr-dim tracking-widest">{t('esim.detail_important_notices')}</h4>
-                      <ul className="space-y-1">
-                        <li className="text-xs text-wr-dim/70 flex items-start gap-1.5">
-                          <AlertTriangle size={10} className="mt-0.5 shrink-0 text-wr-warning" />
-                          {t('esim.detail_notice_data_only')}
-                        </li>
-                        <li className="text-xs text-wr-dim/70 flex items-start gap-1.5">
-                          <AlertTriangle size={10} className="mt-0.5 shrink-0 text-wr-warning" />
-                          {t('esim.detail_notice_no_refund')}
-                        </li>
-                        {plan.engine === 'buyukesim' && <li className="text-xs text-wr-dim/70 flex items-start gap-1.5">
-                          <AlertTriangle size={10} className="mt-0.5 shrink-0 text-wr-warning" />
-                          {t('esim.detail_notice_buyuk_refund')}
-                        </li>}
-                        <li className="text-xs text-wr-dim/70 flex items-start gap-1.5">
-                          <AlertTriangle size={10} className="mt-0.5 shrink-0 text-wr-warning" />
-                          {t('esim.detail_notice_compatibility')}
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* Wallet balance indicator */}
-                    {walletToken && (
-                      <div className="flex items-center gap-2 text-xs border-t border-wr-border/30 pt-4">
-                        <Wallet size={12} className="text-wr-accent" />
-                        <span className="text-wr-dim">{t('sms.wallet_balance')}:</span>
-                        <span className={`font-mono font-bold tabular-nums ${hasSufficientBalance ? 'text-wr-accent' : 'text-wr-warning'}`}>
-                          ${balanceUSD.toFixed(2)}
-                        </span>
-                        {hasSufficientBalance && (
-                          <span className="rounded-full border border-wr-accent/20 bg-wr-accent/10 px-1.5 py-0.5 text-[10px] text-wr-accent">
-                            {t('esim.sufficient_balance', 'Sufficient')}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Purchase or deposit via PaymentGate */}
-                    {hasSufficientBalance ? (
-                      <div className="flex items-center gap-3 pt-2 border-t border-wr-border/30">
-                        <button
-                          onClick={() => setSelectedPlanDetail(null)}
-                          className="px-4 py-2.5 text-xs text-wr-dim hover:text-current transition-colors uppercase tracking-widest"
-                        >
-                          {t('common.cancel')}
-                        </button>
-                        <button
-                          onClick={() => handleModalPurchase(plan)}
-                          className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-sm bg-wr-accent py-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-wr-accent/90"
-                        >
-                          <Check size={14} /> {t('esim.detail_confirm_purchase')}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="border-t border-wr-border/30 pt-4">
-                        <PaymentGate
-                          amount={plan.price}
-                          methods={['XMR', 'LN', 'XMR402', 'USDT']}
-                          walletToken={walletToken || undefined}
-                          serviceName="esim"
-                          createEndpoint="/v1/tools/esim/payment/create"
-                          checkEndpoint="/v1/tools/sms/payment/check"
-                          inline={true}
-                          onWalletCreated={(token) => {
-                            if (!walletToken) {
-                              setWalletToken(token);
-                              localStorage.setItem(WALLET_KEY, token);
-                            }
-                          }}
-                          onDeposit={(usd) => {
-                            handlePaymentDeposit(usd, { planId: plan.id, engine: plan.engine, country: plan.country });
-                          }}
-                        />
-                        <div className="text-xs text-wr-accent/60 text-center mt-3">
-                          {t('esim.auto_purchase_esim', 'eSIM will be purchased automatically after payment')}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* ═══ STEP: PURCHASING (after payment confirmed, buying eSIM) ═══ */}
-                {modalStep === 'purchasing' && (
-                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                    <div className="relative">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-sm border border-wr-accent/30 bg-wr-accent/10">
-                        <Smartphone size={28} className="animate-pulse text-wr-accent" />
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-wr-info/30 bg-wr-info/20">
-                        <RefreshCw size={12} className="animate-spin text-wr-info" />
-                      </div>
-                    </div>
-                    <p className="text-sm font-bold uppercase tracking-wider text-wr-accent">Payment confirmed!</p>
-                    <p className="text-xs text-wr-dim">Purchasing your eSIM plan...</p>
-                  </div>
-                )}
-
-                {/* ═══ STEP: SUCCESS ═══ */}
-                {modalStep === 'success' && (
-                  <div className="flex flex-col items-center justify-center py-8 space-y-5">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-sm border border-wr-accent/30 bg-wr-accent/10">
-                      <Check size={32} className="text-wr-accent" />
-                    </div>
-                    <p className="text-sm font-bold uppercase tracking-wider text-wr-accent">{t('esim.esim_purchased', 'eSIM Purchased!')}</p>
-                    <p className="text-xs text-wr-dim text-center max-w-sm">
-                      {t('esim.wallet_shared', 'Your wallet has been credited and the eSIM has been purchased.')}
-                    </p>
-                    {walletToken && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <Wallet size={12} className="text-wr-accent" />
-                        <span className="text-wr-dim">{t('sms.wallet_balance')}:</span>
-                        <span className="font-mono font-bold tabular-nums text-wr-accent">${balanceUSD.toFixed(2)}</span>
-                      </div>
-                    )}
-                    <button
-                      onClick={() => setSelectedPlanDetail(null)}
-                      className="min-h-11 rounded-sm bg-wr-accent px-8 py-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-wr-accent/90"
-                    >
-                      {t('common.close', 'Close')}
-                    </button>
-                  </div>
-                )}
-
-                {/* ═══ STEP: ERROR ═══ */}
-                {modalStep === 'error' && (
-                  <div className="flex flex-col items-center justify-center py-8 space-y-5">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-sm border border-wr-error/30 bg-wr-error/10">
-                      <AlertTriangle size={28} className="text-wr-error" />
-                    </div>
-                    <p className="text-sm font-bold uppercase tracking-wider text-wr-error">Error</p>
-                    <p className="text-xs text-wr-dim text-center max-w-sm">{modalError || 'Something went wrong. Please try again.'}</p>
-                    <a href="https://t.me/kyc_rip_bot" target="_blank" rel="noreferrer" className="text-wr-accent hover:underline text-xs">
-                      Need help? @kyc_rip_bot
-                    </a>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setSelectedPlanDetail(null)}
-                        className="px-4 py-2.5 text-xs text-wr-dim hover:text-current transition-colors uppercase tracking-widest"
-                      >
-                        {t('common.close', 'Close')}
-                      </button>
-                      <button
-                        onClick={() => setModalStep('details')}
-                        className="px-6 py-2.5 text-xs font-bold uppercase tracking-widest rounded-sm bg-wr-accent text-black hover:bg-wr-accent/90 shadow-lg shadow-wr-accent/20 transition-all"
-                      >
-                        {t('common.retry', 'Try Again')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* ═══ SHARED PLAN DETAIL + PAYMENT MODAL ═══ */}
+      {selectedPlanDetail && (
+        <ESIMCheckoutModal
+          plan={selectedPlanDetail}
+          locationLabel={isGlobalPlan(selectedPlanDetail) ? 'Global' : isRegionalPlan(selectedPlanDetail) ? selectedPlanDetail.country : (countries.find(c => c.code === selectedPlanDetail.country)?.name || selectedPlanDetail.country)}
+          badgeLabel={/^[A-Z]{2}$/.test(selectedPlanDetail.country) ? selectedPlanDetail.country : isGlobalPlan(selectedPlanDetail) ? 'Global' : 'Regional'}
+          walletToken={walletToken}
+          balanceUSD={balanceUSD}
+          onClose={() => setSelectedPlanDetail(null)}
+          onWalletCreated={(token) => {
+            setWalletToken(token);
+            localStorage.setItem(WALLET_KEY, token);
+          }}
+          onDeposit={handlePaymentDeposit}
+          purchase={(token) => executePurchase(selectedPlanDetail.id, token, selectedPlanDetail.engine, selectedPlanDetail.country)}
+        />
+      )}
 
       {/* STANDALONE DEPOSIT MODAL (for top-up without buying a plan) */}
       <PaymentGate

@@ -1,18 +1,11 @@
 import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { SUPPORTED_LANGS } from '../i18n/config';
-
-function navLinkPath(basePath: string, currentLang: string): string {
-  if (currentLang === 'en') return basePath;
-  return `/${currentLang}${basePath === '/' ? '' : basePath}`;
-}
+import { resolveLang, localePath } from '../utils/localePath';
 
 export function Footer() {
   const { t, i18n } = useTranslation();
-  const currentLang = (SUPPORTED_LANGS as readonly string[]).includes(i18n.language)
-    ? i18n.language
-    : 'en';
+  const currentLang = resolveLang(i18n.language);
 
   return (
     <footer className="w-full border-t border-wr-border mt-16">
@@ -38,18 +31,18 @@ export function Footer() {
           <div>
             <h4 className="text-[11px] text-wr-dim uppercase tracking-[0.16em] font-bold mb-3">{t('footer.tools')}</h4>
             <ul className="space-y-2 text-[12px]">
-              <li><Link to={navLinkPath('/mail', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.ghost_mail')}</Link></li>
-              <li><Link to={navLinkPath('/mail/pro', currentLang)} className="hover:text-wr-secondary transition-colors">{t('header.ghost_mail_pro', 'Ghost Mail Pro')}</Link></li>
-              <li><Link to={navLinkPath('/drop', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.dead_drop')}</Link></li>
-              <li><Link to={navLinkPath('/sms', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.sms_wall')}</Link></li>
-              <li><Link to={navLinkPath('/esim', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.esim')}</Link></li>
-              <li><Link to={navLinkPath('/esim/topup', currentLang)} className="hover:text-wr-info transition-colors">eSIM top-up</Link></li>
-              <li><Link to={navLinkPath('/phone', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.phone')}</Link></li>
-              <li><Link to={navLinkPath('/uk-sim', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.uk_esim', 'UK eSIM')}</Link></li>
-              <li><Link to={navLinkPath('/topup', currentLang)} className="hover:text-wr-accent transition-colors">Renew UK number</Link></li>
-              <li><Link to={navLinkPath('/network', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.network', 'Network')}</Link></li>
-              <li><Link to={navLinkPath('/vpn', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.vpn')}</Link></li>
-              <li><Link to={navLinkPath('/proxy', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.proxy')}</Link></li>
+              <li><Link to={localePath('/mail', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.ghost_mail')}</Link></li>
+              <li><Link to={localePath('/mail/pro', currentLang)} className="hover:text-wr-secondary transition-colors">{t('header.ghost_mail_pro', 'Ghost Mail Pro')}</Link></li>
+              <li><Link to={localePath('/drop', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.dead_drop')}</Link></li>
+              <li><Link to={localePath('/sms', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.sms_wall')}</Link></li>
+              <li><Link to={localePath('/esim', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.esim')}</Link></li>
+              <li><Link to={localePath('/esim/topup', currentLang)} className="hover:text-wr-info transition-colors">eSIM top-up</Link></li>
+              <li><Link to={localePath('/phone', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.phone')}</Link></li>
+              <li><Link to={localePath('/uk-sim', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.uk_esim', 'UK eSIM')}</Link></li>
+              <li><Link to={localePath('/topup', currentLang)} className="hover:text-wr-accent transition-colors">Renew UK number</Link></li>
+              <li><Link to={localePath('/network', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.network', 'Network')}</Link></li>
+              <li><Link to={localePath('/vpn', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.vpn')}</Link></li>
+              <li><Link to={localePath('/proxy', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.proxy')}</Link></li>
             </ul>
           </div>
 
@@ -57,7 +50,7 @@ export function Footer() {
           <div>
             <h4 className="text-[11px] text-wr-dim uppercase tracking-[0.16em] font-bold mb-3">{t('footer.learn')}</h4>
             <ul className="space-y-2 text-[12px]">
-              <li><Link to={navLinkPath('/faq', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.faq')}</Link></li>
+              <li><Link to={localePath('/faq', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.faq')}</Link></li>
               <li><a href="https://stables.rip" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors">{t('footer.freeze_tracker')}</a></li>
             </ul>
           </div>

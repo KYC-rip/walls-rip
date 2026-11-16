@@ -1,9 +1,13 @@
 import { Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { localePath, resolveLang } from '../../utils/localePath';
 
 export interface Destination {
   code: string;
   name: string;
+  /** API-owned country slug; absent on rows built before the v3 index. */
+  slug?: string;
   fromUsd: number;
   planCount: number;
   /** False when a provider covers the country but cannot report a full plan list. */
@@ -35,9 +39,10 @@ export function DestinationsGrid({
   onSearch,
   onSelect,
 }: DestinationsGridProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = resolveLang(i18n.language);
 
-  type Card = { code: string; name: string; fromUsd: number | null; planCount: number | null; countComplete?: boolean };
+  type Card = { code: string; name: string; slug?: string; fromUsd: number | null; planCount: number | null; countComplete?: boolean };
   const priced = destinations.length > 0;
   const items: Card[] = (priced
     ? destinations
@@ -73,12 +78,9 @@ export function DestinationsGrid({
             const count = item.planCount;
             // A partial count is a lower bound, not a fact: render "N+".
             const partial = item.countComplete === false;
-            return (
-              <button
-                key={code}
-                onClick={() => onSelect(code)}
-                className="group flex min-h-24 flex-col justify-between gap-3 rounded-sm border border-wr-border bg-wr-surface/50 p-3 text-left transition-colors hover:border-wr-accent hover:bg-wr-accent/5"
-              >
+            const cardClass = 'group flex min-h-24 flex-col justify-between gap-3 rounded-sm border border-wr-border bg-wr-surface/50 p-3 text-left transition-colors hover:border-wr-accent hover:bg-wr-accent/5';
+            const body = (
+              <>
                 <div className="flex items-start gap-2">
                   <img
                     src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
@@ -102,6 +104,22 @@ export function DestinationsGrid({
                     </span>
                   )}
                 </div>
+              </>
+            );
+            // Rows without a slug (legacy v2 index / fallback list) keep the
+            // in-place selection; everything else links to the public page.
+            return item.slug ? (
+              <Link
+                key={code}
+                to={localePath(`/destination/${item.slug}`, lang)}
+                className={cardClass}
+                aria-label={t('destination.view_page', { country: name, defaultValue: `${name} eSIM plans` })}
+              >
+                {body}
+              </Link>
+            ) : (
+              <button key={code} onClick={() => onSelect(code)} className={cardClass}>
+                {body}
               </button>
             );
           })}

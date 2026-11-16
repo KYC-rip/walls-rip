@@ -5,6 +5,8 @@ interface SEOProps {
   description?: string;
   path?: string;
   image?: string;
+  /** Keep a transient state (skeleton / about-to-redirect) out of the index. */
+  noindex?: boolean;
   schema?: Record<string, unknown>;
   schemas?: Record<string, unknown>[];
 }
@@ -42,6 +44,7 @@ export function SEO({
   description = 'Anonymous communication toolkit. Ghost Mail burner email, encrypted dead drops, anonymous SMS verification — no account, no identity.',
   path = '',
   image,
+  noindex = false,
   schema,
   schemas,
 }: SEOProps) {
@@ -59,6 +62,7 @@ export function SEO({
       <title>{title}</title>
       <meta name="description" content={description} />
       <link rel="canonical" href={url} />
+      {noindex && <meta name="robots" content="noindex,follow" />}
 
       <meta name="geo.placename" content="Global" />
       <meta name="coverage" content="Worldwide" />

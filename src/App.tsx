@@ -7,6 +7,7 @@ import { GhostMail } from './pages/GhostMail';
 import GhostMailPro from './pages/GhostMailPro';
 import { SMSWall } from './pages/SMSWall';
 import { ESIMWall } from './pages/ESIMWall';
+import DestinationPage from './pages/DestinationPage';
 import PhoneWall from './pages/PhoneWall';
 import TopupWall from './pages/TopupWall';
 import { ProxyWall } from './pages/ProxyWall';
@@ -29,6 +30,7 @@ const PAGES = [
   { path: '/sms', element: <SMSWall /> },
   { path: '/esim', element: <ESIMWall /> },
   { path: '/esim/topup', element: <TopupWall /> },
+  { path: '/destination/:slug', element: <DestinationPage /> },
   { path: '/phone', element: <PhoneWall /> },
   { path: '/proxy', element: <ProxyWall /> },
   { path: '/network', element: <NetworkHub /> },
