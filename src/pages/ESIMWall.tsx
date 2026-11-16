@@ -95,6 +95,12 @@ const REGIONS: Record<string, string[]> = {
   'Oceania': ['AU', 'NZ', 'FJ'],
 };
 
+/** Continent codes returned by COUNTRY_TO_CONTINENT, mapped to region card names. */
+const CONTINENT_REGION: Record<string, string> = {
+  AS: 'Asia', EU: 'Europe', NA: 'North America', SA: 'South America',
+  AF: 'Africa', ME: 'Middle East', OC: 'Oceania',
+};
+
 /** Multi-country catalog codes used to fetch a region's plans directly. */
 const REGION_API_CODES: Record<string, string[]> = {
   'Asia': ['AS'],
@@ -318,7 +324,10 @@ export function ESIMWall() {
 
   // Tabs
   const [activeTab, _setActiveTab] = useState<BrowseTab>(initial.tab);
-  const [selectedRegion, _setSelectedRegion] = useState<string>(initial.region);
+  // Region cards are keyed by name; tolerate a continent code in an old URL.
+  const [selectedRegion, _setSelectedRegion] = useState<string>(
+    CONTINENT_REGION[initial.region] || initial.region,
+  );
 
   // Wrap setters to sync URL
   const setSelectedCountry = useCallback((c: string) => {
@@ -748,8 +757,10 @@ export function ESIMWall() {
       // Auto-select user's continent
       const geo = (window as any).__GEO_COUNTRY as string | undefined;
       if (geo) {
-        const continent = COUNTRY_TO_CONTINENT[geo];
-        if (continent) setSelectedRegion(continent);
+        // COUNTRY_TO_CONTINENT yields a continent code (e.g. "AS"); the region
+        // cards and plan sets are keyed by name ("Asia").
+        const region = CONTINENT_REGION[COUNTRY_TO_CONTINENT[geo]];
+        if (region) setSelectedRegion(region);
       }
     }
     if (tab !== 'regional') setSelectedRegion('');
