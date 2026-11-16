@@ -26,6 +26,23 @@ interface PwaCashGateProps {
   onDeposit?: (usd: number, method: string, walletToken?: string) => void;
 }
 
+
+const POPUP_THEMES: Record<string, { dark: { bg: string; fg: string; dim: string; accent: string }; light: { bg: string; fg: string; dim: string; accent: string } }> = {
+  terminal: { dark: { bg: '#050505', fg: '#e2e8f0', dim: '#64748b', accent: '#34d399' }, light: { bg: '#f8fafc', fg: '#0f172a', dim: '#64748b', accent: '#059669' } },
+  clean: { dark: { bg: '#0f172a', fg: '#e2e8f0', dim: '#64748b', accent: '#22d3ee' }, light: { bg: '#ffffff', fg: '#0f172a', dim: '#64748b', accent: '#0891b2' } },
+  monero: { dark: { bg: '#0c0a09', fg: '#fafaf9', dim: '#78716c', accent: '#fb923c' }, light: { bg: '#fafaf9', fg: '#1c1917', dim: '#78716c', accent: '#ea580c' } },
+};
+
+function popupTheme() {
+  let mode = 'system';
+  let skin = 'terminal';
+  try { mode = localStorage.getItem('theme-mode') || 'system'; } catch { /* ignore */ }
+  try { skin = localStorage.getItem('theme-skin') || 'terminal'; } catch { /* ignore */ }
+  const dark = mode === 'dark' || (mode !== 'light' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
+  const palette = POPUP_THEMES[skin] || POPUP_THEMES.terminal;
+  return dark ? palette.dark : palette.light;
+}
+
 const PRESETS = [3, 5, 10, 20];
 
 /**
@@ -61,12 +78,13 @@ export function PwaCashGate({
     const checkoutWindow = window.open('', '_blank');
     if (checkoutWindow) {
       try {
+        const t = popupTheme();
         checkoutWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Opening pwa.cash checkout…</title></head>
-<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#050505;color:#e2e8f0;font:13px/1.6 'JetBrains Mono',ui-monospace,monospace">
+<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:${t.bg};color:${t.fg};font:13px/1.6 'JetBrains Mono',ui-monospace,monospace">
 <div style="text-align:center;padding:24px;max-width:420px">
-<div style="color:#34d399;letter-spacing:.18em;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:10px">pwa.cash</div>
+<div style="color:${t.accent};letter-spacing:.18em;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:10px">pwa.cash</div>
 <div style="margin-bottom:8px">Opening secure checkout…</div>
-<div style="color:#64748b;font-size:11px">Pay with XMR, Lightning, USDT or USDC. Keep this tab open.</div>
+<div style="color:${t.dim};font-size:11px">Pay with XMR, Lightning, USDT or USDC. Keep this tab open.</div>
 </div></body></html>`);
         checkoutWindow.document.close();
       } catch { /* about:blank should be writable; fall through */ }
