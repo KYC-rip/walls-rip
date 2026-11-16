@@ -20,6 +20,7 @@ interface PwaCashGateProps {
   onClose: () => void;
   initialAmount?: number;
   walletToken?: string | null;
+  inline?: boolean;
   createEndpoint?: string;
   checkEndpoint?: string;
   onWalletCreated?: (token: string) => void;
@@ -51,7 +52,7 @@ const PRESETS = [3, 5, 10, 20];
  * `PWACASH_FAKE=1` on the API lets the flow be tested locally without money.
  */
 export function PwaCashGate({
-  isOpen, onClose, initialAmount = 5, walletToken, onWalletCreated, onDeposit,
+  isOpen, onClose, initialAmount = 5, walletToken, inline = false, onWalletCreated, onDeposit,
   createEndpoint = '/v1/tools/sms/payment/create',
   checkEndpoint = '/v1/tools/sms/payment/check',
 }: PwaCashGateProps) {
@@ -151,14 +152,13 @@ export function PwaCashGate({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-md border border-wr-border bg-wr-base rounded-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+  const panel = (
+      <div className={inline ? "w-full border border-wr-border bg-wr-surface rounded-sm" : "w-full max-w-md border border-wr-border bg-wr-base rounded-sm shadow-2xl"} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-wr-border px-5 py-4">
           <div className="flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-wr-accent">
             <Wallet size={14} /> pwa.cash deposit
           </div>
-          <button onClick={onClose} className="p-2 text-wr-dim hover:text-current" aria-label="Close"><X size={16} /></button>
+          {!inline && <button onClick={onClose} className="p-2 text-wr-dim hover:text-current" aria-label="Close"><X size={16} /></button>}
         </div>
 
         <div className="p-5 space-y-5">
@@ -221,6 +221,6 @@ export function PwaCashGate({
           )}
         </div>
       </div>
-    </div>
   );
+  return inline ? panel : <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={onClose}>{panel}</div>;
 }

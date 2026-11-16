@@ -841,6 +841,7 @@ export function PaymentGate(props: PaymentGateProps) {
         onClose={props.onClose || (() => {})}
         initialAmount={props.amount || 5}
         walletToken={props.walletToken}
+        inline={props.inline}
         createEndpoint={walletEndpoint}
         checkEndpoint={props.checkEndpoint || '/v1/tools/sms/payment/check'}
         onWalletCreated={props.onWalletCreated}
