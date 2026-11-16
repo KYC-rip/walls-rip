@@ -18,6 +18,9 @@ const getApiBase = () => {
   return import.meta.env.VITE_API_URL || 'https://api.kyc.rip';
 };
 
+// Optional API namespace, e.g. '/v2' mounts the new tools lane on the same worker.
+const getApiPrefix = (): string => import.meta.env.VITE_API_PREFIX || '';
+
 export const getMailApiBase = () => {
   return import.meta.env.VITE_MAIL_API_URL || 'https://mail-api.kyc.rip';
 };
@@ -42,7 +45,9 @@ async function client<T>(type: APIType, endpoint: string, { body, timeout, ...cu
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
   const baseUrl = type === 'mail-api' ? getMailApiBase() : getApiBase();
-  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const prefix = getApiPrefix();
+  if (type === 'api' && prefix && path.startsWith('/v1/')) path = `${prefix}${path.slice(3)}`;
   const url = `${baseUrl}${path}`;
 
   const config: RequestInit = {
