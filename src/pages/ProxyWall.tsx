@@ -7,10 +7,13 @@ import {
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
+import { useDestinationSlug } from '../hooks/useDestinationSlug';
+import { localePath, resolveLang } from '../utils/localePath';
 
 // ─── Types ───
 
@@ -106,7 +109,9 @@ const PROXY_TYPE_CONFIG: Record<ProxyType, { label: string; icon: typeof Wifi; c
 const POPULAR_LOCATIONS = ['US', 'GB', 'DE', 'NL', 'FR', 'JP', 'SG', 'CA', 'SE'];
 
 export function ProxyWall() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = resolveLang(i18n.language);
+  const destinationSlug = useDestinationSlug();
   // Data
   const [plans, setPlans] = useState<ProxyPlan[]>([]);
   const [locations, setLocations] = useState<ProxyLocation[]>([]);
@@ -562,8 +567,18 @@ export function ProxyWall() {
                   ))}
                 </div>
                 {selectedLocationObj && (
-                  <div className="text-[10px] text-wr-accent font-bold animate-pulse">
-                    {"● "}{selectedLocationObj.country}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="text-[10px] text-wr-accent font-bold animate-pulse">
+                      {"● "}{selectedLocationObj.country}
+                    </span>
+                    {destinationSlug(selectedLocationObj.countryCode) && (
+                      <Link
+                        to={localePath(`/destination/${destinationSlug(selectedLocationObj.countryCode)}`, lang)}
+                        className="text-[10px] font-mono text-wr-dim underline-offset-2 transition-colors hover:text-wr-accent hover:underline"
+                      >
+                        {t('proxy.esim_link', 'eSIM data for this country')} →
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>

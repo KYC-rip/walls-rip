@@ -114,6 +114,25 @@ function isCrawler(ua: string): boolean {
   return /bot|crawl|spider|slurp|facebook|twitter|telegram|discord|slack|whatsapp|signal|preview|embed|curl|wget|headless/i.test(ua);
 }
 
+// The catch-all Function runs before `_redirects`, so ISO-code and
+// sub-threshold redirects are resolved here from a build-generated map:
+//   "TH"/"th" -> "thailand" (301 to the slug page)
+//   "iran"/"IR" -> "/esim?c=IR" (302, country has < 5 funded plans)
+// Memoized per isolate; a failed read falls back to normal SPA routing.
+let destinationRedirects: Record<string, string> | null = null;
+let destinationRedirectsPending: Promise<Record<string, string>> | null = null;
+async function loadDestinationRedirects(assets: Fetcher, origin: string): Promise<Record<string, string>> {
+  if (destinationRedirects) return destinationRedirects;
+  if (!destinationRedirectsPending) {
+    destinationRedirectsPending = assets.fetch(new Request(new URL('/destination-redirects.json', origin)))
+      .then(res => res.ok ? res.json<Record<string, string>>() : {})
+      .then(map => { destinationRedirects = map; return map; })
+      .catch(() => ({}))
+      .finally(() => { destinationRedirectsPending = null; });
+  }
+  return destinationRedirectsPending;
+}
+
 export const onRequest: PagesFunction = async (context) => {
   const url = new URL(context.request.url);
 
@@ -126,6 +145,44 @@ export const onRequest: PagesFunction = async (context) => {
   const staticPages = ['/wall-test', '/wall-test2', '/wall-test3'];
   if (staticPages.includes(url.pathname)) {
     return context.next();
+  }
+
+  // Prerendered destination pages (Phase 2). These carry their own title/OG/
+  // JSON-LD and a <noscript> summary, so they deliberately bypass the geo and
+  // crawler injection below. Only an asset with the exact slug marker is
+  // served: a 200 SPA shell must never masquerade as a prerendered page.
+  // Countries below the 5-plan threshold have no file and fall through.
+  const destination = url.pathname.match(/^\/destination\/([A-Za-z0-9-]+)(\/?)$/);
+  if (destination) {
+    const key = destination[1];
+    const redirects = await loadDestinationRedirects(context.env.ASSETS, url.origin);
+    const target = redirects[key] ?? redirects[key.toUpperCase()] ?? redirects[key.toLowerCase()];
+    if (target) {
+      const isPath = target.startsWith('/');
+      return Response.redirect(
+        new URL(isPath ? target : `/destination/${target}`, url.origin).toString(),
+        isPath ? 302 : 301,
+      );
+    }
+    const slug = key;
+    // Directory indexes are served at the trailing-slash form by the asset
+    // layer; keep the public URL slash-free. A _redirects rule would loop
+    // against the asset layer's own canonicalization, so do it here.
+    if (destination[2] === '/') {
+      return Response.redirect(new URL(`/destination/${slug}`, url.origin).toString(), 301);
+    }
+    const asset = await context.env.ASSETS.fetch(
+      new Request(new URL(`/destination/${slug}/`, url.origin)),
+    );
+    if (asset.status === 200 && (asset.headers.get('content-type') || '').includes('text/html')) {
+      const html = await asset.text();
+      if (html.includes(`name="x-prerender" content="${slug}"`)) {
+        return new Response(html, {
+          status: 200,
+          headers: { ...Object.fromEntries(asset.headers.entries()), 'content-type': 'text/html; charset=utf-8' },
+        });
+      }
+    }
   }
 
   // Get the base HTML

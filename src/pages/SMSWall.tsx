@@ -9,6 +9,8 @@ import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
 import { PaymentGate } from '../components/PaymentGate';
+import { useDestinationSlug } from '../hooks/useDestinationSlug';
+import { localePath, resolveLang } from '../utils/localePath';
 
 interface CountryRaw { id: string; name: string; shortName: string; engine: string }
 interface UnifiedService { id: string; name: string; category?: string; engines: string[] } // id = canonical slug (from alias map) or lowercase name
@@ -162,6 +164,8 @@ function updateSmsUrlParams(country: string, service: string) {
 
 export function SMSWall() {
   const { t, i18n } = useTranslation();
+  const lang = resolveLang(i18n.language);
+  const destinationSlug = useDestinationSlug();
   const smsInitial = useMemo(getSmsInitialParams, []);
   const [countries, setCountries] = useState<Country[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -760,6 +764,7 @@ export function SMSWall() {
     });
 
   const selectedCountryName = countries.find(c => c.id === selectedCountry)?.name || '';
+  const selectedCountrySlug = destinationSlug(selectedCountry);
   const selectedServiceName = services.find(s => s.id === selectedService)?.name || '';
   const selectedServiceObj = orderedServices.find(s => s.id === selectedService) || null;
 
@@ -1017,6 +1022,14 @@ export function SMSWall() {
                     </label>
                     {selectedCountryName && (
                       <span className="text-[11px] font-mono text-wr-info font-bold truncate">● {selectedCountryName}</span>
+                    )}
+                    {selectedCountrySlug && (
+                      <Link
+                        to={localePath(`/destination/${selectedCountrySlug}`, lang)}
+                        className="text-[11px] font-mono text-wr-accent underline-offset-2 hover:underline"
+                      >
+                        {t('sms.esim_link', 'eSIM data')} →
+                      </Link>
                     )}
                   </div>
                   {servicePickerOpen ? (

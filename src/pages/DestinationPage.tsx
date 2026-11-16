@@ -77,6 +77,13 @@ export default function DestinationPage() {
   const [checkoutPlan, setCheckoutPlan] = useState<ComparePlan | null>(null);
   const [selecting, setSelecting] = useState<string | null>(null);
 
+  // Prerendered head tags (Phase 2) exist for crawlers without JS. Once the app
+  // is running, React Helmet is the single source of truth — drop the static
+  // copies so titles/canonicals/JSON-LD are never duplicated.
+  useEffect(() => {
+    document.querySelectorAll('[data-prerender]').forEach(node => node.remove());
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setPayload(null);
