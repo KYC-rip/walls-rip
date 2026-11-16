@@ -8,7 +8,10 @@
     "dev:remote": "VITE_API_URL=https://api.kyc.rip vite --host 0.0.0.0 --port 5173 --strictPort",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && npx wrangler pages deploy dist --project-name walls-rip"
+    "deploy": "npm run build && npx wrangler pages deploy dist --project-name walls-rip",
+    "dev:v2": "VITE_API_URL=https://api.kyc.rip VITE_API_PREFIX=/v2 VITE_PWA_PAYMENTS=1 vite --port 5294 --strictPort",
+    "build:v2": "VITE_API_URL=https://api.kyc.rip VITE_API_PREFIX=/v2 VITE_PWA_PAYMENTS=1 tsc -b && VITE_API_URL=https://api.kyc.rip VITE_API_PREFIX=/v2 VITE_PWA_PAYMENTS=1 vite build",
+    "deploy:v2": "npm run build:v2 && npx wrangler pages deploy dist --project-name walls-rip --branch feat-aggregation-kernel"
   },
   "dependencies": {
     "@dr.pogodin/react-helmet": "3.0.6",
