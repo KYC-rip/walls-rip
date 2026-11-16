@@ -95,6 +95,17 @@ const REGIONS: Record<string, string[]> = {
   'Oceania': ['AU', 'NZ', 'FJ'],
 };
 
+/** Multi-country catalog codes used to fetch a region's plans directly. */
+const REGION_API_CODES: Record<string, string[]> = {
+  'Asia': ['AS'],
+  'Europe': ['EU'],
+  'North America': ['NA'],
+  'South America': ['SA'],
+  'Africa': ['AF'],
+  'Middle East': ['ME'],
+  'Oceania': ['OC'],
+};
+
 const REGION_I18N_KEYS: Record<string, string> = {
   'Asia': 'esim.region_asia',
   'Europe': 'esim.region_europe',
@@ -618,83 +629,65 @@ export function ESIMWall() {
   // Reset lazy load when filters/country change
   useEffect(() => { setVisiblePlans(PLANS_PER_PAGE); }, [selectedCountry, dataFilter, durationFilter, engineFilter, sortKey, sortAsc]);
 
-  // ─── Fetch regional plans when a region is selected ───
-  const [regionalPlans, setRegionalPlans] = useState<ComparePlan[]>([]);
-  const [, setRegionalLoading] = useState(false);
+  // ─── Regional plans ───
+  // The bulk `/esim/plans` list is not the full catalog for every engine
+  // (SimJuno cannot list all packages; PikaSim's unfiltered listing is a
+  // subset), so regional cards and the regional grid both use per-region
+  // fetches merged with the multi-country plans we already hold.
+  const [regionFetchedPlans, setRegionFetchedPlans] = useState<Record<string, ComparePlan[]>>({});
 
   useEffect(() => {
-    if (!selectedRegion || activeTab !== 'regional') {
-      setRegionalPlans([]);
-      return;
-    }
-
-    // Map regions to API country codes for direct fetching
-    const REGION_API_CODES: Record<string, string[]> = {
-      'Asia': ['AS'],
-      'Europe': ['EU'],
-      'North America': ['NA'],
-      'South America': ['SA'],
-      'Africa': ['AF'],
-      'Middle East': ['ME'],
-      'Oceania': ['OC'],
-    };
-
-    const codes = REGION_API_CODES[selectedRegion] || [];
-
-    (async () => {
-      setRegionalLoading(true);
-      try {
-        // Fetch from API with regional codes + filter allPlans
+    if (activeTab !== 'regional') return;
+    let cancelled = false;
+    // Publish each region as soon as its own fetch settles, so one slow region
+    // never blocks the grid for the region the user already picked.
+    for (const region of Object.keys(REGIONS)) {
+      (async () => {
         const fetched: ComparePlan[] = [];
-        for (const code of codes) {
+        for (const code of REGION_API_CODES[region] || []) {
           try {
-            const plans = await apiClient<ComparePlan[]>(`/v1/tools/esim/plans?country=${code}`);
-            fetched.push(...plans);
+            fetched.push(...await apiClient<ComparePlan[]>(`/v1/tools/esim/plans?country=${code}`));
           } catch { /* skip */ }
         }
-        // Also include matching plans from allPlans (PikaSim multi-country)
-        const fromAll = allPlans.filter(p => isRegionalPlan(p) && planMatchesRegion(p, selectedRegion));
-        // Deduplicate by id
-        const seen = new Set(fetched.map(p => p.id));
-        for (const p of fromAll) {
-          if (!seen.has(p.id)) fetched.push(p);
-        }
-        setRegionalPlans(fetched);
-      } catch {
-        setRegionalPlans([]);
-      } finally {
-        setRegionalLoading(false);
-      }
-    })();
-  }, [selectedRegion, activeTab, allPlans]);
-
-  // ─── Region counts — use countries list to detect available regions ───
-  const regionCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    const REGION_CODES: Record<string, string> = { 'Asia': 'AS', 'Europe': 'EU' };
-    for (const region of Object.keys(REGIONS)) {
-      // Count from allPlans (multi-country plans)
-      const fromAll = allPlans.filter(p => isRegionalPlan(p) && planMatchesRegion(p, region)).length;
-      // Check if regional code exists in countries list (SMSPool AS/EU)
-      const code = REGION_CODES[region];
-      const hasRegionalCode = code ? countries.some(c => c.code === code) : false;
-      counts[region] = hasRegionalCode ? fromAll + 1 : fromAll; // +1 as indicator that plans exist via API
+        if (!cancelled) setRegionFetchedPlans(prev => ({ ...prev, [region]: fetched }));
+      })();
     }
-    return counts;
-  }, [allPlans, countries]);
+    return () => { cancelled = true; };
+  }, [activeTab]);
 
-  // Cheapest regional plan per region (allPlans already carries retail prices).
+  const regionPlanSets = useMemo(() => {
+    const out: Record<string, ComparePlan[]> = {};
+    for (const region of Object.keys(REGIONS)) {
+      const byId = new Map<string, ComparePlan>();
+      for (const plan of regionFetchedPlans[region] || []) byId.set(plan.id, plan);
+      for (const plan of allPlans) {
+        if (isRegionalPlan(plan) && planMatchesRegion(plan, region)) byId.set(plan.id, plan);
+      }
+      out[region] = [...byId.values()];
+    }
+    return out;
+  }, [regionFetchedPlans, allPlans]);
+
+  const regionalPlans = useMemo(
+    () => (selectedRegion && activeTab === 'regional' ? regionPlanSets[selectedRegion] || [] : []),
+    [selectedRegion, activeTab, regionPlanSets],
+  );
+
+  // Counts and from-prices come from the same set the grid renders, so a card
+  // can never advertise a price the plan list does not show.
+  const regionCounts = useMemo(
+    () => Object.fromEntries(Object.entries(regionPlanSets).map(([region, plans]) => [region, plans.length])),
+    [regionPlanSets],
+  );
+
   const regionFromPrices = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const region of Object.keys(REGIONS)) {
-      const prices = allPlans
-        .filter(p => isRegionalPlan(p) && planMatchesRegion(p, region))
-        .map(p => p.price)
-        .filter(Number.isFinite);
+    for (const [region, plans] of Object.entries(regionPlanSets)) {
+      const prices = plans.map(p => p.price).filter(Number.isFinite);
       if (prices.length > 0) map[region] = Math.min(...prices);
     }
     return map;
-  }, [allPlans]);
+  }, [regionPlanSets]);
 
   // ─── Global plans ───
   const globalPlans = useMemo(() => {
@@ -948,9 +941,18 @@ export function ESIMWall() {
                       type="search"
                       value={countrySearch}
                       onChange={e => {
-                        setCountrySearch(e.target.value);
+                        const value = e.target.value;
+                        setCountrySearch(value);
                         if (activeTab !== 'country') setActiveTab('country');
-                        if (selectedCountry) setSelectedCountry('');
+                        // Keep the open plan list unless the query no longer
+                        // matches the selected destination.
+                        if (selectedCountry) {
+                          const q = value.trim().toLowerCase();
+                          const name = selectedCountryName.toLowerCase();
+                          if (q && selectedCountry.toLowerCase() !== q && !name.includes(q)) {
+                            setSelectedCountry('');
+                          }
+                        }
                       }}
                       placeholder={t('esim.destination_search', 'Where are you traveling?')}
                       aria-label={t('esim.destination_search', 'Where are you traveling?')}

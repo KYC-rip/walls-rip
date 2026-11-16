@@ -6,6 +6,8 @@ export interface Destination {
   name: string;
   fromUsd: number;
   planCount: number;
+  /** False when a provider covers the country but cannot report a full plan list. */
+  countComplete?: boolean;
 }
 
 interface FallbackCountry { code: string; name: string }
@@ -35,7 +37,7 @@ export function DestinationsGrid({
 }: DestinationsGridProps) {
   const { t } = useTranslation();
 
-  type Card = { code: string; name: string; fromUsd: number | null; planCount: number | null };
+  type Card = { code: string; name: string; fromUsd: number | null; planCount: number | null; countComplete?: boolean };
   const priced = destinations.length > 0;
   const items: Card[] = (priced
     ? destinations
@@ -69,6 +71,8 @@ export function DestinationsGrid({
             const name = item.name;
             const from = item.fromUsd;
             const count = item.planCount;
+            // A partial count is a lower bound, not a fact: render "N+".
+            const partial = item.countComplete === false;
             return (
               <button
                 key={code}
@@ -94,7 +98,7 @@ export function DestinationsGrid({
                   )}
                   {count != null && count > 0 && (
                     <span className="font-mono text-[10px] uppercase tracking-wider text-wr-dim">
-                      {count} {t('esim.plans_available', 'plans')}
+                      {count}{partial ? '+' : ''} {t('esim.plans_available', 'plans')}
                     </span>
                   )}
                 </div>
