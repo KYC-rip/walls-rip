@@ -56,6 +56,9 @@ export function PwaCashGate({
 
   const create = async () => {
     if (busy || amount < 0.05) return;
+    // Open the tab synchronously inside the click gesture. Browsers block
+    // window.open() after an await, which made the checkout silently fail.
+    const checkoutWindow = window.open('', '_blank');
     setBusy(true);
     try {
       const inv = await apiClient<PwaInvoice>(createEndpoint, {
@@ -69,8 +72,18 @@ export function PwaCashGate({
       setInvoice(inv);
       setStatus('waiting');
       if (inv.walletToken && !walletToken) onWalletCreated?.(inv.walletToken);
-      if (!inv.fake && inv.paymentUrl) window.open(inv.paymentUrl, '_blank', 'noopener,noreferrer');
+      if (checkoutWindow) {
+        if (inv.fake) {
+          checkoutWindow.close();
+        } else if (inv.paymentUrl || inv.address) {
+          checkoutWindow.opener = null;
+          checkoutWindow.location.href = inv.paymentUrl || inv.address;
+        }
+      } else if (!inv.fake) {
+        toast.error('Pop-up blocked — use “OPEN PWA.CASH CHECKOUT” below');
+      }
     } catch (e) {
+      checkoutWindow?.close();
       const msg = (e as { data?: { error?: string }; message?: string })?.data?.error
         || (e as { message?: string })?.message
         || 'Could not create a pwa.cash invoice';
