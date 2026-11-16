@@ -40,10 +40,12 @@ export function useTheme() {
   });
 
   const [skin, setSkinState] = useState<Skin>(() => {
-    if (typeof window === 'undefined') return 'terminal';
+    // Mainstream default: new visitors get the clean skin. Terminal is still
+    // one click away in the header, and an explicit saved choice always wins.
+    if (typeof window === 'undefined') return 'clean';
     const saved = localStorage.getItem('theme-skin');
     if (saved === 'terminal' || saved === 'clean' || saved === 'monero') return saved;
-    return 'terminal';
+    return 'clean';
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('dark');
