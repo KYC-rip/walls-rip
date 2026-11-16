@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, AlertTriangle, ChevronDown, Clock, Dices, ChevronRight, Mail, Zap, Upload } from 'lucide-react';
 import { TIER_UI_CONFIG } from './constants';
+import { mailApiClient } from '../../services/client';
+import { SUPPORTED_LANGS } from '../../i18n/config';
 import type { TierType, DurationConfig, PaymentState, DomainConfig, GhostMailSession } from '../../hooks/useGhostMail';
 import { SessionTransferModal } from './SessionTransfer';
 
@@ -51,9 +53,27 @@ export function ConfigPanel({
   openToS,
   onImportSession
 }: ConfigPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [paymentMethod, setPaymentMethod] = useState<'XMR' | 'LN' | 'USDT'>('XMR');
   const [usdtChain, setUsdtChain] = useState<'tron' | 'eth'>('tron');
+  const [proMonthly, setProMonthly] = useState<number | null>(null);
+  const lang = (SUPPORTED_LANGS as readonly string[]).includes(i18n.language) && i18n.language !== 'en'
+    ? `/${i18n.language}`
+    : '';
+
+  useEffect(() => {
+    let cancelled = false;
+    mailApiClient<{ plans?: Record<string, { monthlyUSD?: number }> }>('/v1/mail/pro/plans')
+      .then(r => {
+        if (cancelled) return;
+        const values = Object.values(r.plans || {})
+          .map(plan => Number(plan?.monthlyUSD))
+          .filter(Number.isFinite);
+        if (values.length > 0) setProMonthly(Math.min(...values));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const [showImportModal, setShowImportModal] = useState(false);
   const isBasic = selectedTier === 'BASIC';
 
@@ -174,7 +194,7 @@ export function ConfigPanel({
           <span className="text-[11px] uppercase tracking-[0.18em] font-bold text-wr-dim">#01 // {t('mail.v2_tier_kicker', 'Choose a tier')}</span>
           <span className="hidden sm:block text-[11px] uppercase tracking-[0.14em] font-bold text-wr-dim/70">{t('mail.v2_tier_hint', 'Price per period')}</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
           {(Object.keys(tiers) as TierType[]).map((tierKey) => {
             const tier = tiers[tierKey];
             if (!tier) return null;
@@ -221,6 +241,31 @@ export function ConfigPanel({
               </div>
             );
           })}
+          <a
+            href={`${lang}/mail/pro`}
+            className="relative flex flex-col p-5 border border-wr-secondary/40 bg-wr-secondary/[0.06] rounded-sm transition-colors duration-200 hover:border-wr-secondary/70 hover:bg-wr-secondary/10"
+          >
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-wr-secondary">{t('mail.pro_tier_label', 'Ghost Mail Pro')}</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-wr-secondary border border-wr-secondary/40 bg-wr-secondary/10 px-1.5 py-0.5 rounded-xs shrink-0">
+                {t('mail.pro_tier_badge', 'PERSISTENT')}
+              </span>
+            </div>
+            <Mail size={20} className="text-wr-secondary" />
+            <div className="mt-4 flex items-baseline gap-1 font-mono">
+              <span className="text-3xl font-black leading-none text-wr-secondary">
+                {proMonthly != null ? `$${proMonthly.toFixed(2)}` : t('mail.pro_tier_monthly', 'Monthly')}
+              </span>
+            </div>
+            <div className="mt-1.5 text-[11px] font-mono tracking-[0.16em] text-wr-dim">/ {t('mail.pro_tier_month', 'MONTH')}</div>
+            <p className="mt-4 mb-5 text-[11px] text-wr-dim leading-relaxed font-mono flex-1">
+              {t('mail.pro_tier_desc', 'Persistent address with sending, aliases and custom domains. Separate monthly subscription.')}
+            </p>
+            <div className="flex items-center justify-between border-t border-wr-secondary/30 pt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-wr-secondary">
+              <span>{t('mail.pro_tier_cta', 'Open Pro')}</span>
+              <ChevronRight size={13} />
+            </div>
+          </a>
         </div>
       </div>
 

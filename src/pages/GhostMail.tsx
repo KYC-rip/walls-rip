@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { Zap, Shield, Wallet, Bell, Globe, Code, Clock, ChevronDown, Mail, Crown, ArrowRight } from 'lucide-react';
+import { Zap, Shield, Wallet, Bell, Globe, Code, Clock, ChevronDown, Mail } from 'lucide-react';
 import { useGhostMail } from '../hooks/useGhostMail';
 import { SEO } from '../components/SEO';
 import { Header } from '../components/Header';
@@ -203,23 +203,6 @@ export function GhostMail() {
         {/* ═══ INFO SECTIONS (below main content, hidden in inbox view) ═══ */}
         {!session && !isFullscreen && (
           <div className="space-y-12 md:space-y-16 mt-12 md:mt-16">
-
-            {/* ═══ GHOST MAIL PRO UPSELL — violet secondary band ═══ */}
-            <a
-              href="/mail/pro"
-              className="mx-2 md:mx-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-wr-secondary/30 bg-wr-secondary/[0.06] hover:border-wr-secondary/60 hover:bg-wr-secondary/10 rounded-sm p-4 md:p-5 transition-colors group"
-            >
-              <div className="flex items-start gap-3">
-                <span className="text-wr-secondary shrink-0 mt-0.5"><Crown size={16} /></span>
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-wr-secondary">{t('mail.pro_cta_title', 'Ghost Mail Pro')}</div>
-                  <div className="text-xs text-wr-dim mt-1 leading-relaxed max-w-lg">{t('mail.pro_cta_desc', 'Persistent inbox you can send from — aliases, compose & reply. Prepaid monthly in crypto.')}</div>
-                </div>
-              </div>
-              <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-wr-secondary group-hover:brightness-125 transition-all shrink-0 self-start sm:self-auto">
-                {t('mail.pro_cta_go', 'Go Pro')} <ArrowRight size={13} />
-              </span>
-            </a>
 
             {/* ═══ BURNER VS PRO ═══ */}
             <div className="mx-2 md:mx-0 space-y-4">
