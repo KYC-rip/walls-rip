@@ -59,6 +59,18 @@ export function PwaCashGate({
     // Open the tab synchronously inside the click gesture. Browsers block
     // window.open() after an await, which made the checkout silently fail.
     const checkoutWindow = window.open('', '_blank');
+    if (checkoutWindow) {
+      try {
+        checkoutWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Opening pwa.cash checkout…</title></head>
+<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#050505;color:#e2e8f0;font:13px/1.6 'JetBrains Mono',ui-monospace,monospace">
+<div style="text-align:center;padding:24px;max-width:420px">
+<div style="color:#34d399;letter-spacing:.18em;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:10px">pwa.cash</div>
+<div style="margin-bottom:8px">Opening secure checkout…</div>
+<div style="color:#64748b;font-size:11px">Pay with XMR, Lightning, USDT or USDC. Keep this tab open.</div>
+</div></body></html>`);
+        checkoutWindow.document.close();
+      } catch { /* about:blank should be writable; fall through */ }
+    }
     setBusy(true);
     try {
       const inv = await apiClient<PwaInvoice>(createEndpoint, {
