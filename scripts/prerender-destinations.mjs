@@ -166,6 +166,15 @@ function schemasFor(payload) {
   ];
 }
 
+/** Phase 7 product links (kept in sync with DestinationPage's PRODUCT_META). */
+const PRODUCT_LINKS = {
+  esim: { label: 'eSIM data plans', href: c => `/esim?c=${c}` },
+  phone: { label: 'Phone number plans', href: c => `/phone?country=${c}` },
+  sms: { label: 'SMS verification numbers', href: c => `/sms?c=${c}` },
+  proxy: { label: 'Residential proxies', href: c => `/proxy?country=${c}` },
+  uk_number: { label: 'UK mobile number', href: () => '/uk-sim' },
+};
+
 function buildPage(base, payload) {
   const { country, esim } = payload;
   const price = esim.fromUsd ?? 0;
@@ -210,6 +219,22 @@ function buildPage(base, payload) {
     payload.proxy.available ? 'Proxy coverage is available for this country.' : '',
     payload.sms.available ? 'SMS verification numbers are available for this country.' : '',
   ].filter(Boolean).join(' ');
+  // Phase 7: other products for this country. Optional — an older API during a
+  // rolling deploy simply produces no extra links.
+  const productItems = (Array.isArray(payload.products) ? payload.products : [])
+    .filter(product => product && product.available && product.key !== 'esim')
+    .map(product => {
+      const meta = PRODUCT_LINKS[product.key];
+      if (!meta) return '';
+      const price = product.fromUsd != null ? ` from $${Number(product.fromUsd).toFixed(2)}` : '';
+      return `<li><a href="${esc(meta.href(country.code))}" style="color:#22d3ee">${esc(meta.label)}</a>${esc(price)}</li>`;
+    })
+    .filter(Boolean)
+    .join('');
+  const vpn = payload.global?.vpn;
+  const vpnLine = vpn?.available
+    ? `<p style="margin:0 0 8px"><a href="/vpn" style="color:#22d3ee">VPN</a>${esc(vpn.fromUsd != null ? ` from $${Number(vpn.fromUsd).toFixed(2)}` : '')} — one service, worldwide.</p>`
+    : '';
 
   const noscript = `<noscript>
 <div style="max-width:48rem;margin:0 auto;padding:24px 16px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.6;background:#0b0f14;color:#e6edf3">
@@ -222,6 +247,9 @@ function buildPage(base, payload) {
 <h2 style="margin:0 0 8px;font-size:1.1rem">Available plans</h2>
 <ul style="margin:0 0 16px;padding-left:20px">${planItems}</ul>
 ${availability ? `<p style="margin:0 0 16px">${esc(availability)}</p>` : ''}
+${productItems ? `<h2 style="margin:0 0 8px;font-size:1.1rem">More for ${esc(country.name)}</h2>
+<ul style="margin:0 0 16px;padding-left:20px">${productItems}</ul>` : ''}
+${vpnLine}
 <p style="margin:0 0 8px"><a href="/esim?c=${esc(country.code)}" style="color:#22d3ee">Compare all ${esim.planCount} plans for ${esc(country.name)}</a></p>
 <p style="margin:24px 0 0;font-size:12px;color:#8b98a5">Prices are refreshed when this page is built. JavaScript is not required to read this summary.</p>
 </div>

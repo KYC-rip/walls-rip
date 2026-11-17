@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Globe, Shield, Wifi, Zap } from 'lucide-react';
+import { ChevronRight, Globe, MessageSquare, Phone, Shield, Wifi, Zap } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
@@ -22,6 +22,14 @@ interface ComparePlan extends ESIMCheckoutPlan {
   currency: string;
 }
 
+type ProductKey = 'esim' | 'phone' | 'sms' | 'proxy' | 'uk_number';
+
+interface DestinationProduct {
+  key: ProductKey;
+  available: boolean;
+  fromUsd: number | null;
+}
+
 interface DestinationPayload {
   country: { code: string; name: string; slug: string };
   esim: {
@@ -33,7 +41,46 @@ interface DestinationPayload {
   };
   proxy: { available: boolean; fromUsd: number | null };
   sms: { available: boolean };
+  // Phase 7 — absent on an older API; the page falls back to the legacy fields.
+  products?: DestinationProduct[];
+  global?: { vpn?: { available: boolean; fromUsd: number | null } };
 }
+
+/** Where each product lives, with the country preselected where it takes one. */
+const PRODUCT_META: Record<ProductKey, {
+  icon: typeof Wifi;
+  label: string;
+  fallback: string;
+  desc: string;
+  fallbackDesc: string;
+  link: (code: string) => string;
+}> = {
+  esim: {
+    icon: Wifi, label: 'destination.product_esim', fallback: 'eSIM data',
+    desc: 'destination.product_esim_desc', fallbackDesc: 'Prepaid data-only eSIM, no KYC',
+    link: code => `/esim?c=${code}`,
+  },
+  phone: {
+    icon: Phone, label: 'destination.product_phone', fallback: 'Phone number plan',
+    desc: 'destination.product_phone_desc', fallbackDesc: 'A real number with voice, SMS and data',
+    link: code => `/phone?country=${code}`,
+  },
+  sms: {
+    icon: MessageSquare, label: 'destination.product_sms', fallback: 'SMS verification numbers',
+    desc: 'destination.product_sms_desc', fallbackDesc: 'Receive one-time verification codes',
+    link: code => `/sms?c=${code}`,
+  },
+  proxy: {
+    icon: Shield, label: 'destination.product_proxy', fallback: 'Residential proxies',
+    desc: 'destination.product_proxy_desc', fallbackDesc: 'Residential IPs for apps and scripts',
+    link: code => `/proxy?country=${code}`,
+  },
+  uk_number: {
+    icon: Phone, label: 'destination.product_uk', fallback: 'UK mobile number',
+    desc: 'destination.product_uk_desc', fallbackDesc: 'Long-term +44 number with SMS',
+    link: () => '/uk-sim',
+  },
+};
 
 /** Deterministic hero gradient so a country always looks the same. */
 function gradientFor(code: string): string {
@@ -224,6 +271,16 @@ export default function DestinationPage() {
       defaultValue: '{{count}} plans from ${{price}}.',
     });
 
+  // Phase 7 product rows. An older API (rolling deploy) has no `products`:
+  // derive the three products it does know about and skip the rest.
+  const products: DestinationProduct[] = payload.products ?? [
+    { key: 'esim', available: payload.esim.planCount > 0, fromUsd: payload.esim.fromUsd },
+    { key: 'proxy', available: payload.proxy.available, fromUsd: payload.proxy.fromUsd },
+    { key: 'sms', available: payload.sms.available, fromUsd: null },
+  ];
+  const availableProducts = products.filter(product => product.available && PRODUCT_META[product.key]);
+  const vpn = payload.global?.vpn ?? null;
+
   const faqs = [
     {
       question: t('destination.faq_q1', { country, defaultValue: `How much does an eSIM for ${country} cost?` }),
@@ -332,6 +389,62 @@ export default function DestinationPage() {
           </div>
         </section>
 
+        {/* Products for this country: availability + from-price + deep link */}
+        {(availableProducts.length > 0 || vpn?.available) && (
+          <section className="mt-8">
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <h2 className="font-display text-lg font-bold tracking-tight text-current">
+                {t('destination.products_title', { country, defaultValue: 'Products for {{country}}' })}
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {availableProducts.map(product => {
+                const meta = PRODUCT_META[product.key];
+                const Icon = meta.icon;
+                return (
+                  <Link
+                    key={product.key}
+                    to={localePath(meta.link(payload.country.code), lang)}
+                    className="group flex flex-col justify-between rounded-sm border border-wr-border bg-wr-base p-4 transition-colors hover:border-wr-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
+                  >
+                    <span className="inline-flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-current">
+                      <Icon size={13} className="text-wr-accent" aria-hidden />
+                      {t(meta.label, meta.fallback)}
+                    </span>
+                    <p className="mt-2 text-xs leading-relaxed text-wr-dim">{t(meta.desc, meta.fallbackDesc)}</p>
+                    <span className="mt-3 flex items-center justify-between border-t border-wr-border/60 pt-2 text-sm font-mono font-bold tabular-nums text-current">
+                      {product.fromUsd != null
+                        ? t('destination.from_price', { price: product.fromUsd.toFixed(2), defaultValue: 'from ${{price}}' })
+                        : t('destination.available', 'Available')}
+                      <span aria-hidden className="text-[11px] text-wr-dim transition-colors group-hover:text-wr-accent">→</span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+            {vpn?.available && (
+              <Link
+                to={localePath('/vpn', lang)}
+                className="group mt-3 flex flex-col gap-2 rounded-sm border border-wr-border bg-wr-surface p-4 transition-colors hover:border-wr-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base sm:flex-row sm:items-center sm:gap-4"
+              >
+                <span className="inline-flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-current">
+                  <Globe size={13} className="text-wr-accent" aria-hidden />
+                  {t('destination.product_vpn', 'VPN')}
+                  <span className="rounded-sm border border-wr-border px-1.5 py-0.5 text-[10px] font-normal tracking-[0.14em] text-wr-dim">
+                    {t('destination.global_service', 'Worldwide')}
+                  </span>
+                </span>
+                <p className="flex-1 text-xs leading-relaxed text-wr-dim">{t('destination.product_vpn_desc', 'WireGuard, OpenVPN and VLESS')}</p>
+                <span className="text-sm font-mono font-bold tabular-nums text-current">
+                  {vpn.fromUsd != null
+                    ? t('destination.from_price', { price: vpn.fromUsd.toFixed(2), defaultValue: 'from ${{price}}' })
+                    : t('destination.available', 'Available')}
+                </span>
+              </Link>
+            )}
+          </section>
+        )}
+
         {/* Plans */}
         <section className="mt-8">
           <div className="mb-3 flex items-end justify-between gap-3">
@@ -379,26 +492,6 @@ export default function DestinationPage() {
             <span aria-hidden>→</span>
           </Link>
         </section>
-
-        {/* Proxy / SMS availability (hidden unless available) */}
-        {(payload.proxy.available || payload.sms.available) && (
-          <section className="mt-6 flex flex-wrap gap-2">
-            {payload.proxy.available && (
-              <span className="inline-flex items-center gap-2 rounded-sm border border-wr-border bg-wr-surface px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-wr-dim">
-                <Shield size={12} className="text-wr-accent" />
-                {payload.proxy.fromUsd != null
-                  ? t('destination.proxy_from', { price: payload.proxy.fromUsd.toFixed(2), defaultValue: 'Proxies from ${{price}}' })
-                  : t('destination.proxy_yes', { country, defaultValue: 'Proxies available in {{country}}' })}
-              </span>
-            )}
-            {payload.sms.available && (
-              <span className="inline-flex items-center gap-2 rounded-sm border border-wr-border bg-wr-surface px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-wr-dim">
-                <Wifi size={12} className="text-wr-info" />
-                {t('destination.sms_yes', { country, defaultValue: 'SMS verification numbers in {{country}}' })}
-              </span>
-            )}
-          </section>
-        )}
 
         {/* FAQ */}
         <section className="mt-10">

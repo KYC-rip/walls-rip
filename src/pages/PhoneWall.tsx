@@ -30,11 +30,28 @@ interface ProfileResult { qrCode?: string; activationUrl?: string }
 
 const WALLET_KEY = 'walls_sms_wallet'; // shared wallet with SMS/eSIM
 
-type RegionTab = 'US' | 'GLOBAL';
+/**
+ * A visible tab is a country code ('US', 'GLOBAL', or any country PikaSim
+ * really sells phone plans for). Destination pages deep-link `/phone?country=XX`.
+ */
+type RegionTab = string;
 
 function initialFromUrl() {
   const p = new URLSearchParams(window.location.search);
   return { order: p.get('id') || p.get('order') || undefined };
+}
+
+/** `?country=` wins over `?region=`; both are optional and keep old links working. */
+function initialRegion(): RegionTab {
+  const params = new URLSearchParams(window.location.search);
+  const country = (params.get('country') || '').toUpperCase();
+  if (/^[A-Z]{2}$/.test(country)) return country;
+  return params.get('region') === 'GLOBAL' ? 'GLOBAL' : 'US';
+}
+
+function flagOf(code: string): string {
+  if (!/^[A-Za-z]{2}$/.test(code)) return '';
+  return String.fromCodePoint(...[...code.toUpperCase()].map(ch => 127397 + ch.charCodeAt(0)));
 }
 
 export default function PhoneWall() {
@@ -44,7 +61,7 @@ export default function PhoneWall() {
   const [plans, setPlans] = useState<PhonePlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [notConfigured, setNotConfigured] = useState(false);
-  const [region, setRegion] = useState<RegionTab>(() => new URLSearchParams(window.location.search).get('region') === 'GLOBAL' ? 'GLOBAL' : 'US');
+  const [region, setRegion] = useState<RegionTab>(initialRegion);
 
   const [walletToken, setWalletToken] = useState<string | null>(() => localStorage.getItem(WALLET_KEY));
   const [balanceUSD, setBalanceUSD] = useState(0);
@@ -159,7 +176,23 @@ export default function PhoneWall() {
     window.history.replaceState(null, '', window.location.pathname);
   };
 
-  const visible = plans.filter((p) => (region === 'US' ? p.country === 'US' : p.country === 'GLOBAL'));
+  const countriesWithPlans = useMemo(() => new Set(plans.map(p => p.country)), [plans]);
+  // A deep-linked country with no plans falls back to the default tab instead of
+  // an empty page. Runs once the catalog has loaded.
+  useEffect(() => {
+    if (loading) return;
+    if (region !== 'US' && region !== 'GLOBAL' && !countriesWithPlans.has(region)) setRegion('US');
+  }, [loading, region, countriesWithPlans]);
+  // The tab comes from the deep link (not the current selection), so switching
+  // to Global and back keeps the destination-page entry point available.
+  const requestedCountry = useMemo(() => {
+    const raw = (new URLSearchParams(window.location.search).get('country') || '').toUpperCase();
+    return /^[A-Z]{2}$/.test(raw) ? raw : null;
+  }, []);
+  const countryTab = requestedCountry && requestedCountry !== 'US' && countriesWithPlans.has(requestedCountry)
+    ? requestedCountry : null;
+
+  const visible = plans.filter((p) => p.country === region);
   const hasBalance = !!selected && !!walletToken && balanceUSD >= selected.price;
   const qrValue = profileData?.qrCode || profileData?.activationUrl || '';
 
@@ -246,9 +279,18 @@ export default function PhoneWall() {
                   <button key={r} onClick={() => { setRegion(r); const url = new URL(window.location.href); if (r === 'US') url.searchParams.delete('region'); else url.searchParams.set('region', r); window.history.replaceState(null, '', `${url.pathname}${url.search}`); }}
                     className={`min-h-11 inline-flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-mono font-bold uppercase tracking-[0.18em] rounded-sm border transition-colors ${region === r ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim hover:text-current hover:border-wr-accent/50'}`}>
                     {r === 'US' ? '🇺🇸' : <Globe size={13} />} {r === 'US' ? t('phone.tab_us', 'United States') : t('phone.tab_global', 'Global')}
-                    <span className="opacity-60">({plans.filter((p) => (r === 'US' ? p.country === 'US' : p.country === 'GLOBAL')).length})</span>
+                    <span className="opacity-60">({plans.filter((p) => p.country === r).length})</span>
                   </button>
                 ))}
+                {countryTab && (
+                  // Only the URL-preselected country gets a tab; clicking it does
+                  // not rewrite the query (a reload must land on the same view).
+                  <button onClick={() => setRegion(countryTab)}
+                    className={`min-h-11 inline-flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-mono font-bold uppercase tracking-[0.18em] rounded-sm border transition-colors ${region === countryTab ? 'bg-wr-accent text-black border-wr-accent' : 'border-wr-border text-wr-dim hover:text-current hover:border-wr-accent/50'}`}>
+                    {flagOf(countryTab)} {countryTab}
+                    <span className="opacity-60">({plans.filter((p) => p.country === countryTab).length})</span>
+                  </button>
+                )}
                 <Link to={`${i18n.language !== 'en' && (SUPPORTED_LANGS as readonly string[]).includes(i18n.language) ? `/${i18n.language}` : ''}/uk-sim`}
                   className="min-h-11 inline-flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-mono font-bold uppercase tracking-[0.18em] rounded-sm border transition-colors border-wr-secondary/40 text-wr-secondary hover:border-wr-secondary">🇬🇧 United Kingdom</Link>
               </div>
