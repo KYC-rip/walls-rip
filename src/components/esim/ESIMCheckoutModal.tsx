@@ -277,37 +277,43 @@ export function ESIMCheckoutModal({
                 </ul>
               </div>
 
-              {walletToken && (
-                <div className="flex items-center gap-2 text-xs border-t border-wr-border/30 pt-4">
-                  <Wallet size={12} className="text-wr-accent" />
-                  <span className="text-wr-dim">{t('sms.wallet_balance')}:</span>
-                  <span className={`font-mono font-bold tabular-nums ${hasSufficientBalance ? 'text-wr-accent' : 'text-wr-warning'}`}>
-                    ${balanceUSD.toFixed(2)}
-                  </span>
-                  {hasSufficientBalance && (
-                    <span className="rounded-full border border-wr-accent/20 bg-wr-accent/10 px-1.5 py-0.5 text-[10px] text-wr-accent">
-                      {t('esim.sufficient_balance', 'Sufficient')}
+              {/* Balance + confirm stay pinned at the bottom of the panel so the
+                  primary action is always visible while the details scroll. */}
+              <div className={inline ? 'sticky bottom-0 -mx-4 md:-mx-6 border-t border-wr-border bg-wr-base px-4 pb-3 pt-3 md:px-6' : ''}>
+                {walletToken && (
+                  <div className={`flex items-center gap-2 text-xs ${inline ? '' : 'border-t border-wr-border/30 pt-4'}`}>
+                    <Wallet size={12} className="text-wr-accent" />
+                    <span className="text-wr-dim">{t('sms.wallet_balance')}:</span>
+                    <span className={`font-mono font-bold tabular-nums ${hasSufficientBalance ? 'text-wr-accent' : 'text-wr-warning'}`}>
+                      ${balanceUSD.toFixed(2)}
                     </span>
-                  )}
-                </div>
-              )}
+                    {hasSufficientBalance && (
+                      <span className="rounded-full border border-wr-accent/20 bg-wr-accent/10 px-1.5 py-0.5 text-[10px] text-wr-accent">
+                        {t('esim.sufficient_balance', 'Sufficient')}
+                      </span>
+                    )}
+                  </div>
+                )}
 
-              {hasSufficientBalance ? (
-                <div className="flex items-center gap-3 pt-2 border-t border-wr-border/30">
-                  <button
-                    onClick={onClose}
-                    className="px-4 py-2.5 text-xs text-wr-dim hover:text-current transition-colors uppercase tracking-widest"
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    onClick={() => buyWithBalance(walletToken)}
-                    className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-sm bg-wr-accent py-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-wr-accent/90"
-                  >
-                    <Check size={14} /> {t('esim.detail_confirm_purchase')}
-                  </button>
-                </div>
-              ) : (
+                {hasSufficientBalance && (
+                  <div className={`flex items-center gap-3 pt-2 ${inline ? '' : 'border-t border-wr-border/30'}`}>
+                    <button
+                      onClick={onClose}
+                      className="px-4 py-2.5 text-xs text-wr-dim hover:text-current transition-colors uppercase tracking-widest"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      onClick={() => buyWithBalance(walletToken)}
+                      className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-sm bg-wr-accent py-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-wr-accent/90"
+                    >
+                      <Check size={14} /> {t('esim.detail_confirm_purchase')}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {!hasSufficientBalance && (
                 <div className="border-t border-wr-border/30 pt-4">
                   <PaymentGate
                     amount={plan.price}
