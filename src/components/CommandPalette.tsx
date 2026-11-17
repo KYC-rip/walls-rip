@@ -217,6 +217,12 @@ export function CommandPalette() {
     setActive(current => (flat.length === 0 ? 0 : Math.min(current, flat.length - 1)));
   }, [flat.length]);
 
+  // Sources arrive asynchronously on the first open. A new list is a new
+  // selection: never leave the index pointing at a row that moved.
+  useEffect(() => {
+    setActive(0);
+  }, [destinations.length, proxyCountries.length]);
+
   useEffect(() => {
     if (!open) return;
     document.getElementById(`command-option-${active}`)?.scrollIntoView({ block: 'nearest' });
@@ -261,7 +267,13 @@ export function CommandPalette() {
     }
     if (event.key === 'Enter') {
       event.preventDefault();
-      const item = flat[active];
+      // A country shorthand ("uk", "us") is a country lookup. While the list is
+      // still loading — or when it failed — the only rows are products, so
+      // Enter would open "UK eSIM" for "US". Do nothing instead of navigating
+      // somewhere the visitor did not ask for.
+      const isAliasQuery = countryAliasCode(query) != null;
+      if (isAliasQuery && (loading || !flat.some(entry => entry.group === 'destinations'))) return;
+      const item = flat[active] ?? flat[0];
       if (item) select(item);
     }
   };
@@ -303,6 +315,11 @@ export function CommandPalette() {
         </div>
 
         <div id="command-results" role="listbox" aria-label={t('command.results_label', 'Search results')} className="max-h-[60vh] overflow-y-auto p-2">
+          {loading && (
+            <div className="px-3 py-2 text-[11px] font-mono uppercase tracking-widest text-wr-dim">
+              {t('command.loading', 'Searching destinations…')}
+            </div>
+          )}
           {groups.map(entry => (
             <div key={entry.group} role="group" aria-label={t(GROUP_KEY[entry.group])}>
               <div className="flex items-center justify-between px-2 pb-1 pt-2 text-[10px] font-mono uppercase tracking-widest text-wr-dim">

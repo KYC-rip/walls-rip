@@ -513,7 +513,6 @@
     "filter_gt30": "30d+",
     "no_plan_match": "No plans match these filters.",
     "show_more": "Show more",
-
     "photo_credit": "Photo",
     "product_esim": "eSIM data",
     "product_esim_desc": "Prepaid data-only eSIM, no KYC",
@@ -744,7 +743,7 @@
     "destinations": "Destinations",
     "regions": "Regions",
     "proxy_countries": "Proxy countries",
-    "loading": "Searching…",
+    "loading": "Searching destinations…",
     "no_results": "No matches",
     "navigate": "navigate",
     "open_hint": "open",
