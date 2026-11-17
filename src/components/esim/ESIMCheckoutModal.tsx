@@ -254,11 +254,14 @@ export function ESIMCheckoutModal({
                   <h4 className="text-xs font-bold uppercase text-wr-dim tracking-widest">
                     {t('esim.detail_coverage')} ({plan.coverage.length} {t('esim.detail_countries')})
                   </h4>
-                  <div className="max-h-40 overflow-y-auto rounded-sm border border-wr-border/30 bg-wr-base/50 p-2 space-y-1">
+                  {/* Inline panels grow with the page (no second scrollbar); the
+                      modal keeps its capped list. Long operator strings wrap
+                      instead of running past the panel edge. */}
+                  <div className={`space-y-1 rounded-sm border border-wr-border/30 bg-wr-base/50 p-2 ${inline ? '' : 'max-h-40 overflow-y-auto'}`}>
                     {plan.coverage.map((c, i) => (
-                      <div key={i} className="flex items-center justify-between text-xs py-0.5 border-b border-wr-border/10 last:border-0">
-                        <span className="text-current font-medium">{c.country}</span>
-                        <span className="text-wr-dim">
+                      <div key={i} className="flex items-start justify-between gap-3 border-b border-wr-border/10 py-0.5 text-xs last:border-0">
+                        <span className="shrink-0 font-medium text-current">{c.country}</span>
+                        <span className="min-w-0 break-words text-right text-wr-dim">
                           {c.operators.length > 0 ? c.operators.map(o => `${o.name} (${o.networkType})`).join(', ') : '--'}
                         </span>
                       </div>

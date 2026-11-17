@@ -140,35 +140,43 @@ function isRegionalPlan(plan: { country: string; name: string }): boolean {
   return true;
 }
 
+/**
+ * Provider codes/labels for a region. Two-letter tokens (AS, EU, NA, SA, AF,
+ * ME, OC) only ever match the plan's own country field verbatim — matching them
+ * inside the name made "Europe (30+ areas)" an Asia plan ("are**as**") and put
+ * 180-day European plans under Asia.
+ */
+const REGION_VARIANTS: Record<string, string[]> = {
+  'Asia': ['asia', 'asia pacific', 'apac', 'southeast asia', 'east asia', 'central asia', 'as'],
+  'Europe': ['europe', 'eu', 'european union', 'western europe', 'eastern europe'],
+  'North America': ['north america', 'americas', 'na'],
+  'South America': ['south america', 'latin america', 'latam', 'sa'],
+  'Africa': ['africa', 'sub-saharan africa', 'af'],
+  'Middle East': ['middle east', 'mena', 'gulf', 'me'],
+  'Oceania': ['oceania', 'australia and new zealand', 'pacific', 'oc'],
+};
+
 /** Check if a regional plan belongs to a given region */
 function planMatchesRegion(plan: { country: string; name: string }, region: string): boolean {
-  const countryField = plan.country;
+  const countryField = (plan.country || '').toLowerCase();
+  const name = (plan.name || '').toLowerCase();
   const regionCountries = REGIONS[region] || [];
 
-  // Check if plan.country matches region name
-  if (countryField.toLowerCase() === region.toLowerCase()) return true;
-  // Check for partial region name match in country or name
-  if (plan.name.toLowerCase().includes(region.toLowerCase())) return true;
-  // Common API region variants
-  const regionVariants: Record<string, string[]> = {
-    'Asia': ['asia', 'asia pacific', 'apac', 'southeast asia', 'east asia', 'central asia', 'as'],
-    'Europe': ['europe', 'eu', 'european union', 'western europe', 'eastern europe'],
-    'North America': ['north america', 'americas', 'na'],
-    'South America': ['south america', 'latin america', 'latam', 'sa'],
-    'Africa': ['africa', 'sub-saharan africa', 'af'],
-    'Middle East': ['middle east', 'mena', 'gulf', 'me'],
-    'Oceania': ['oceania', 'australia and new zealand', 'pacific', 'oc'],
-  };
-  const variants = regionVariants[region] || [];
-  if (variants.some(v => countryField.toLowerCase() === v || countryField.toLowerCase().includes(v) || plan.name.toLowerCase().includes(v))) return true;
+  if (countryField === region.toLowerCase()) return true;
 
-  // Check if plan covers multiple country codes that fall within this region
-  const codes = countryField.split(/[,\s]+/).filter(c => /^[A-Z]{2}$/.test(c));
+  const variants = REGION_VARIANTS[region] || [];
+  // Exact code only: "EU" the country, never "EU" inside another word.
+  if (variants.some(v => countryField === v)) return true;
+  // Longer labels may match the name; two-letter codes may not.
+  if (variants.some(v => v.length > 2 && name.includes(v))) return true;
+  if (name.includes(region.toLowerCase())) return true;
+
+  // A plan whose country field lists several codes belongs where the codes do.
+  const codes = (plan.country || '').split(/[,\s]+/).filter(c => /^[A-Z]{2}$/.test(c));
   if (codes.length > 1) {
     const matchCount = codes.filter(c => regionCountries.includes(c)).length;
     return matchCount > 0 && matchCount / codes.length >= 0.5;
   }
-
   return false;
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Globe, MessageSquare, Phone, RefreshCw, Shield, Wifi, Zap } from 'lucide-react';
+import { CalendarDays, ChevronRight, Globe, MessageSquare, Phone, RefreshCw, Shield, Wifi, Zap } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
@@ -23,7 +23,7 @@ interface ComparePlan extends ESIMCheckoutPlan {
   currency: string;
 }
 
-type ProductKey = 'esim' | 'phone' | 'sms' | 'proxy' | 'uk_number';
+type ProductKey = 'esim' | 'phone' | 'sms' | 'sms_rental' | 'proxy' | 'uk_number';
 
 interface DestinationProduct {
   key: ProductKey;
@@ -136,6 +136,11 @@ const PRODUCT_META: Record<ProductKey, {
     icon: MessageSquare, label: 'destination.product_sms', fallback: 'SMS verification numbers',
     desc: 'destination.product_sms_desc', fallbackDesc: 'Receive one-time verification codes',
     link: code => `/sms?c=${code}`,
+  },
+  sms_rental: {
+    icon: CalendarDays, label: 'destination.product_rental', fallback: 'Number rental',
+    desc: 'destination.product_rental_desc', fallbackDesc: 'Keep a number for 30–360 days',
+    link: code => `/sms?tab=rentals&c=${code}`,
   },
   proxy: {
     icon: Shield, label: 'destination.product_proxy', fallback: 'Residential proxies',

@@ -237,7 +237,8 @@ export function SMSWall() {
   const [walletExpiresAt, setWalletExpiresAt] = useState<number | null>(null);
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<'sms' | 'rentals'>('sms');
+  const [activeTab, setActiveTab] = useState<'sms' | 'rentals'>(() =>
+    new URLSearchParams(window.location.search).get('tab') === 'rentals' ? 'rentals' : 'sms');
 
   // Rentals
   const [rentalServices, setRentalServices] = useState<RentalService[]>([]);
@@ -1499,6 +1500,10 @@ export function SMSWall() {
                           </div>
                           <div className="text-sm font-bold font-mono text-wr-secondary tabular-nums">
                             ${tier.price.toFixed(2)}
+                          </div>
+                          {/* Per-day price, the way the provider quotes it. */}
+                          <div className="mt-0.5 text-[10px] font-mono text-wr-dim tabular-nums">
+                            ${(tier.price / Math.max(1, tier.days)).toFixed(2)}/day
                           </div>
                         </button>
                       ))}

@@ -543,7 +543,9 @@
     "faq_a4": "Yes, where the provider supports top-ups: open the eSIM top-up page with your order id and choose a recharge option. If a plan is not rechargeable, buy a new plan instead.",
     "coverage_title": "Coverage",
     "coverage_countries": "countries",
-    "regional_badge": "Regional"
+    "regional_badge": "Regional",
+    "product_rental": "Number rental",
+    "product_rental_desc": "Keep a number for 30–360 days"
   },
   "esim": {
     "all_destinations": "All destinations",
