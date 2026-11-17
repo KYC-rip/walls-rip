@@ -173,17 +173,40 @@ interface LandmarkCredit {
 }
 const LANDMARKS = landmarkData as Record<string, LandmarkCredit>;
 
+/** Mirrors the loaded layout (hero, 7/12 plans, 5/12 rail) so nothing jumps. */
 function Skeleton({ label }: { label: string }) {
   return (
-    <div className="flex overflow-x-hidden relative flex-col items-center min-h-screen font-mono antialiased">
+    <div className="flex overflow-x-clip relative flex-col items-center min-h-screen font-mono antialiased">
       <Header />
       <main className="w-full max-w-6xl px-4 md:px-6 pb-16 pt-8">
-        <div className="mb-6 h-4 w-40 animate-pulse rounded-sm bg-wr-surface" />
-        <div className="mb-8 h-36 animate-pulse rounded-sm border border-wr-border bg-wr-surface/60" />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-sm border border-wr-border bg-wr-base/60" />
-          ))}
+        <div className="mb-4 h-3 w-40 animate-pulse rounded-sm bg-wr-surface" />
+        <div className="h-44 animate-pulse rounded-sm border border-wr-border bg-wr-surface/60 md:h-52" />
+        <div className="mt-8 lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
+          <section className="lg:col-span-7 lg:col-start-1 lg:row-start-1">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="h-5 w-24 animate-pulse rounded-sm bg-wr-surface" />
+              <div className="h-3 w-16 animate-pulse rounded-sm bg-wr-surface" />
+            </div>
+            <div className="mb-4 flex gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-7 w-16 animate-pulse rounded-sm bg-wr-surface" />
+              ))}
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-24 animate-pulse rounded-sm border border-wr-border bg-wr-base/60" />
+              ))}
+            </div>
+          </section>
+          <aside className="mt-8 lg:col-span-5 lg:col-start-8 lg:row-start-1 lg:mt-0">
+            <div className="mb-2 h-4 w-32 animate-pulse rounded-sm bg-wr-surface" />
+            <div className="mb-4 flex gap-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-8 w-24 animate-pulse rounded-full bg-wr-surface" />
+              ))}
+            </div>
+            <div className="h-72 animate-pulse rounded-sm border border-wr-border bg-wr-base/60" />
+          </aside>
         </div>
         <p className="mt-6 text-center text-[11px] uppercase tracking-widest text-wr-dim">
           {label}
@@ -649,7 +672,7 @@ export default function DestinationPage() {
                     variant="inline"
                     plan={checkoutPlan}
                     locationLabel={country}
-                    badgeLabel={payload.country.code}
+                    badgeLabel={/^[A-Z]{2}$/.test(payload.country.code) ? payload.country.code : t('destination.regional_badge', 'Regional')}
                     walletToken={walletToken}
                     balanceUSD={balanceUSD}
                     onClose={closeCheckout}
@@ -818,7 +841,7 @@ export default function DestinationPage() {
         <ESIMCheckoutModal
           plan={checkoutPlan}
           locationLabel={country}
-          badgeLabel={payload.country.code}
+          badgeLabel={/^[A-Z]{2}$/.test(payload.country.code) ? payload.country.code : t('destination.regional_badge', 'Regional')}
           walletToken={walletToken}
           balanceUSD={balanceUSD}
           onClose={closeCheckout}

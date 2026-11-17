@@ -443,8 +443,8 @@ export function ProxyWall() {
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />
       <Header />
 
-      <main className="w-full max-w-5xl px-4 md:px-6 relative z-10 pb-12">
-        <div className="max-w-5xl mx-auto space-y-6 md:space-y-10 pb-8 md:pb-12">
+      <main className="w-full max-w-6xl px-4 md:px-6 relative z-10 pb-12">
+        <div className="max-w-6xl mx-auto space-y-6 md:space-y-10 pb-8 md:pb-12">
 
           {/* ═══ HERO ═══ */}
           <div className="text-center py-8 scale-90 md:scale-100 origin-top">

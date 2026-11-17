@@ -155,7 +155,15 @@ export function ESIMCheckoutModal({
         {/* Header */}
         <div className={`border-b border-wr-border/30 flex items-start justify-between gap-3 ${inline ? 'p-4' : 'p-4 md:p-6'}`}>
           <div className="min-w-0">
-            <h3 className="text-sm md:text-base font-bold text-current tracking-wide leading-tight">{plan.name}</h3>
+            {/* Provider names for multi-country plans are long country-code
+                lists; show the buyable summary and keep the raw name as a
+                tooltip. */}
+            <h3
+              title={plan.name}
+              className="truncate text-sm md:text-base font-bold text-current tracking-wide leading-tight"
+            >
+              {`${locationLabel} · ${formatDataGB(plan.dataGB)} / ${plan.durationDays}d`}
+            </h3>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="shrink-0 text-xs px-2.5 py-1 rounded border border-wr-accent/30 text-wr-accent bg-wr-accent/10 font-mono uppercase tracking-wider">

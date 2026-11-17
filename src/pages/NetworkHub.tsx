@@ -169,7 +169,7 @@ export default function NetworkHub() {
       <div className="fixed inset-0 z-40 pointer-events-none vignette" />
       <Header />
 
-      <main className="w-full max-w-5xl px-4 md:px-6 relative z-10 pb-12">
+      <main className="w-full max-w-6xl px-4 md:px-6 relative z-10 pb-12">
         <nav aria-label="Breadcrumb" className="text-[10px] uppercase tracking-[0.18em] text-wr-dim mb-6">
           <Link to={lp('/')} className="hover:text-wr-accent">{t('network.home', 'Home')}</Link>
           <span className="mx-2">/</span>
