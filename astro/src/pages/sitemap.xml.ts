@@ -9,6 +9,31 @@ function urlEntry(origin: string, path: string, lastmod: string): string {
   return `<url><loc>${origin}${path}</loc><lastmod>${lastmod}</lastmod><changefreq>daily</changefreq></url>`;
 }
 
+/**
+ * Probe multi-area bundles once, in small batches: a bundle is page-worthy
+ * only while it still has five funded plans. Probing outside the language loop
+ * keeps it at 26 upstream calls instead of 156.
+ */
+async function qualifyingBundles(locals: unknown): Promise<string[]> {
+  const bundles = await fetchRegionBundles(locals);
+  const slugs: string[] = [];
+  for (let i = 0; i < bundles.length; i += 5) {
+    const batch = bundles.slice(i, i + 5);
+    const results = await Promise.all(
+      batch.map(async (bundle) => {
+        try {
+          const payload = await fetchDestination(locals, bundle.code);
+          return payload && payload.esim.planCount >= 5 ? bundle.slug : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    for (const slug of results) if (slug) slugs.push(slug);
+  }
+  return slugs;
+}
+
 export const GET: APIRoute = async ({ locals }) => {
   // The onion mirror is not indexed, and its addresses must never be copied
   // into a clearnet sitemap.
@@ -26,36 +51,16 @@ export const GET: APIRoute = async ({ locals }) => {
   }
 
   try {
-    const [destinations, bundles] = await Promise.all([
-      fetchDestinations(locals),
-      fetchRegionBundles(locals),
-    ]);
+    const destinations = await fetchDestinations(locals);
+    const qualified = destinations.filter((row) => (row.planCount ?? 0) >= 5);
+    const bundleSlugs = await qualifyingBundles(locals);
 
     for (const lang of SUPPORTED_LANGS) {
       if (lang === 'zh') continue;
-      for (const row of destinations) {
-        if ((row.planCount ?? 0) < 5) continue;
+      for (const row of qualified) {
         entries.push(urlEntry(origin, localePath(`/destination/${row.slug}`, lang), lastmod));
       }
-      // Bundles are only page-worthy when they still have five funded plans;
-      // probe them (small payload, served from the API's own cache) in small
-      // batches instead of listing redirects in the sitemap.
-      const bundleCodes: string[] = [];
-      for (let i = 0; i < bundles.length; i += 5) {
-        const batch = bundles.slice(i, i + 5);
-        const results = await Promise.all(
-          batch.map(async (bundle) => {
-            try {
-              const payload = await fetchDestination(locals, bundle.code);
-              return payload && payload.esim.planCount >= 5 ? bundle : null;
-            } catch {
-              return null;
-            }
-          }),
-        );
-        for (const bundle of results) if (bundle) bundleCodes.push(bundle.slug);
-      }
-      for (const slug of bundleCodes) {
+      for (const slug of bundleSlugs) {
         entries.push(urlEntry(origin, localePath(`/destination/${slug}`, lang), lastmod));
       }
     }

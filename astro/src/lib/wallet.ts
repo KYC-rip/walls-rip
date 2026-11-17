@@ -136,6 +136,24 @@ export function readPayState(ctx: CookieContext): PayState | null {
   return readJson<PayState>(ctx, COOKIE.pay);
 }
 
+/**
+ * A double-submitted deposit form must not mint a second invoice: the first
+ * QR would be orphaned and any funds sent to it would be invisible. Reusing
+ * the live payment for the same amount and method is safe; anything older
+ * than 30 minutes or already resolved falls through to a fresh payment.
+ */
+export function shouldReuseDeposit(
+  existing: PayState | null,
+  amount: number,
+  method: 'XMR' | 'LN',
+  now = Date.now(),
+): boolean {
+  if (!existing) return false;
+  if (existing.method !== method) return false;
+  if (Math.abs(existing.usd - amount) > 0.001) return false;
+  return now - existing.createdAt < 30 * 60_000;
+}
+
 export function clearPayState(ctx: CookieContext) {
   ctx.cookies.delete(COOKIE.pay, { path: '/' });
 }
@@ -213,7 +231,8 @@ export async function paymentStatus(
     const data = await apiGet<{ status?: string }>(
       locals,
       `/v1/tools/esim/payment/check?paymentId=${encodeURIComponent(paymentId)}`,
-      { ttlMs: 0, fresh: true },
+      // 2s coalesces simultaneous tabs/refreshes without hiding a real change.
+      { ttlMs: 2000 },
     );
     return data.status === 'COMPLETED' ? 'COMPLETED' : data.status === 'EXPIRED' ? 'EXPIRED' : 'PENDING';
   } catch {
@@ -226,7 +245,7 @@ export async function walletBalance(locals: unknown, token: string): Promise<num
     const data = await apiGet<{ balanceUSD?: number }>(
       locals,
       `/v1/tools/esim/balance?token=${encodeURIComponent(token)}`,
-      { ttlMs: 0, fresh: true },
+      { ttlMs: 2000 },
     );
     return typeof data.balanceUSD === 'number' ? data.balanceUSD : 0;
   } catch {

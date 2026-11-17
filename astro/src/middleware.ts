@@ -1,36 +1,15 @@
 import { defineMiddleware } from 'astro:middleware';
+import { canonicalPath, crossSiteFormPost, needsTrailingSlashRedirect } from './lib/security';
 
 /**
  * Per-request policy shared by both origins:
  *  - one canonical URL per page (no trailing slash),
  *  - a same-origin rule for HTML form POSTs that does not rely on an Origin
  *    header (Tor Browser / privacy browsers omit it for some submissions),
- *  - a deny-by-default CSP with no third-party origins,
- *  - no-store-free caching left to the pages themselves.
+ *  - a deny-by-default CSP with no third-party origins.
  *
- * Form POSTs do not exist yet in Phase A; the guard is here so Phase C cannot
- * ship a cross-site POST hole by forgetting it.
+ * Caching is left to the pages themselves; transactional pages send no-store.
  */
-
-const FORM_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-const FORM_CONTENT = /^(application\/x-www-form-urlencoded|multipart\/form-data|text\/plain)/;
-
-function crossSiteFormPost(request: Request): boolean {
-  if (!FORM_METHODS.has(request.method)) return false;
-  const contentType = (request.headers.get('content-type') ?? '').toLowerCase();
-  if (!FORM_CONTENT.test(contentType)) return false;
-
-  const origin = request.headers.get('origin');
-  if (origin && origin !== 'null') {
-    try {
-      return new URL(origin).host !== new URL(request.url).host;
-    } catch {
-      return true;
-    }
-  }
-  // No usable Origin: trust the browser's own fetch-site label when present.
-  return request.headers.get('sec-fetch-site') === 'cross-site';
-}
 
 function securityHeaders(headers: Headers, url: URL) {
   headers.set('X-Content-Type-Options', 'nosniff');
@@ -40,13 +19,14 @@ function securityHeaders(headers: Headers, url: URL) {
   headers.set('Cross-Origin-Resource-Policy', 'same-origin');
   headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
 
-  // HSTS is meaningless on .onion and is only correct on an HTTPS origin.
+  // HSTS is meaningless on .onion and only correct on an HTTPS origin.
   if (!__ONION__ && url.protocol === 'https:') {
     headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
   // Report-only first (Phase A acceptance). Phase D flips this to enforcement
-  // once the Tor mirror has been exercised end to end.
+  // once the Tor mirror has been exercised end to end. `default-src 'none'`
+  // already blocks scripts; JSON-LD is a data block, not executable script.
   const csp = [
     "default-src 'none'",
     "base-uri 'none'",
@@ -64,15 +44,13 @@ function securityHeaders(headers: Headers, url: URL) {
 export const onRequest = defineMiddleware(async (context, next) => {
   const url = new URL(context.request.url);
 
-  if (
-    (context.request.method === 'GET' || context.request.method === 'HEAD') &&
-    url.pathname.length > 1 &&
-    url.pathname.endsWith('/')
-  ) {
-    const target = url.pathname.replace(/\/+$/, '') + url.search;
+  if (needsTrailingSlashRedirect(context.request, url.pathname)) {
     return new Response(null, {
       status: 301,
-      headers: { location: target, 'cache-control': 'public, max-age=86400' },
+      headers: {
+        location: canonicalPath(url.pathname) + url.search,
+        'cache-control': 'public, max-age=86400',
+      },
     });
   }
 
@@ -86,11 +64,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const response = await next();
 
   // The dev server injects HMR scripts; production ships none, so the CSP is
-  // only meaningful (and only safe to claim) in a build.
+  // only meaningful in a build.
   const headers = new Headers(response.headers);
   if (import.meta.env.PROD) securityHeaders(headers, url);
 
-  if (headers === response.headers) return response;
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

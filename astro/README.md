@@ -60,8 +60,11 @@ node scripts/nojs-check.mjs --base=http://127.0.0.1:4321 /
 ```
 
 `pnpm test` covers format helpers, routing, filters, the white-label guarantee
-(no engine names or raw costs in public objects), CSRF double-submit, return-URL
-safety, clientRef reuse and activation-date bounds.
+(no engine names or raw costs in public objects, plus a source scan of every
+page/component template), CSRF double-submit and the cross-site form matrix,
+return-URL safety, deposit reuse, clientRef rotation, payment-page state
+transitions, the purchase handler's success/held/stale-form paths and
+activation-date bounds.
 
 ## Routes
 
@@ -90,9 +93,16 @@ Same API, same idempotency, no new backend:
    `clientRef` that is stable per plan/checkout.
 4. `/order` reads `/esim/status` with the wallet token.
 
+A double-submitted deposit form reuses the live invoice for the same amount and
+method (30 min window) instead of orphaning the first QR. A completed purchase
+clears the idempotency reference, so buying the same plan again is a new order.
+
 Guards: double-submit CSRF cookie + hidden field on every POST, cross-site form
 POST rejection in middleware, no-store on transactional pages, `no-referrer`,
 capability tokens never in URLs, plan ids base64url-encoded in links.
+
+A catalogue outage renders a branded 503 with a retry link instead of a raw
+500; nothing is cached from that response.
 
 CSP ships **report-only** (`default-src 'none'`, no `script-src`) in production
 builds; there is no client script to allow.
@@ -123,13 +133,18 @@ PrivateTmp=true
 Caddy: `walls.internal:8080 { reverse_proxy 127.0.0.1:8080 }`.
 torrc: `HiddenServicePort 80 127.0.0.1:8080`.
 
+Caddy must preserve the incoming `Host` header: the onion build derives its
+canonical/OG/JSON-LD URLs from `Astro.url.origin`.
+
 The onion origin calls `api.kyc.rip` server-side, so a visitor's IP never
 reaches Cloudflare. No provider key, wallet secret or treasury credential lives
 on that box — only per-session wallet capability tokens in cookies.
 
 ## Not done
 
-- No deployment, no DNS/routes change, no onion key yet.
+- No deployment, no DNS/routes change, no onion key yet. `workers_dev` is
+  `false` so the Worker cannot be reached on a `*.workers.dev` origin with
+  walls.rip canonicals until Phase D.
 - SMS, phone, VPN and UK-number purchases are browse-only; their API purchase
   endpoints exist but the no-JS flow is eSIM-only for now.
 - Ghost Mail / Chat / Dead Drop remain JS-only and are not mounted here.

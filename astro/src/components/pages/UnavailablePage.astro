@@ -1,0 +1,64 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
+import type { Lang } from '../../lib/i18n';
+import { localePath } from '../../lib/i18n';
+import { pagePath } from '../../lib/page';
+
+export interface Props {
+  lang?: Lang;
+}
+
+const lang = (Astro.props.lang ?? 'en') as Lang;
+const path = pagePath(Astro);
+---
+
+<Base
+  title="Temporarily unavailable — walls.rip"
+  description="The catalogue is briefly unreachable. Please try again."
+  path={path}
+  lang={lang}
+  noindex
+>
+  <section class="unavailable">
+    <p class="mono-label">503 · upstream unavailable</p>
+    <h1>The catalogue didn't answer.</h1>
+    <p class="body">
+      This page is served live from the provider catalogue and the upstream service is
+      briefly unreachable. Nothing was charged and no order was touched. Try again in a
+      moment.
+    </p>
+    <p class="actions">
+      <a class="btn btn-primary" href={localePath(path, lang)}>Try again <Icon name="arrow" size={12} /></a>
+      <a class="btn" href={localePath('/esim', lang)}>Browse destinations</a>
+      <a class="btn" href={localePath('/network', lang)}>All products</a>
+    </p>
+  </section>
+</Base>
+
+<style>
+  .unavailable {
+    max-width: 40rem;
+    padding: 4rem 0;
+  }
+
+  h1 {
+    margin-top: 0.6rem;
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    font-weight: 900;
+  }
+
+  .body {
+    margin-top: 0.75rem;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+  }
+</style>

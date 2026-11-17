@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from './api';
+import { cleanPlanName } from './whiteLabel';
 
 /**
  * Server-side plan resolution and purchase for the no-JS checkout.
@@ -84,7 +85,7 @@ export async function findBuyablePlan(
     if (!engine || price <= 0) return null;
     return {
       id: planId,
-      name: typeof plan.name === 'string' ? plan.name : planId,
+      name: cleanPlanName(typeof plan.name === 'string' ? plan.name : planId),
       country: typeof plan.country === 'string' ? plan.country : country,
       dataGB: typeof plan.dataGB === 'number' ? plan.dataGB : 0,
       durationDays: typeof plan.durationDays === 'number' ? plan.durationDays : 0,
@@ -148,7 +149,7 @@ export async function orderStatus(
     return await apiGet<OrderStatus>(
       locals,
       `/v1/tools/esim/status?order_id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`,
-      { ttlMs: 0, fresh: true },
+      { ttlMs: 2000 },
     );
   } catch {
     return null;

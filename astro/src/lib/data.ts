@@ -1,4 +1,5 @@
 import { apiGet, ApiError } from './api';
+import { cleanPlanName } from './whiteLabel';
 
 /* ── API shapes ─────────────────────────────────────────────────────── */
 
@@ -145,7 +146,7 @@ function toPublicPlan(input: unknown): ComparePlan | null {
 
   return {
     id: plan.id,
-    name: plan.name,
+    name: cleanPlanName(plan.name),
     country: String(plan.country ?? ''),
     dataGB: numberValue(plan.dataGB),
     durationDays: numberValue(plan.durationDays),

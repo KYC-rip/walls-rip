@@ -29,10 +29,8 @@ export const POST: APIRoute = async (context) => {
   const returnTo = safeReturn(form.get('returnTo'), localePath('/esim', lang));
 
   if (!checkCsrf(context, form.get('csrf'))) {
-    return new Response('Invalid form token', {
-      status: 403,
-      headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
-    });
+    setFlash(context, 'That form expired. Review the plan and submit again.');
+    return context.redirect(returnTo, 303);
   }
 
   const token = walletToken(context);

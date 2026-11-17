@@ -54,8 +54,7 @@ export interface OrderProps {
 
 export type PrepareResult<T> =
   | { kind: 'ok'; props: T }
-  | { kind: 'redirect'; response: Response }
-  | { kind: 'expired' };
+  | { kind: 'redirect'; response: Response };
 
 function redirect(path: string, status = 303): Response {
   return new Response(null, {
@@ -146,19 +145,9 @@ export async function prepareOrder(
 ): Promise<PrepareResult<OrderProps>> {
   noStore(astro);
 
-  let order = readOrderState(astro);
-  const queryId = astro.url.searchParams.get('id');
+  const order = readOrderState(astro);
   const token = walletToken(astro);
 
-  if (!order && queryId && token) {
-    order = {
-      orderId: queryId,
-      name: 'eSIM order',
-      country: '',
-      price: 0,
-      at: Date.now(),
-    };
-  }
   if (!order) {
     return { kind: 'redirect', response: redirect(localePath('/esim', lang)) };
   }
@@ -170,9 +159,11 @@ export async function prepareOrder(
     const activationUrl =
       typeof status.activationUrl === 'string' ? status.activationUrl : undefined;
     if (qrCode || activationUrl) {
-      const next: OrderState = { ...order, qrCode: qrCode ?? order.qrCode, activationUrl: activationUrl ?? order.activationUrl };
-      setOrderState(astro, next);
-      order = next;
+      setOrderState(astro, {
+        ...order,
+        qrCode: qrCode ?? order.qrCode,
+        activationUrl: activationUrl ?? order.activationUrl,
+      });
     }
   }
 

@@ -37,7 +37,8 @@ export interface DestinationPageData {
 export type DestinationLoad =
   | { kind: 'ok'; data: DestinationPageData }
   | { kind: 'redirect'; status: 301 | 302; location: string }
-  | { kind: 'not-found' };
+  | { kind: 'not-found' }
+  | { kind: 'unavailable' };
 
 /** Fallback list built from the destination payload (no buyable ids). */
 function fallbackPlans(payload: DestinationPayload): ComparePlan[] {
@@ -98,7 +99,14 @@ export async function loadDestinationPage(
   slug: string,
   lang: Lang,
 ): Promise<DestinationLoad> {
-  const payload = await fetchDestination(astro.locals, slug);
+  let payload: DestinationPayload | null;
+  try {
+    payload = await fetchDestination(astro.locals, slug);
+  } catch {
+    // One API blip must not turn every destination page into a raw 500. The
+    // caller renders a branded 503 with a retry link instead.
+    return { kind: 'unavailable' };
+  }
   if (!payload) return { kind: 'not-found' };
 
   const canonical = payload.country.slug;

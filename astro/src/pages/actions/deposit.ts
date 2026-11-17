@@ -4,10 +4,13 @@ import {
   checkCsrf,
   createDeposit,
   localeFrom,
+  paymentStatus,
+  readPayState,
   safeReturn,
   setFlash,
   setPayState,
   setWalletToken,
+  shouldReuseDeposit,
   walletToken,
 } from '../../lib/wallet';
 
@@ -21,23 +24,29 @@ export const POST: APIRoute = async (context) => {
   const returnTo = safeReturn(form.get('returnTo'), localePath('/esim', lang));
 
   if (!checkCsrf(context, form.get('csrf'))) {
-    return new Response('Invalid form token', {
-      status: 403,
-      headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
-    });
+    // A stale tab has an expired token; send it back so the GET re-mints one.
+    setFlash(context, 'That form expired. Check the amount and submit again.');
+    return context.redirect(returnTo, 303);
   }
 
   const amount = Number(form.get('amount'));
   const method = form.get('method') === 'LN' ? 'LN' : 'XMR';
+  const usd = Math.round(amount * 100) / 100;
 
-  if (!Number.isFinite(amount) || amount < 0.5 || amount > 200) {
+  if (!Number.isFinite(usd) || usd < 0.5 || usd > 200) {
     setFlash(context, 'Deposit amount must be between $0.50 and $200.');
     return context.redirect(returnTo, 303);
   }
 
   try {
+    const existing = readPayState(context);
+    if (shouldReuseDeposit(existing, usd, method)) {
+      const status = await paymentStatus(context.locals, existing!.paymentId);
+      if (status === 'PENDING') return context.redirect(localePath('/pay', lang), 303);
+    }
+
     const result = await createDeposit(context.locals, {
-      amount: Math.round(amount * 100) / 100,
+      amount: usd,
       method,
       walletToken: walletToken(context),
     });

@@ -1,4 +1,5 @@
 import { apiGet } from './api';
+import { cleanPlanName } from './whiteLabel';
 
 /**
  * Public catalogue fetchers for the product pages.
@@ -148,7 +149,7 @@ export async function fetchPhonePlans(locals: unknown, country: string): Promise
       if (!id) return null;
       return {
         id,
-        name: str(plan.name) || id,
+        name: cleanPlanName(str(plan.name) || id),
         country: str(plan.country),
         dataGB: num(plan.dataGB),
         durationDays: num(plan.durationDays),
@@ -303,7 +304,7 @@ function publicConnectivityPlans(input: unknown): ConnectivityPlan[] {
       if (!id) return null;
       return {
         id,
-        name: str(plan.name) || id,
+        name: cleanPlanName(str(plan.name) || id),
         days: typeof plan.days === 'number' ? plan.days : undefined,
         months: typeof plan.months === 'number' ? plan.months : undefined,
         country: str(plan.country) || undefined,

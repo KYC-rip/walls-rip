@@ -27,7 +27,8 @@ export interface DestinationRouteProps {
 export type DestinationRouteResult =
   | { kind: 'ok'; props: DestinationRouteProps }
   | { kind: 'redirect'; response: Response }
-  | { kind: 'not-found' };
+  | { kind: 'not-found' }
+  | { kind: 'unavailable' };
 
 /**
  * Shared by `/destination/[slug]` and `/[lang]/destination/[slug]`.
@@ -52,6 +53,7 @@ export async function prepareDestinationRoute(
     };
   }
   if (result.kind === 'not-found') return { kind: 'not-found' };
+  if (result.kind === 'unavailable') return { kind: 'unavailable' };
 
   const { data } = result;
   const { payload } = data;

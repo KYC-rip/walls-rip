@@ -14,10 +14,11 @@ import CheckoutPage from '../../components/pages/CheckoutPage.astro';
 import PayPage from '../../components/pages/PayPage.astro';
 import OrderPage from '../../components/pages/OrderPage.astro';
 import NotFoundPage from '../../components/pages/NotFoundPage.astro';
+import UnavailablePage from '../../components/pages/UnavailablePage.astro';
 import { prepareDestinationRoute } from '../../lib/destination-route';
 import { redirectEsimCountry } from '../../lib/esim-route';
 import { prepareCheckout, preparePay, prepareOrder } from '../../lib/payment-pages';
-import { SUPPORTED_LANGS, resolveLang, localePath } from '../../lib/i18n';
+import { SUPPORTED_LANGS, resolveLang } from '../../lib/i18n';
 
 const requested = Astro.params.lang ?? '';
 const valid = (SUPPORTED_LANGS as readonly string[]).includes(requested) && requested !== 'en';
@@ -68,11 +69,8 @@ if (payResult?.kind === 'redirect') return payResult.response;
 const orderResult = known && rest === 'order' ? await prepareOrder(Astro, lang) : null;
 if (orderResult?.kind === 'redirect') return orderResult.response;
 
-for (const result of [checkoutResult, payResult, orderResult]) {
-  if (result?.kind === 'expired') return Astro.redirect(localePath('/esim', lang), 303);
-}
-
 if (!known || destinationResult?.kind === 'not-found') Astro.response.status = 404;
+else if (destinationResult?.kind === 'unavailable') Astro.response.status = 503;
 ---
 
 {known && rest === '' && <HomePage />}
@@ -88,6 +86,7 @@ if (!known || destinationResult?.kind === 'not-found') Astro.response.status = 4
 
 {destinationResult?.kind === 'ok' && <DestinationPage props={destinationResult.props} />}
 {destinationResult?.kind === 'not-found' && <NotFoundPage lang={lang} />}
+{destinationResult?.kind === 'unavailable' && <UnavailablePage lang={lang} />}
 
 {checkoutResult?.kind === 'ok' && <CheckoutPage props={checkoutResult.props} />}
 {payResult?.kind === 'ok' && <PayPage props={payResult.props} />}
