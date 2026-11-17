@@ -1,0 +1,132 @@
+---
+/** A server-rendered country grid with self-hosted flags. No client JS. */
+export interface GridItem {
+  code: string;
+  name: string;
+  href: string;
+  meta?: string;
+}
+
+export interface Props {
+  items: GridItem[];
+  empty?: string;
+  columns?: 2 | 3 | 4;
+}
+
+const { items, empty = 'No matches.', columns = 4 } = Astro.props;
+---
+
+{items.length === 0 ? (
+  <p class="empty">{empty}</p>
+) : (
+  <ul class:list={['grid', `cols-${columns}`]}>
+    {items.map((item) => (
+      <li>
+        <a class="country" href={item.href}>
+          {/^[A-Za-z]{2}$/.test(item.code) ? (
+            <img
+              src={`/flags/${item.code.toLowerCase()}.svg`}
+              alt=""
+              width="40"
+              height="30"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <span class="globe" aria-hidden="true">◎</span>
+          )}
+          <span class="name">{item.name}</span>
+          {item.meta && <span class="meta">{item.meta}</span>}
+        </a>
+      </li>
+    ))}
+  </ul>
+)}
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  @media (min-width: 640px) {
+    .cols-3,
+    .cols-4 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .cols-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  .country {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  .country:hover {
+    border-color: var(--brand-color);
+    color: inherit;
+  }
+
+  .country img {
+    width: 2rem;
+    height: 1.5rem;
+    flex: none;
+    object-fit: cover;
+    border-radius: 2px;
+    outline: 1px solid var(--border-color);
+  }
+
+  .globe {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 1.5rem;
+    flex: none;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    color: var(--brand-color);
+    font-size: 0.9rem;
+  }
+
+  .name {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .meta {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    color: var(--brand-color);
+  }
+
+  .empty {
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+</style>

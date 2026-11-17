@@ -1,0 +1,96 @@
+---
+import HomePage from '../../components/pages/HomePage.astro';
+import EsimPage from '../../components/pages/EsimPage.astro';
+import SmsPage from '../../components/pages/SmsPage.astro';
+import PhonePage from '../../components/pages/PhonePage.astro';
+import ProxyPage from '../../components/pages/ProxyPage.astro';
+import VpnPage from '../../components/pages/VpnPage.astro';
+import UkSimPage from '../../components/pages/UkSimPage.astro';
+import NetworkPage from '../../components/pages/NetworkPage.astro';
+import FaqPage from '../../components/pages/FaqPage.astro';
+import ApiPage from '../../components/pages/ApiPage.astro';
+import DestinationPage from '../../components/pages/DestinationPage.astro';
+import CheckoutPage from '../../components/pages/CheckoutPage.astro';
+import PayPage from '../../components/pages/PayPage.astro';
+import OrderPage from '../../components/pages/OrderPage.astro';
+import NotFoundPage from '../../components/pages/NotFoundPage.astro';
+import { prepareDestinationRoute } from '../../lib/destination-route';
+import { redirectEsimCountry } from '../../lib/esim-route';
+import { prepareCheckout, preparePay, prepareOrder } from '../../lib/payment-pages';
+import { SUPPORTED_LANGS, resolveLang, localePath } from '../../lib/i18n';
+
+const requested = Astro.params.lang ?? '';
+const valid = (SUPPORTED_LANGS as readonly string[]).includes(requested) && requested !== 'en';
+const lang = resolveLang(requested);
+
+const rest = (Astro.params.path ?? '').replace(/^\/+|\/+$/g, '');
+const segments = rest ? rest.split('/') : [];
+const page = segments[0] ?? '';
+const slug = segments[1] ?? '';
+
+const SIMPLE = [
+  'esim',
+  'sms',
+  'phone',
+  'proxy',
+  'vpn',
+  'uk-sim',
+  'network',
+  'faq',
+  'api',
+  'checkout',
+  'pay',
+  'order',
+];
+const isDestination = valid && page === 'destination' && segments.length === 2 && !!slug;
+const known =
+  valid &&
+  (rest === '' || (SIMPLE.includes(rest) && segments.length === 1) || isDestination);
+
+// Transactional routes load (and may redirect) in the route, before any output
+// is streamed: a status or redirect set inside a child component is too late.
+const destinationResult = isDestination
+  ? await prepareDestinationRoute(Astro, lang, slug)
+  : null;
+if (destinationResult?.kind === 'redirect') return destinationResult.response;
+
+if (known && rest === 'esim') {
+  const redirect = await redirectEsimCountry(Astro, lang);
+  if (redirect) return redirect;
+}
+
+const checkoutResult = known && rest === 'checkout' ? await prepareCheckout(Astro, lang) : null;
+if (checkoutResult?.kind === 'redirect') return checkoutResult.response;
+
+const payResult = known && rest === 'pay' ? await preparePay(Astro, lang) : null;
+if (payResult?.kind === 'redirect') return payResult.response;
+
+const orderResult = known && rest === 'order' ? await prepareOrder(Astro, lang) : null;
+if (orderResult?.kind === 'redirect') return orderResult.response;
+
+for (const result of [checkoutResult, payResult, orderResult]) {
+  if (result?.kind === 'expired') return Astro.redirect(localePath('/esim', lang), 303);
+}
+
+if (!known || destinationResult?.kind === 'not-found') Astro.response.status = 404;
+---
+
+{known && rest === '' && <HomePage />}
+{known && rest === 'esim' && <EsimPage />}
+{known && rest === 'sms' && <SmsPage />}
+{known && rest === 'phone' && <PhonePage />}
+{known && rest === 'proxy' && <ProxyPage />}
+{known && rest === 'vpn' && <VpnPage />}
+{known && rest === 'uk-sim' && <UkSimPage />}
+{known && rest === 'network' && <NetworkPage />}
+{known && rest === 'faq' && <FaqPage />}
+{known && rest === 'api' && <ApiPage />}
+
+{destinationResult?.kind === 'ok' && <DestinationPage props={destinationResult.props} />}
+{destinationResult?.kind === 'not-found' && <NotFoundPage lang={lang} />}
+
+{checkoutResult?.kind === 'ok' && <CheckoutPage props={checkoutResult.props} />}
+{payResult?.kind === 'ok' && <PayPage props={payResult.props} />}
+{orderResult?.kind === 'ok' && <OrderPage props={orderResult.props} />}
+
+{!known && <NotFoundPage lang={valid ? lang : 'en'} />}

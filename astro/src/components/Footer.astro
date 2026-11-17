@@ -1,0 +1,149 @@
+---
+import { type Lang, localePath, resolveLang, t } from '../lib/i18n';
+
+export interface Props {
+  lang?: Lang;
+}
+
+const lang = resolveLang(Astro.props.lang);
+const year = new Date().getUTCFullYear();
+
+const TOOLS = [
+  { key: 'header.esim', fallback: 'eSIM', href: '/esim' },
+  { key: 'header.sms_wall', fallback: 'SMS', href: '/sms' },
+  { key: 'header.phone', fallback: 'Phone', href: '/phone' },
+  { key: 'header.proxy', fallback: 'Proxy', href: '/proxy' },
+  { key: 'header.vpn', fallback: 'VPN', href: '/vpn' },
+];
+
+const LEARN = [
+  { key: 'header.network', fallback: 'Network', href: '/network' },
+  { key: 'header.faq', fallback: 'FAQ', href: '/faq' },
+  { key: 'header.api', fallback: 'API', href: '/api' },
+];
+---
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <p class="footer-mark">walls<span>.</span>rip</p>
+      <p class="footer-cta">{t(lang, 'footer.cta', undefined, 'Communication is a right, not a privilege.')}</p>
+      <p class="footer-tagline">
+        {t(lang, 'footer.tagline', undefined, 'No account. No identity. Provider policies vary.')}
+      </p>
+    </div>
+
+    <nav class="footer-col" aria-label="Tools">
+      <p class="mono-label">{t(lang, 'footer.tools', undefined, 'Tools')}</p>
+      {TOOLS.map((item) => (
+        <a href={localePath(item.href, lang)}>{t(lang, item.key, undefined, item.fallback)}</a>
+      ))}
+    </nav>
+
+    <nav class="footer-col" aria-label="Learn">
+      <p class="mono-label">{t(lang, 'footer.learn', undefined, 'Learn')}</p>
+      {LEARN.map((item) => (
+        <a href={localePath(item.href, lang)}>{t(lang, item.key, undefined, item.fallback)}</a>
+      ))}
+      <a href="/.well-known/canary.txt">Warrant canary</a>
+    </nav>
+  </div>
+
+  <div class="footer-base">
+    <span>© {year} walls.rip</span>
+    <span>{t(lang, 'footer.rip_family_project', undefined, 'A rip.family project')}</span>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: 3rem;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-panel);
+  }
+
+  .footer-inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    width: 100%;
+    max-width: var(--wrap);
+    margin-inline: auto;
+    padding: 2.5rem 1rem;
+  }
+
+  @media (min-width: 768px) {
+    .footer-inner {
+      grid-template-columns: 2fr 1fr 1fr;
+      padding-inline: 1.5rem;
+    }
+  }
+
+  .footer-mark {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .footer-mark span {
+    color: var(--brand-color);
+  }
+
+  .footer-cta {
+    margin-top: 0.75rem;
+    max-width: 24rem;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .footer-tagline {
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+
+  .footer-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .footer-col .mono-label {
+    margin-bottom: 0.5rem;
+  }
+
+  .footer-col a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.2rem;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+
+  .footer-col a:hover {
+    color: var(--text-primary);
+  }
+
+  .footer-base {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: var(--wrap);
+    margin-inline: auto;
+    padding: 1rem 1rem 2rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  @media (min-width: 768px) {
+    .footer-base {
+      padding-inline: 1.5rem;
+    }
+  }
+</style>

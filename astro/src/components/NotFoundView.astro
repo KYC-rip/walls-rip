@@ -1,0 +1,85 @@
+---
+import Icon from './Icon.astro';
+import { type Lang, localePath } from '../lib/i18n';
+
+export interface Props {
+  lang?: Lang;
+}
+
+const lang = (Astro.props.lang ?? 'en') as Lang;
+const links = [
+  { href: '/esim', label: 'eSIM data plans' },
+  { href: '/sms', label: 'SMS verification' },
+  { href: '/proxy', label: 'Residential proxies' },
+  { href: '/network', label: 'All products' },
+];
+---
+
+<section class="not-found">
+  <p class="mono-label">404 · not found</p>
+  <h1>This page doesn't exist.</h1>
+  <p class="body">
+    The URL is not in the catalogue. It may have been removed, renamed, or never existed.
+    The rest of walls.rip is healthy — start from one of these.
+  </p>
+  <ul class="links">
+    {links.map((link) => (
+      <li>
+        <a href={localePath(link.href, lang)}>
+          {link.label} <Icon name="arrow" size={12} />
+        </a>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<style>
+  .not-found {
+    max-width: 38rem;
+    padding: 4rem 0;
+  }
+
+  h1 {
+    margin-top: 0.6rem;
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    font-weight: 900;
+  }
+
+  .body {
+    margin-top: 0.75rem;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2.75rem;
+    padding: 0 0.9rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .links a:hover {
+    border-color: var(--brand-color);
+    color: var(--text-primary);
+  }
+</style>

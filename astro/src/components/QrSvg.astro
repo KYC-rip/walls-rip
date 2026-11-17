@@ -1,0 +1,36 @@
+---
+import QRCode from 'qrcode';
+
+export interface Props {
+  value: string;
+  size?: number;
+  label?: string;
+}
+
+const { value, size = 220, label = 'QR code' } = Astro.props;
+
+const svg = await QRCode.toString(value, {
+  type: 'svg',
+  margin: 1,
+  width: size,
+  errorCorrectionLevel: 'M',
+  color: { dark: '#000000', light: '#ffffff' },
+});
+---
+
+<div class="qr" role="img" aria-label={label} set:html={svg} />
+
+<style>
+  .qr {
+    display: inline-flex;
+    padding: 0.6rem;
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    line-height: 0;
+  }
+
+  .qr :global(svg) {
+    width: 100%;
+    height: auto;
+  }
+</style>

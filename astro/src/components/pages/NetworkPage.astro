@@ -1,0 +1,323 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+import { localePath, t } from '../../lib/i18n';
+import { pageLang } from '../../lib/page';
+import { organizationSchema, siteOrigin, websiteSchema } from '../../lib/seo';
+
+const lang = pageLang(Astro);
+const origin = siteOrigin(Astro);
+
+const PRODUCTS = [
+  {
+    href: '/esim',
+    icon: 'wifi' as const,
+    title: 'Travel eSIM',
+    body: 'Data-only eSIM for 200+ destinations, from $1. Installs from a QR code; works with any unlocked eSIM phone.',
+    best: 'Trips, remote work, a second data line',
+  },
+  {
+    href: '/sms',
+    icon: 'message' as const,
+    title: 'SMS verification',
+    body: 'One-time codes on numbers from dozens of countries. Pay per message; the code appears in the browser.',
+    best: 'Sign-ups that demand a phone number',
+  },
+  {
+    href: '/phone',
+    icon: 'phone' as const,
+    title: 'Phone number plans',
+    body: 'Real local numbers with voice, SMS and data where PikaSim carries them. One-time purchase.',
+    best: 'A usable number for calls and SMS',
+  },
+  {
+    href: '/uk-sim',
+    icon: 'phone' as const,
+    title: 'UK number',
+    body: 'A long-term +44 eSIM that receives SMS on your own handset. 6, 12 or 24 month packages.',
+    best: 'A stable UK number without a contract',
+  },
+  {
+    href: '/vpn',
+    icon: 'globe' as const,
+    title: 'VPN',
+    body: 'WireGuard, OpenVPN and VLESS configuration files, provisioned after payment.',
+    best: 'A tunnel for a whole device',
+  },
+  {
+    href: '/proxy',
+    icon: 'shield' as const,
+    title: 'Residential proxies',
+    body: 'Residential IPs by country for apps and scripts. Inventory follows the upstream balance.',
+    best: 'Automation that needs a local IP',
+  },
+];
+
+const LAYERS = [
+  {
+    title: 'No account',
+    body: 'Every product is bought without a sign-up. Orders are capability links: whoever holds the link can read the order, and nothing else.',
+  },
+  {
+    title: 'No identity document',
+    body: 'No name, email or ID is collected. Provider policies still apply to the underlying network — read them before relying on a number.',
+  },
+  {
+    title: 'One prepaid wallet',
+    body: 'A single balance funds eSIM, SMS, phone, VPN and proxy orders. Top up with Monero, Lightning or USDT.',
+  },
+];
+---
+
+<Base
+  title="Network — every walls.rip product in one place"
+  description="Compare walls.rip products: travel eSIM data, SMS verification, phone number plans, UK numbers, VPN and residential proxies. No account, paid with Monero or Lightning."
+  path="/network"
+  lang={lang}
+  jsonLd={[organizationSchema(origin), websiteSchema(origin)]}
+>
+  <section class="head">
+    <p class="mono-label">Network</p>
+    <h1>Pick the layer you need.</h1>
+    <p class="lede">
+      Each product solves a different problem — data, a number, a code, an IP or a tunnel.
+      They share one prepaid wallet and none of them needs an account.
+    </p>
+  </section>
+
+  <section class="products" aria-label="Products">
+    {PRODUCTS.map((product) => (
+      <a class="product" href={localePath(product.href, lang)}>
+        <span class="product-icon"><Icon name={product.icon} size={18} /></span>
+        <span class="product-body">
+          <span class="product-title">{product.title}</span>
+          <span class="product-desc">{product.body}</span>
+          <span class="product-best">{product.best}</span>
+        </span>
+        <Icon name="arrow" size={13} class="product-arrow" />
+      </a>
+    ))}
+  </section>
+
+  <section class="layers" aria-labelledby="layers-title">
+    <h2 id="layers-title">What stays the same</h2>
+    <div class="layer-grid">
+      {LAYERS.map((layer) => (
+        <article class="layer">
+          <h3>{layer.title}</h3>
+          <p>{layer.body}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="compare" aria-labelledby="compare-title">
+    <h2 id="compare-title">At a glance</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Product</th>
+            <th scope="col">What you get</th>
+            <th scope="col">Needs a phone?</th>
+            <th scope="col">Starts at</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">eSIM</th><td>Data-only profile</td><td>Yes, eSIM-capable</td><td>$1</td></tr>
+          <tr><th scope="row">SMS</th><td>One-time code</td><td>No</td><td>per message</td></tr>
+          <tr><th scope="row">Phone plan</th><td>Number + voice/SMS/data</td><td>Yes, eSIM-capable</td><td>country-dependent</td></tr>
+          <tr><th scope="row">UK number</th><td>+44 eSIM line</td><td>Yes, eSIM-capable</td><td>$30</td></tr>
+          <tr><th scope="row">VPN</th><td>Config file + QR</td><td>No</td><td>$5.99</td></tr>
+          <tr><th scope="row">Proxy</th><td>Residential IP access</td><td>No</td><td>inventory-dependent</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="closing">
+    {t(lang, 'footer.tagline', undefined, 'No account. No identity. Provider policies vary.')}
+  </p>
+</Base>
+
+<style>
+  .head {
+    max-width: 46rem;
+    padding: 2.5rem 0 1.5rem;
+  }
+
+  .head h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 900;
+    line-height: 1.05;
+  }
+
+  .lede {
+    margin-top: 0.9rem;
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .products {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 768px) {
+    .products {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .product {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    padding: 1.1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  .product:hover {
+    border-color: var(--brand-color);
+    color: inherit;
+  }
+
+  .product-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    flex: none;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--brand-color) 14%, transparent);
+    color: var(--brand-color);
+  }
+
+  .product-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .product-title {
+    font-family: var(--font-display);
+    font-size: 1.02rem;
+    font-weight: 800;
+  }
+
+  .product-desc {
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+
+  .product-best {
+    margin-top: 0.2rem;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--brand-color);
+  }
+
+  .product-arrow {
+    flex: none;
+    margin-top: 0.4rem;
+    color: var(--text-dim);
+  }
+
+  .layers,
+  .compare {
+    margin-top: 2.5rem;
+  }
+
+  .layers h2,
+  .compare h2 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin-bottom: 0.75rem;
+  }
+
+  .layer-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 768px) {
+    .layer-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .layer {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  .layer h3 {
+    font-size: 0.92rem;
+    font-weight: 800;
+  }
+
+  .layer p {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  th,
+  td {
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  thead th {
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  tbody th {
+    font-weight: 700;
+  }
+
+  tbody tr:last-child th,
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .closing {
+    margin-top: 2.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+</style>

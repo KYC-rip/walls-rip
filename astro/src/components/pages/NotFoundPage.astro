@@ -1,0 +1,22 @@
+---
+import Base from '../../layouts/Base.astro';
+import NotFoundView from '../NotFoundView.astro';
+import type { Lang } from '../../lib/i18n';
+import { pagePath } from '../../lib/page';
+
+export interface Props {
+  lang?: Lang;
+}
+
+const lang = (Astro.props.lang ?? 'en') as Lang;
+---
+
+<Base
+  title="Page not found — walls.rip"
+  description="This page does not exist."
+  path={pagePath(Astro)}
+  lang={lang}
+  noindex
+>
+  <NotFoundView lang={lang} />
+</Base>

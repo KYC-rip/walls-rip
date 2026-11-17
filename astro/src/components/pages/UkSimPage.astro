@@ -1,0 +1,125 @@
+---
+import Base from '../../layouts/Base.astro';
+import { fetchUkNumberPlans } from '../../lib/catalogue';
+import { formatUsd } from '../../lib/data';
+import { localePath } from '../../lib/i18n';
+import { pageLang } from '../../lib/page';
+import { organizationSchema, siteOrigin, websiteSchema } from '../../lib/seo';
+
+const lang = pageLang(Astro);
+const origin = siteOrigin(Astro);
+
+let plans: Awaited<ReturnType<typeof fetchUkNumberPlans>> = [];
+try {
+  plans = (await fetchUkNumberPlans(Astro.locals)).filter((plan) => plan.available);
+} catch {
+  plans = [];
+}
+---
+
+<Base
+  title="UK mobile number — long-term +44 eSIM | walls.rip"
+  description="A long-term UK +44 mobile number delivered as an eSIM, with prepaid 6, 12 or 24 month packages. Receive SMS on your own phone without a contract."
+  path="/uk-sim"
+  lang={lang}
+  jsonLd={[organizationSchema(origin), websiteSchema(origin)]}
+>
+  <section class="head">
+    <p class="mono-label">UK number</p>
+    <h1>A +44 number that lives in your phone.</h1>
+    <p class="lede">
+      A long-term UK mobile number delivered as an eSIM. Incoming SMS arrives on your
+      device; renew with the same line, no contract and no identity document.
+    </p>
+  </section>
+
+  <div class="section-head">
+    <h2>Packages</h2>
+    <span class="mono-label">{plans.length} options</span>
+  </div>
+
+  {plans.length === 0 ? (
+    <p class="empty">UK number inventory is unavailable right now.</p>
+  ) : (
+    <div class="tile-grid three">
+      {plans.map((plan) => (
+        <article class="tile">
+          <div class="tile-top">
+            <span class="tile-title">{plan.months ? `${plan.months} months` : plan.name}</span>
+            <span class="tile-price">{formatUsd(plan.price)}</span>
+          </div>
+          <p class="tile-meta"><span>+44 number</span><span>Incoming SMS</span></p>
+          <p class="tile-meta">
+            {plan.prepayPeriods ? <span>{plan.prepayPeriods} prepaid renewal(s)</span> : <span>No prepaid renewal</span>}
+          </p>
+        </article>
+      ))}
+    </div>
+  )}
+
+  <p class="hint">
+    The UK number is a separate product from web-inbox SMS rentals: it installs as an
+    eSIM and receives SMS on your own handset. Checkout on this mirror arrives in
+    Phase C; the clearnet site completes it today.
+  </p>
+
+  <p class="back"><a href={localePath('/network', lang)}>← All products</a></p>
+</Base>
+
+<style>
+  .head {
+    max-width: 46rem;
+    padding: 2.5rem 0 1.5rem;
+  }
+
+  .head h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 900;
+    line-height: 1.05;
+  }
+
+  .lede {
+    margin-top: 0.9rem;
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .section-head h2 {
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+
+  .empty {
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+
+  .hint {
+    margin-top: 1.25rem;
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+
+  .back {
+    margin-top: 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+</style>

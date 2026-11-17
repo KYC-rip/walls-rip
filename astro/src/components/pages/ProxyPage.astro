@@ -1,0 +1,190 @@
+---
+import Base from '../../layouts/Base.astro';
+import CountryGrid from '../../components/CountryGrid.astro';
+import Icon from '../../components/Icon.astro';
+import { fetchProxyLocations, fetchProxyPlans } from '../../lib/catalogue';
+import { formatUsd } from '../../lib/data';
+import { localePath } from '../../lib/i18n';
+import { pageLang } from '../../lib/page';
+import { organizationSchema, siteOrigin, websiteSchema } from '../../lib/seo';
+
+const lang = pageLang(Astro);
+const origin = siteOrigin(Astro);
+
+const requested = (Astro.url.searchParams.get('country') ?? '').toUpperCase();
+const locations = await fetchProxyLocations(Astro.locals);
+const selected = locations.find((row) => row.code === requested) ?? null;
+const plans = selected ? await fetchProxyPlans(Astro.locals, selected.code) : [];
+---
+
+<Base
+  title="Residential proxies — country-level IPs, no account | walls.rip"
+  description="Residential proxy access by country for apps and scripts. Prepaid with Monero or Lightning, no account or identity document."
+  path="/proxy"
+  lang={lang}
+  jsonLd={[organizationSchema(origin), websiteSchema(origin)]}
+>
+  <section class="head">
+    <p class="mono-label">Residential proxies</p>
+    <h1>An IP that looks like home.</h1>
+    <p class="lede">
+      Residential IPs by country for apps, scrapers and account work. Prepaid access,
+      no account, paid with Monero or Lightning.
+    </p>
+  </section>
+
+  {locations.length === 0 ? (
+    <section class="unavailable">
+      <h2>Proxy inventory is being restored</h2>
+      <p>
+        The upstream proxy balance is being topped up, so no locations are funded at the
+        moment. eSIM, SMS and VPN products are unaffected.
+      </p>
+      <p>
+        <a class="btn" href={localePath('/esim', lang)}>Browse eSIM plans <Icon name="arrow" size={12} /></a>
+        <a class="btn" href={localePath('/network', lang)}>All products</a>
+      </p>
+    </section>
+  ) : selected ? (
+    <>
+      <p class="crumbs">
+        <a href={localePath('/proxy', lang)}>Proxy</a>
+        <Icon name="chevron" size={10} />
+        <span>{selected.name}</span>
+      </p>
+      <div class="section-head">
+        <h2>{selected.name}</h2>
+        <span class="mono-label">{plans.length} plans</span>
+      </div>
+      {plans.length === 0 ? (
+        <p class="empty">No proxy plans are funded for {selected.name} right now.</p>
+      ) : (
+        <div class="tile-grid three">
+          {plans.map((plan) => (
+            <article class="tile">
+              <div class="tile-top">
+                <span class="tile-title">{plan.gb ? `${plan.gb} GB` : plan.name}</span>
+                <span class="tile-price">{formatUsd(plan.price)}</span>
+              </div>
+              <p class="tile-meta">
+                {plan.days && <span>{plan.days} days</span>}
+                <span>Residential</span>
+              </p>
+            </article>
+          ))}
+        </div>
+      )}
+    </>
+  ) : (
+    <>
+      <div class="section-head">
+        <h2>Locations</h2>
+        <span class="mono-label">{locations.length} countries</span>
+      </div>
+      <CountryGrid
+        items={locations.map((row) => ({
+          code: row.code,
+          name: row.name,
+          href: localePath(`/proxy?country=${row.code}`, lang),
+          meta: row.count ? `${row.count}` : undefined,
+        }))}
+        columns={3}
+      />
+    </>
+  )}
+
+  <p class="hint">
+    Proxy checkout on this mirror arrives in Phase C. The same prepaid wallet funds every
+    walls.rip product.
+  </p>
+</Base>
+
+<style>
+  .head {
+    max-width: 46rem;
+    padding: 2.5rem 0 1.5rem;
+  }
+
+  .head h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 900;
+    line-height: 1.05;
+  }
+
+  .lede {
+    margin-top: 0.9rem;
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .section-head h2 {
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .unavailable {
+    max-width: 40rem;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  .unavailable h2 {
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+
+  .unavailable p {
+    margin-top: 0.6rem;
+    font-size: 0.86rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+
+  .unavailable p:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .empty {
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+
+  .hint {
+    margin-top: 1.25rem;
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+</style>

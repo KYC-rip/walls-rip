@@ -1,0 +1,193 @@
+---
+import Base from '../../layouts/Base.astro';
+import QrSvg from '../QrSvg.astro';
+import Icon from '../Icon.astro';
+import { formatUsd } from '../../lib/data';
+import { localePath } from '../../lib/i18n';
+import type { PayProps } from '../../lib/payment-pages';
+
+export interface Props {
+  props: PayProps;
+}
+
+const { pay, qrPayload, lang } = Astro.props.props;
+const isLightning = pay.method === 'LN';
+const cryptoLabel = isLightning ? `${pay.amount.toLocaleString('en-US')} sats` : `${pay.amount} XMR`;
+const checkHref = `${localePath('/pay', lang)}?t=${Date.now()}`;
+---
+
+<Base
+  title={`Pay with ${isLightning ? 'Lightning' : 'Monero'} — walls.rip`}
+  description="Complete the prepaid deposit to fund your walls.rip wallet."
+  path="/pay"
+  lang={lang}
+  noindex
+  refreshSeconds={10}
+>
+  <section class="pay-head">
+    <p class="mono-label">Deposit</p>
+    <h1>Pay {formatUsd(pay.usd)} with {isLightning ? 'Lightning' : 'Monero'}.</h1>
+    <p class="lede">
+      Send exactly <strong>{cryptoLabel}</strong>. This page checks the payment by itself every
+      10 seconds — no JavaScript required. Keep it open until the wallet is credited.
+    </p>
+  </section>
+
+  <div class="pay-grid">
+    <div class="qr-panel">
+      <QrSvg value={qrPayload} size={240} label={`${isLightning ? 'Lightning invoice' : 'Monero payment'} QR code`} />
+      <p class="qr-note">
+        {isLightning
+          ? 'Scan with any Lightning wallet.'
+          : 'Scan with a Monero wallet that supports integrated addresses.'}
+      </p>
+    </div>
+
+    <div class="details">
+      <dl>
+        <div>
+          <dt>Amount</dt>
+          <dd>{cryptoLabel}</dd>
+        </div>
+        <div>
+          <dt>{isLightning ? 'Invoice' : 'Integrated address'}</dt>
+          <dd><code class="payload">{pay.address}</code></dd>
+        </div>
+        <div>
+          <dt>Payment reference</dt>
+          <dd><code class="payload small">{pay.paymentId}</code></dd>
+        </div>
+      </dl>
+
+      {isLightning && <p class="hint">Open with a wallet: <code>lightning:{pay.address}</code></p>}
+
+      <p class="actions">
+        <a class="btn" href={checkHref}>I've paid — check now</a>
+        <a class="btn" href={localePath('/esim', lang)}>Cancel</a>
+      </p>
+
+      <p class="warning">
+        Always send the exact amount shown. Underpayments are credited at the received amount
+        and may leave the wallet short.
+      </p>
+    </div>
+  </div>
+
+  <p class="secure"><Icon name="lock" size={11} /> The wallet token stays in an HttpOnly cookie; it never appears in the URL.</p>
+</Base>
+
+<style>
+  .pay-head {
+    max-width: 44rem;
+    padding: 2.5rem 0 1.5rem;
+  }
+
+  .pay-head h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(1.7rem, 5vw, 2.6rem);
+    font-weight: 900;
+    line-height: 1.1;
+  }
+
+  .lede {
+    margin-top: 0.8rem;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .pay-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  @media (min-width: 900px) {
+    .pay-grid {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: start;
+      gap: 2rem;
+    }
+  }
+
+  .qr-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  .qr-note {
+    font-size: 0.74rem;
+    color: var(--text-dim);
+  }
+
+  dl {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    margin: 0;
+  }
+
+  dt {
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  dd {
+    margin: 0.25rem 0 0;
+    font-size: 0.9rem;
+  }
+
+  .payload {
+    display: block;
+    padding: 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+
+  .payload.small {
+    font-size: 0.7rem;
+  }
+
+  .hint {
+    margin-top: 0.6rem;
+    font-size: 0.74rem;
+    color: var(--text-dim);
+    overflow-wrap: anywhere;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+
+  .warning {
+    margin-top: 1rem;
+    font-size: 0.72rem;
+    line-height: 1.55;
+    color: var(--warning-color);
+  }
+
+  .secure {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 2rem;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+  }
+</style>

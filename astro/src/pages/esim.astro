@@ -1,0 +1,10 @@
+---
+import EsimPage from '../components/pages/EsimPage.astro';
+import { redirectEsimCountry } from '../lib/esim-route';
+import { pageLang } from '../lib/page';
+
+const redirect = await redirectEsimCountry(Astro, pageLang(Astro));
+if (redirect) return redirect;
+---
+
+<EsimPage />

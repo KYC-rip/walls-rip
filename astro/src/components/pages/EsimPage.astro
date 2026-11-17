@@ -1,0 +1,306 @@
+---
+import Base from '../../layouts/Base.astro';
+import CountryGrid from '../../components/CountryGrid.astro';
+import Icon from '../../components/Icon.astro';
+import {
+  compareDestinations,
+  fetchDestination,
+  fetchDestinationIndex,
+  formatUsd,
+  type DestinationRow,
+} from '../../lib/data';
+import { fetchRegionBundles } from '../../lib/catalogue';
+import { countryMatches, countrySearchRank } from '../../lib/countryAliases';
+import { localePath } from '../../lib/i18n';
+import { pageLang } from '../../lib/page';
+import { organizationSchema, siteOrigin, websiteSchema } from '../../lib/seo';
+
+const lang = pageLang(Astro);
+const origin = siteOrigin(Astro);
+
+const PAGE_SIZE = 24;
+const country = Astro.url.searchParams.get('c');
+const query = (Astro.url.searchParams.get('q') ?? '').trim();
+const sort = Astro.url.searchParams.get('sort') === 'az' ? 'az' : 'popular';
+const tab = Astro.url.searchParams.get('t');
+const requested = Number.parseInt(Astro.url.searchParams.get('n') ?? '', 10);
+const visible = Number.isFinite(requested) ? Math.min(Math.max(requested, PAGE_SIZE), 400) : PAGE_SIZE;
+
+// The route already redirected buyable country shortcuts to the canonical
+// destination page. Only a country with too few funded plans reaches here, and
+// that deserves a visible note instead of a thin page.
+let missingCountry: string | null = null;
+if (country && !tab) {
+  const payload = await fetchDestination(Astro.locals, country);
+  missingCountry = payload?.country.name ?? country.toUpperCase();
+}
+
+let destinations: DestinationRow[] = [];
+let bundles: Awaited<ReturnType<typeof fetchRegionBundles>> = [];
+try {
+  [destinations, bundles] = await Promise.all([
+    fetchDestinationIndex(Astro.locals),
+    fetchRegionBundles(Astro.locals),
+  ]);
+} catch {
+  destinations = [];
+}
+
+const regional = tab === 'regional';
+
+let items: Array<{ code: string; name: string; href: string; meta?: string }> = [];
+
+if (regional) {
+  items = bundles.map((bundle) => ({
+    code: 'GL',
+    name: bundle.name,
+    href: localePath(`/destination/${bundle.slug}`, lang),
+    meta: `${bundle.areas} areas`,
+  }));
+} else {
+  const filtered = destinations.filter((row) => countryMatches(query, row.code, row.name));
+  const sorted = [...filtered].sort((a, b) => {
+    if (query) {
+      const rank = countrySearchRank(query, a.code, a.name) - countrySearchRank(query, b.code, b.name);
+      if (rank !== 0) return rank;
+    }
+    return sort === 'az' ? a.name.localeCompare(b.name) : compareDestinations(a, b);
+  });
+  items = sorted.map((row) => ({
+    code: row.code,
+    name: row.name,
+    href: localePath(`/destination/${row.slug}`, lang),
+    meta: row.fromUsd != null ? `${formatUsd(row.fromUsd)}${row.countComplete === false ? '+' : ''}` : undefined,
+  }));
+}
+
+const total = items.length;
+const shown = items.slice(0, visible);
+const moreParams = new URLSearchParams();
+if (query) moreParams.set('q', query);
+if (sort === 'az') moreParams.set('sort', 'az');
+if (regional) moreParams.set('t', 'regional');
+moreParams.set('n', String(visible + PAGE_SIZE));
+const theme = Astro.url.searchParams.get('theme');
+if (theme) moreParams.set('theme', theme);
+const moreHref = `${localePath('/esim', lang)}?${moreParams.toString()}`;
+
+function sortHref(next: 'popular' | 'az'): string {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  if (next === 'az') params.set('sort', 'az');
+  if (regional) params.set('t', 'regional');
+  const qs = params.toString();
+  return `${localePath('/esim', lang)}${qs ? `?${qs}` : ''}`;
+}
+---
+
+<Base
+  title="Travel eSIM data plans — 200+ destinations, no KYC | walls.rip"
+  description="Prepaid eSIM data for 200+ destinations from $1. No account, no KYC. Pay with Monero, Lightning or USDT and install with a QR code."
+  path="/esim"
+  image="/og-esim.jpg"
+  lang={lang}
+  jsonLd={[organizationSchema(origin), websiteSchema(origin)]}
+>
+  <section class="head">
+    <p class="mono-label">Travel eSIM</p>
+    <h1>Data in 200+ destinations.</h1>
+    <p class="lede">
+      A prepaid data-only eSIM that installs from a QR code. No account, no email, no
+      identity document — pay with Monero, Lightning or USDT.
+    </p>
+  </section>
+
+  {missingCountry && (
+    <p class="notice">
+      No funded eSIM plans for {missingCountry} right now. Pick another destination below.
+    </p>
+  )}
+
+  <div class="tabs">
+    <a href={localePath('/esim', lang)} aria-current={!regional ? 'page' : undefined}>Territories</a>
+    <a href={localePath('/esim?t=regional', lang)} aria-current={regional ? 'page' : undefined}>
+      Regions &amp; global <span class="count">{bundles.length}</span>
+    </a>
+  </div>
+
+  <div class="toolbar">
+    <form class="search" method="get" action={localePath('/esim', lang)} role="search">
+      {regional && <input type="hidden" name="t" value="regional" />}
+      {sort === 'az' && <input type="hidden" name="sort" value="az" />}
+      {theme && <input type="hidden" name="theme" value={theme} />}
+      <label class="visually-hidden" for="esim-q">Search destinations</label>
+      <input
+        id="esim-q"
+        name="q"
+        type="search"
+        value={query}
+        placeholder={regional ? 'Search regions…' : 'Search country or code…'}
+        autocomplete="off"
+      />
+      <button class="btn" type="submit">Search</button>
+    </form>
+    <div class="sorts" role="group" aria-label="Sort">
+      <a class="chip" href={sortHref('popular')} aria-current={sort === 'popular' ? 'true' : 'false'}>Popular</a>
+      <a class="chip" href={sortHref('az')} aria-current={sort === 'az' ? 'true' : 'false'}>A–Z</a>
+    </div>
+  </div>
+
+  <p class="count-line mono-label">
+    {total} {regional ? 'regions' : 'destinations'}{query ? ` matching “${query}”` : ''}
+  </p>
+
+  <CountryGrid items={shown} empty={regional ? 'No regions match.' : 'No destinations match.'} />
+
+  {visible < total && (
+    <p class="more">
+      <a class="btn" href={moreHref}>Show more ({total - visible})</a>
+    </p>
+  )}
+
+  {!regional && (
+    <section class="regional-cta">
+      <div>
+        <h2>Multi-country trips</h2>
+        <p>One eSIM covering a whole region or 158 countries — ideal when you cross borders.</p>
+      </div>
+      <a class="btn" href={localePath('/esim?t=regional', lang)}>
+        Browse regional packages <Icon name="arrow" size={12} />
+      </a>
+    </section>
+  )}
+</Base>
+
+<style>
+  .head {
+    max-width: 44rem;
+    padding: 2.5rem 0 1.25rem;
+  }
+
+  .head h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(2rem, 6vw, 3.1rem);
+    font-weight: 900;
+    line-height: 1.03;
+  }
+
+  .lede {
+    margin-top: 0.9rem;
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .notice {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--warning-color);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--warning-color) 10%, transparent);
+    font-size: 0.82rem;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 0.9rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .tabs a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    padding: 0 0.85rem;
+    border-bottom: 2px solid transparent;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .tabs a[aria-current="page"] {
+    border-bottom-color: var(--brand-color);
+    color: var(--text-primary);
+  }
+
+  .count {
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--bg-panel);
+    font-size: 0.62rem;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .search {
+    display: flex;
+    flex: 1;
+    min-width: 15rem;
+    gap: 0.4rem;
+  }
+
+  .search input {
+    flex: 1;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+    font-size: 0.85rem;
+  }
+
+  .search input:focus-visible {
+    border-color: var(--brand-color);
+  }
+
+  .sorts {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  .count-line {
+    margin-bottom: 0.75rem;
+  }
+
+  .more {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+  }
+
+  .regional-cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 2.5rem;
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  .regional-cta h2 {
+    font-size: 1.05rem;
+    font-weight: 800;
+  }
+
+  .regional-cta p {
+    margin-top: 0.25rem;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+</style>
