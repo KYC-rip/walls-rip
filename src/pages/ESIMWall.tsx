@@ -10,6 +10,7 @@ import { WalletBanner } from '../components/WalletBanner';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
+import { countryMatches, countrySearchRank } from '../utils/countryAliases';
 import { PaymentGate } from '../components/PaymentGate';
 import { DestinationsGrid, type Destination } from '../components/esim/DestinationsGrid';
 import { formatDataGB } from '../utils/format';
@@ -565,7 +566,8 @@ export function ESIMWall() {
   const filteredCountries = useMemo(() => {
     return countries
       .filter(c => isSingleCountryPlan(c.code)) // Only show single-country entries in Country tab
-      .filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()) || c.code.toLowerCase().includes(countrySearch.toLowerCase()))
+      .filter(c => countryMatches(countrySearch, c.code, c.name))
+      .sort((a, b) => countrySearchRank(countrySearch, a.code, a.name) - countrySearchRank(countrySearch, b.code, b.name))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [countries, countrySearch]);
 

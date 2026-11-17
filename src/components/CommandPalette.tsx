@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import { apiClient } from '../services/client';
 import { localePath, resolveLang } from '../utils/localePath';
 import { matchScore } from '../utils/fuzzy';
+import { countryAliasCode, countryAliasesFor } from '../utils/countryAliases';
 import { NAV_KEYS } from './Header';
 import { REGION_I18N_KEYS, REGION_NAMES } from '../config/regions';
 
@@ -173,11 +174,23 @@ export function CommandPalette() {
 
     // The hint is only useful for matching when it adds information (an ISO
     // code); duplicating the label would lower an exact match's score.
-    const searchText = (item: Item) => item.hint && item.hint !== item.label
-      ? `${item.label} ${item.hint}`
-      : item.label;
+    // A shorthand like "uk" is neither the label nor the ISO code, so widen
+    // the searchable text with the known aliases for two-letter hints.
+    const searchText = (item: Item) => {
+      const base = item.hint && item.hint !== item.label ? `${item.label} ${item.hint}` : item.label;
+      const aliases = item.hint ? countryAliasesFor(item.hint) : [];
+      return aliases.length ? `${base} ${aliases.join(' ')}` : base;
+    };
+    // A whole-word alias ("uk" -> GB) is unambiguous: rank its country above
+    // ordinary prefix matches such as "Ukraine" for the same letters.
+    const alias = countryAliasCode(query);
     const scored = [...products, ...destinations, ...regions, ...proxyCountries]
-      .map(item => ({ item, score: matchScore(query, searchText(item)) }))
+      .map(item => {
+        const score = matchScore(query, searchText(item));
+        if (score == null) return { item, score };
+        const isAliasCountry = alias != null && item.hint?.toUpperCase() === alias;
+        return { item, score: isAliasCountry ? Math.max(score, 96) : score };
+      })
       .filter((entry): entry is { item: Item; score: number } => entry.score != null)
       .sort((a, b) => b.score - a.score || a.item.label.localeCompare(b.item.label));
 

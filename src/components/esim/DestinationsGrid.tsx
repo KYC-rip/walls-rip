@@ -2,6 +2,7 @@ import { Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { localePath, resolveLang } from '../../utils/localePath';
+import { countryMatches, countrySearchRank } from '../../utils/countryAliases';
 
 export interface Destination {
   code: string;
@@ -25,11 +26,7 @@ interface DestinationsGridProps {
   onSelect: (code: string) => void;
 }
 
-const matches = (query: string, code: string, name: string) => {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return code.toLowerCase() === q || name.toLowerCase().includes(q);
-};
+const matches = (query: string, code: string, name: string) => countryMatches(query, code, name);
 
 export function DestinationsGrid({
   destinations,
@@ -47,7 +44,8 @@ export function DestinationsGrid({
   const items: Card[] = (priced
     ? destinations
     : fallbackCountries.map(c => ({ code: c.code, name: c.name, fromUsd: null, planCount: null }))
-  ).filter(item => matches(search, item.code, item.name));
+  ).filter(item => matches(search, item.code, item.name))
+    .sort((a, b) => countrySearchRank(search, a.code, a.name) - countrySearchRank(search, b.code, b.name));
 
   return (
     <div className="space-y-4">

@@ -12,6 +12,7 @@ import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
+import { countryMatches } from '../utils/countryAliases';
 import { useDestinationSlug } from '../hooks/useDestinationSlug';
 import { localePath, resolveLang } from '../utils/localePath';
 
@@ -291,7 +292,7 @@ export function ProxyWall() {
 
   const filteredPlans = plans.filter(p => p.type === selectedType);
   const filteredLocations = locations
-    .filter(l => l.country.toLowerCase().includes(locationSearch.toLowerCase()) || l.countryCode.toLowerCase().includes(locationSearch.toLowerCase()));
+    .filter(l => countryMatches(locationSearch, l.countryCode, l.country));
   const selectedLocationObj = locations.find(l => l.id === selectedLocation);
   const selectedPlanObj = plans.find(p => p.id === selectedPlan);
   const typeConfig = PROXY_TYPE_CONFIG[selectedType];

@@ -8,6 +8,7 @@ import { WalletBanner } from '../components/WalletBanner';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
+import { countryMatches } from '../utils/countryAliases';
 import { PaymentGate } from '../components/PaymentGate';
 import { useDestinationSlug } from '../hooks/useDestinationSlug';
 import { localePath, resolveLang } from '../utils/localePath';
@@ -755,7 +756,7 @@ export function SMSWall() {
     .filter(c => {
       const q = countrySearch.toLowerCase().trim();
       if (!q) return true;
-      return c.name.toLowerCase().includes(q) || c.shortName.toLowerCase().includes(q);
+      return countryMatches(q, c.shortName, c.name);
     })
     .sort((a, b) => {
       const aS = suggestedCountryIds.has(a.id) ? 0 : 1;
