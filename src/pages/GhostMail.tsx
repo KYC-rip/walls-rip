@@ -206,7 +206,7 @@ export function GhostMail() {
 
             {/* ═══ BURNER VS PRO ═══ */}
             <div className="mx-2 md:mx-0 space-y-4">
-              <SectionHead kicker={t('mail.compare_kicker', '// Compare')} title={t('mail.compare_title', 'Burner inbox or Pro address?')} />
+              <SectionHead kicker={t('mail.compare_kicker', 'Compare')} title={t('mail.compare_title', 'Burner inbox or Pro address?')} />
               <p className="text-xs text-wr-dim leading-relaxed max-w-2xl">
                 {t('mail.compare_intro', 'Both are Ghost Mail. A burner inbox is a one-off address that expires on its own; Pro is a persistent address you can send from, with aliases and your own domain.')}
               </p>
@@ -257,7 +257,7 @@ export function GhostMail() {
 
             {/* ═══ WHY CHOOSE GHOST MAIL ═══ */}
             <div className="mx-2 md:mx-0 space-y-6">
-              <SectionHead kicker={t('mail.v2_capabilities', '#01 // Capabilities')} title={t('mail.why_title')} />
+              <SectionHead kicker={t('mail.v2_capabilities', 'Features')} title={t('mail.why_title')} />
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {([
                   { icon: <Zap size={15} />, title: t('mail.why_instant_title'), desc: t('mail.why_instant_desc') },
@@ -278,7 +278,7 @@ export function GhostMail() {
 
             {/* ═══ HOW IT WORKS ═══ */}
             <div className="mx-2 md:mx-0 space-y-6">
-              <SectionHead kicker={t('mail.v2_process', '#02 // Process')} title={t('mail.how_title')} />
+              <SectionHead kicker={t('mail.v2_process', 'How it works')} title={t('mail.how_title')} />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {([
                   { num: '01', icon: <Clock size={16} />, title: t('mail.how_step1_title'), desc: t('mail.how_step1_desc') },
@@ -299,7 +299,7 @@ export function GhostMail() {
 
             {/* ═══ FAQ ACCORDION ═══ */}
             <div className="mx-2 md:mx-0 space-y-6">
-              <SectionHead kicker={t('mail.v2_faq_kicker', '#03 // FAQ')} title={t('mail.faq_title')} />
+              <SectionHead kicker={t('mail.v2_faq_kicker', 'FAQ')} title={t('mail.faq_title')} />
               <div className="space-y-2">
                 {([1, 2, 3, 4, 5, 6] as const).map((n) => {
                   const isOpen = faqOpen === n;

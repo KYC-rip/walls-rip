@@ -293,8 +293,6 @@ export default function DestinationPage() {
         image="/og-esim.jpg"
         schemas={[serviceSchema, breadcrumbSchema, buildFAQSchema(faqs)]}
       />
-      <div className="fixed inset-0 z-50 pointer-events-none scanlines" />
-      <div className="fixed inset-0 z-40 pointer-events-none vignette" />
       <Header />
 
       <main className="w-full max-w-4xl px-4 md:px-6 relative z-10 pb-16">
@@ -329,7 +327,7 @@ export default function DestinationPage() {
               <h1 className="font-display text-3xl font-black tracking-tight text-white md:text-4xl">
                 {t('destination.hero_title', { country, defaultValue: `${country} eSIM` })}
               </h1>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/80">{intro}</p>
+              <p className="mt-2 max-w-xl text-base leading-relaxed text-white/80">{intro}</p>
             </div>
           </div>
         </section>
@@ -337,7 +335,7 @@ export default function DestinationPage() {
         {/* Plans */}
         <section className="mt-8">
           <div className="mb-3 flex items-end justify-between gap-3">
-            <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-current">
+            <h2 className="font-display text-lg font-bold tracking-tight text-current">
               {t('destination.best_value', 'Best value plans')}
             </h2>
             <span className="text-[11px] font-mono uppercase tracking-widest text-wr-dim">
@@ -365,7 +363,7 @@ export default function DestinationPage() {
                   <button
                     onClick={() => openCheckout(payload.country.code, plan)}
                     disabled={busy}
-                    className="mt-4 flex min-h-11 items-center justify-center rounded-sm border border-wr-border py-2 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent disabled:cursor-wait disabled:opacity-60 md:min-h-0"
+                    className="mt-4 flex min-h-11 items-center justify-center rounded-sm border border-wr-border py-2 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base disabled:cursor-wait disabled:opacity-60 md:min-h-0"
                   >
                     {busy ? t('destination.loading_plan', 'Loading…') : t('destination.select', 'Select')}
                   </button>
@@ -375,7 +373,7 @@ export default function DestinationPage() {
           </div>
           <Link
             to={localePath(`/esim?c=${payload.country.code}`, lang)}
-            className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-accent transition-colors hover:text-wr-accent/80 md:min-h-0"
+            className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-accent transition-colors hover:text-wr-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0"
           >
             {t('destination.view_all', { count: payload.esim.planCount, country, defaultValue: 'View all {{count}} plans for {{country}}' })}
             <span aria-hidden>→</span>
@@ -404,17 +402,17 @@ export default function DestinationPage() {
 
         {/* FAQ */}
         <section className="mt-10">
-          <h2 className="mb-3 font-mono text-sm font-bold uppercase tracking-widest text-current">
+          <h2 className="mb-3 font-display text-lg font-bold tracking-tight text-current">
             {t('destination.faq_title', { country, defaultValue: `${country} eSIM FAQ` })}
           </h2>
           <div className="space-y-2">
             {faqs.map(faq => (
               <details key={faq.question} className="group rounded-sm border border-wr-border bg-wr-surface">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-xs font-bold text-current">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 p-4 text-sm font-bold text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base">
                   <span>{faq.question}</span>
                   <ChevronRight size={14} className="shrink-0 text-wr-accent transition-transform group-open:rotate-90" />
                 </summary>
-                <p className="border-t border-wr-border/30 px-4 pb-4 pt-3 text-xs leading-relaxed text-wr-dim">
+                <p className="border-t border-wr-border/30 px-4 pb-4 pt-3 text-sm leading-relaxed text-wr-dim">
                   {faq.answer}
                 </p>
               </details>

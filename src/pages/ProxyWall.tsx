@@ -539,7 +539,8 @@ export function ProxyWall() {
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
                   <input type="text" value={locationSearch} onChange={e => setLocationSearch(e.target.value)} placeholder={t('proxy.search_locations')}
-                    className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-wr-accent text-current placeholder-wr-dim/30" />
+                    aria-label={t('proxy.search_locations')}
+                    className="w-full pl-10 pr-3 py-3 md:py-4 bg-wr-base border-2 border-wr-border outline-none font-mono text-base transition-all rounded-sm focus:border-wr-accent focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base text-current placeholder-wr-dim/30" />
                 </div>
                 {/* Popular locations */}
                 <div className="flex flex-wrap gap-1.5">
@@ -548,7 +549,7 @@ export function ProxyWall() {
                     if (!loc) return null;
                     return (
                       <button key={loc.id} onClick={() => setSelectedLocation(loc.id)} title={loc.country}
-                        className={`text-xs px-3 py-1.5 rounded-full border font-bold transition-all ${selectedLocation === loc.id ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/30 hover:text-wr-accent'}`}>
+                        className={`min-h-11 text-xs px-3 py-1.5 rounded-full border font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base ${selectedLocation === loc.id ? 'border-wr-accent text-wr-accent bg-wr-accent/10' : 'border-wr-border text-wr-dim hover:border-wr-accent/30 hover:text-wr-accent'}`}>
                         {loc.countryCode}
                       </button>
                     );
@@ -559,7 +560,7 @@ export function ProxyWall() {
                 <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto content-start p-1">
                   {filteredLocations.map(l => (
                     <button key={l.id} onClick={() => setSelectedLocation(l.id)} title={l.country}
-                      className={`text-xs px-3 py-1.5 rounded border font-mono transition-all ${selectedLocation === l.id
+                      className={`min-h-11 text-xs px-3 py-1.5 rounded border font-mono transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base ${selectedLocation === l.id
                         ? 'border-wr-accent text-wr-accent bg-wr-accent/20 font-bold shadow-[0_0_12px_rgba(34,211,238,0.25)]'
                         : 'border-wr-border text-current hover:border-wr-accent/40 hover:text-wr-accent'}`}>
                       {l.countryCode}
@@ -723,7 +724,8 @@ export function ProxyWall() {
         <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
           <div className={`border bg-wr-base p-0 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm ${paymentMethod === 'LN' ? 'border-wr-accent' : 'border-wr-green'}`}>
             <button onClick={() => { setShowPaymentModal(false); setPaymentData(null); setPaymentPolling(false); setPendingPurchase(null); }}
-              className="absolute top-4 right-4 text-wr-dim hover:text-wr-green z-10"><X size={20} /></button>
+              aria-label={t('common.close', 'Close')}
+              className="absolute top-4 right-4 min-h-11 min-w-11 text-wr-dim hover:text-wr-green z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"><X size={20} /></button>
 
             <div className={`p-3 md:p-4 border-b flex items-center gap-2 ${paymentData ? 'animate-pulse' : ''} ${paymentMethod === 'LN' ? 'bg-wr-accent/10 border-wr-accent/30 text-wr-accent' : 'bg-wr-green/10 border-wr-green/30 text-wr-green'}`}>
               <Wallet size={14} />

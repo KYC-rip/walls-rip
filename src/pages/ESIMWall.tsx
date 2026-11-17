@@ -303,7 +303,7 @@ function PlanCard({ plan, isCheapest, onSelect }: { plan: ComparePlan; isCheapes
 
       <button
         onClick={() => onSelect(plan)}
-        className="mt-3 flex min-h-11 w-full items-center justify-center rounded-sm border border-wr-border py-2 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent md:min-h-0"
+        className="mt-3 flex min-h-11 w-full items-center justify-center rounded-sm border border-wr-border py-2 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0"
       >
         {t('esim.select_plan', 'Select')}
       </button>
@@ -904,7 +904,7 @@ export function ESIMWall() {
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-sm border border-wr-border bg-wr-surface px-2 py-1 text-[11px] font-mono uppercase tracking-widest text-wr-dim">
                     <Smartphone size={12} className="text-wr-accent" />
-                    {t('esim.hero_kicker', 'eSIM // PROFILE DISPATCH')}
+                    {t('esim.hero_kicker', 'Travel eSIM')}
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-sm border border-wr-info/30 bg-wr-info/10 px-2 py-1 text-[11px] font-mono uppercase tracking-widest text-wr-info">
                     <Signal size={10} /> {t('esim.tag_no_kyc')}
@@ -913,7 +913,9 @@ export function ESIMWall() {
                 <h1 className="font-display text-3xl font-black tracking-tight md:text-5xl">
                   {t('esim.hero_title', 'Global data eSIMs')}
                 </h1>
-                <p className="mt-2 text-sm text-wr-dim">{t('esim.compare_subtitle')}</p>
+                <p className="mt-2 max-w-2xl text-sm text-wr-dim">
+                  {t('esim.what', 'A prepaid data plan for one country, delivered as a QR code. No account, no ID — compare every provider in one list.')}
+                </p>
                 {!notConfigured && (
                   <div className="relative mt-4 max-w-md">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
@@ -936,7 +938,7 @@ export function ESIMWall() {
                       }}
                       placeholder={t('esim.destination_search', 'Where are you traveling?')}
                       aria-label={t('esim.destination_search', 'Where are you traveling?')}
-                      className="min-h-12 w-full rounded-sm border border-wr-border bg-wr-base py-3 pl-10 pr-3 font-mono text-base text-current outline-none transition-colors placeholder-wr-dim/50 focus:border-wr-accent md:text-sm"
+                      className="min-h-12 w-full rounded-sm border border-wr-border bg-wr-base py-3 pl-10 pr-3 font-mono text-base text-current outline-none transition-colors placeholder-wr-dim/50 focus:border-wr-accent focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:text-sm"
                     />
                   </div>
                 )}
@@ -1059,7 +1061,7 @@ export function ESIMWall() {
                         <div ref={plansRef} className="space-y-4">
                           <button
                             onClick={() => { setSelectedCountry(''); setCountrySearch(''); }}
-                            className="inline-flex min-h-9 items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-wr-dim transition-colors hover:text-wr-accent"
+                            className="inline-flex min-h-11 items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-wr-dim transition-colors hover:text-wr-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
                           >
                             <span aria-hidden>←</span> {t('esim.all_destinations', 'All destinations')}
                           </button>
@@ -1106,7 +1108,7 @@ export function ESIMWall() {
                                 <div className="pt-2 text-center">
                                   <button
                                     onClick={() => setVisiblePlans(v => v + PLANS_PER_PAGE)}
-                                    className="min-h-11 rounded-sm border border-wr-border px-6 py-2.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent md:min-h-0"
+                                    className="min-h-11 rounded-sm border border-wr-border px-6 py-2.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0"
                                   >
                                     {t('esim.show_more', 'Show More')} ({filteredPlans.length - visiblePlans} {t('esim.remaining', 'remaining')})
                                   </button>

@@ -178,21 +178,21 @@ export default function NetworkHub() {
 
         {/* Hero */}
         <section className="mb-10">
-          <div className={mono}>// {t('network.eyebrow', 'Network / VPN & Proxy')}</div>
+          <div className={mono}>{t('network.eyebrow', 'VPN & proxy')}</div>
           <h1 className="font-display text-3xl md:text-5xl font-black tracking-tight leading-[1.05] mt-3 mb-4">
             {t('network.h1', 'Anonymous VPN and residential proxy')}
           </h1>
           <p className="max-w-2xl text-sm md:text-base leading-7 text-current">
-            {t('network.hero_body', 'Encrypt every app, or route one session through a residential IP. Crypto-only checkout, no account.')}
+            {t('network.what', 'A VPN encrypts all your traffic; a proxy changes the IP for one app or session. Both are prepaid and account-free.')}
           </p>
           <div className="flex flex-wrap gap-3 mt-6">
-            <Link to={lp('/vpn')} className="inline-flex items-center gap-2 px-5 py-3 bg-wr-green text-black text-xs font-bold uppercase tracking-widest rounded-sm hover:opacity-90">
+            <Link to={lp('/vpn')} className="inline-flex items-center gap-2 px-5 py-3 bg-wr-green text-black text-xs font-bold uppercase tracking-widest rounded-sm hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base">
               {t('network.cta_vpn', 'Browse VPN plans')} <ArrowRight size={14} />
             </Link>
-            <Link to={lp('/proxy')} className="inline-flex items-center gap-2 px-5 py-3 border border-wr-accent text-wr-accent text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-wr-accent/10">
+            <Link to={lp('/proxy')} className="inline-flex items-center gap-2 px-5 py-3 border border-wr-accent text-wr-accent text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-wr-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base">
               {t('network.cta_proxy', 'Browse residential proxies')} <ArrowRight size={14} />
             </Link>
-            <a href="#compare" className="inline-flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-widest text-wr-secondary hover:underline">
+            <a href="#compare" className="inline-flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-widest text-wr-secondary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base">
               {t('network.cta_compare', 'Compare VPN vs proxy')} <ChevronDown size={14} />
             </a>
           </div>
@@ -200,7 +200,7 @@ export default function NetworkHub() {
 
         {/* Comparison */}
         <section id="compare" className={`${panel} p-5 md:p-7 mb-6`}>
-          <div className={mono}>// {t('network.spec_matrix', 'Specification matrix')}</div>
+          <div className={mono}>{t('network.spec_matrix', 'Compare at a glance')}</div>
           <h2 className="text-xl md:text-2xl font-black tracking-tight mt-2 mb-5">
             {t('network.compare_h2', 'VPN vs proxy: pick the right tool')}
           </h2>
@@ -245,7 +245,7 @@ export default function NetworkHub() {
           <article className={`${panel} p-5 md:p-6 flex flex-col`}>
             <div className="flex items-center gap-2 mb-3">
               <Shield size={16} className="text-wr-green" />
-              <span className="text-[10px] uppercase tracking-[0.18em] text-wr-dim">// {t('network.card_vpn_label', 'Protocol / Tunnel')}</span>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-wr-dim">{t('network.card_vpn_label', 'How it connects')}</span>
             </div>
             <h3 className="text-lg font-black tracking-tight mb-2">{t('network.card_vpn_title', 'Encrypted VPN tunnel')}</h3>
             <ul className="space-y-2 text-xs text-current">
@@ -282,7 +282,7 @@ export default function NetworkHub() {
           <article className={`${panel} p-5 md:p-6 flex flex-col`}>
             <div className="flex items-center gap-2 mb-3">
               <Wifi size={16} className="text-wr-accent" />
-              <span className="text-[10px] uppercase tracking-[0.18em] text-wr-dim">// {t('network.card_proxy_label', 'Protocol / Egress')}</span>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-wr-dim">{t('network.card_proxy_label', 'How it connects')}</span>
             </div>
             <h3 className="text-lg font-black tracking-tight mb-2">{t('network.card_proxy_title', 'Residential proxy network')}</h3>
             <ul className="space-y-2 text-xs text-current">
@@ -310,7 +310,7 @@ export default function NetworkHub() {
 
         {/* How it works */}
         <section className="mb-6">
-          <div className={mono}>// {t('network.how_label', 'Deployment path')}</div>
+          <div className={mono}>{t('network.how_label', 'How to start')}</div>
           <h2 className="text-xl md:text-2xl font-black tracking-tight mt-2 mb-4">{t('network.how_h2', 'How it works')}</h2>
           <ol className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {steps.map((step, index) => (
@@ -328,7 +328,7 @@ export default function NetworkHub() {
 
         {/* Use cases */}
         <section className="mb-6">
-          <div className={mono}>// {t('network.uc_label', 'Deployment use cases')}</div>
+          <div className={mono}>{t('network.uc_label', 'When to use which')}</div>
           <h2 className="text-xl md:text-2xl font-black tracking-tight mt-2 mb-4">{t('network.uc_h2', 'Where each tool fits')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {useCases.map(uc => (
@@ -343,9 +343,9 @@ export default function NetworkHub() {
           </div>
         </section>
 
-        {/* Honest fit */}
+        {/* Who this is for */}
         <section className={`${panel} p-5 md:p-7 mb-6`}>
-          <div className={mono}>// {t('network.fit_label', 'Honest fit')}</div>
+          <div className={mono}>{t('network.fit_label', 'Who this is for')}</div>
           <h2 className="text-xl md:text-2xl font-black tracking-tight mt-2 mb-4">{t('network.fit_h2', 'Choosing your protocol')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="border border-wr-green/30 bg-wr-green/5 rounded-sm p-4">
@@ -394,7 +394,7 @@ export default function NetworkHub() {
 
         {/* FAQ */}
         <section className="mb-10">
-          <div className={mono}>// {t('network.faq_label', 'Knowledge base')}</div>
+          <div className={mono}>{t('network.faq_label', 'Common questions')}</div>
           <h2 className="text-xl md:text-2xl font-black tracking-tight mt-2 mb-4">{t('network.faq_h2', 'Frequently answered questions')}</h2>
           <div className="space-y-2">
             {faq.map(item => (

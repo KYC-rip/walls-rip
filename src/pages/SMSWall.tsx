@@ -982,7 +982,8 @@ export function SMSWall() {
                   <div className="relative">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
                     <input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder={t('sms.search_countries')}
-                      className="min-h-11 w-full pl-10 pr-3 py-3 bg-wr-base border border-wr-border outline-none font-mono text-base md:text-sm transition-all rounded-sm focus:border-wr-info text-current placeholder-wr-dim/30" />
+                      aria-label={t('sms.search_countries')}
+                      className="min-h-11 w-full pl-10 pr-3 py-3 bg-wr-base border border-wr-border outline-none font-mono text-base md:text-sm transition-all rounded-sm focus:border-wr-info focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base text-current placeholder-wr-dim/30" />
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {POPULAR_COUNTRIES.map(code => {
@@ -990,7 +991,7 @@ export function SMSWall() {
                       if (!country) return null;
                       return (
                         <button key={country.id} onClick={() => setSelectedCountry(country.id)} title={country.name}
-                          className={`inline-flex items-center gap-1 min-h-9 text-[11px] px-2 py-1 rounded-sm border font-mono font-bold transition-colors ${selectedCountry === country.id ? 'border-wr-info text-wr-info bg-wr-info/10' : 'border-wr-border text-wr-dim hover:border-wr-info/40 hover:text-wr-info'}`}>
+                          className={`inline-flex items-center gap-1 min-h-11 text-[11px] px-2 py-1 rounded-sm border font-mono font-bold transition-colors ${selectedCountry === country.id ? 'border-wr-info text-wr-info bg-wr-info/10' : 'border-wr-border text-wr-dim hover:border-wr-info/40 hover:text-wr-info'}`}>
                           {flagOf(country.shortName)} {country.shortName}
                         </button>
                       );
@@ -1643,7 +1644,7 @@ export function SMSWall() {
       {showExtendModal && (
         <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
           <div className="border border-wr-secondary/60 bg-wr-base p-0 max-w-sm w-full relative shadow-2xl overflow-hidden rounded-sm">
-            <button onClick={() => setShowExtendModal(null)} className="absolute top-2.5 right-2.5 min-h-11 min-w-11 p-1.5 text-wr-dim hover:text-wr-secondary z-10"><X size={20} /></button>
+            <button onClick={() => setShowExtendModal(null)} aria-label={t('common.close', 'Close')} className="absolute top-2.5 right-2.5 min-h-11 min-w-11 p-1.5 text-wr-dim hover:text-wr-secondary z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"><X size={20} /></button>
 
             <div className="p-3 md:p-4 border-b bg-wr-secondary/10 border-wr-secondary/30 text-wr-secondary flex items-center gap-2">
               <Calendar size={14} />

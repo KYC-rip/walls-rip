@@ -107,13 +107,13 @@ export function ConfigPanel({
       <div className="px-2 md:px-0 pt-8 md:pt-12 pb-6 md:pb-8 border-b border-wr-border/70">
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] font-bold text-wr-accent mb-4">
           <span className="inline-block w-1.5 h-1.5 bg-wr-accent" />
-          {t('mail.v2_kicker', '// Disposable mail · no account')}
+          {t('mail.v2_kicker', 'Disposable email')}
         </div>
         <h1 className="font-display text-4xl md:text-6xl font-black tracking-tight leading-none mb-4">
           GHOST <span className="text-wr-accent">MAIL</span>
         </h1>
         <p className="text-sm md:text-base text-wr-dim leading-relaxed max-w-xl">
-          {t('mail.v2_subtitle', 'Disposable encrypted email. No identity, no account.')}
+          {t('mail.v2_subtitle', 'A temporary inbox that receives mail and expires on its own — no signup, no identity.')}
         </p>
       </div>
 
@@ -311,8 +311,9 @@ export function ConfigPanel({
               />
               <button
                 onClick={generateRandomName}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-wr-dim hover:text-wr-accent transition-colors ${isBasic ? 'opacity-30 cursor-not-allowed' : ''}`}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-wr-dim hover:text-wr-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base ${isBasic ? 'opacity-30 cursor-not-allowed' : ''}`}
                 disabled={isBasic}
+                aria-label={t('mail.v2_random_handle', 'Generate random handle')}
                 title={t('mail.v2_random_handle', 'Generate random handle')}
               >
                 <Dices size={18} />
@@ -497,13 +498,13 @@ export function ConfigPanel({
             <button
               onClick={() => startPurchase(selectedTier, paymentMethod, paymentMethod === 'USDT' ? usdtChain : undefined)}
               disabled={!customName || !!handleError || paymentState.status === 'CREATING'}
-              className={`min-h-[48px] w-full px-6 py-4 text-[11px] font-bold tracking-[0.18em] uppercase transition-all flex items-center justify-center gap-3 rounded-sm
+              className={`min-h-[48px] w-full px-6 py-4 text-[11px] font-bold tracking-[0.18em] uppercase transition-all flex items-center justify-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base
                 ${customName && !handleError
                   ? 'bg-wr-accent text-black hover:brightness-110'
                   : 'bg-wr-surface border border-wr-border text-wr-dim cursor-not-allowed'}
               `}
             >
-              <span>{paymentState.status === 'CREATING' ? 'INITIALIZING…' : t('mail.v2_create', 'Create inbox')}</span>
+              <span>{paymentState.status === 'CREATING' ? 'Creating…' : t('mail.v2_create', 'Create inbox')}</span>
               <span className="opacity-40">|</span>
               <span className="font-mono">${getFinalPrice().toFixed(2)}</span>
               <ChevronRight size={16} />

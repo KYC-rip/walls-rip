@@ -291,7 +291,7 @@ export function Header() {
         <button
           onClick={cycleSkin}
           aria-label={`Skin: ${skinLabel}`}
-          className={`p-2 hover:bg-wr-accent/10 rounded transition-colors relative ${skin !== 'terminal' ? 'text-wr-accent' : 'text-wr-dim hover:text-current'}`}
+          className={`min-h-11 min-w-11 inline-flex items-center justify-center p-2 hover:bg-wr-accent/10 rounded transition-colors relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base ${skin !== 'terminal' ? 'text-wr-accent' : 'text-wr-dim hover:text-current'}`}
           title={`Skin: ${skinLabel}`}
         >
           <Palette size={15} />
@@ -302,7 +302,8 @@ export function Header() {
 
         <button
           onClick={toggleContrast}
-          className="p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current"
+          aria-label={`Contrast: ${contrast}`}
+          className={`min-h-11 min-w-11 inline-flex items-center justify-center p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base`}
           title={`Contrast: ${contrast}`}
         >
           {contrast === 'high' ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -310,7 +311,8 @@ export function Header() {
 
         <button
           onClick={cycleFontScale}
-          className={`p-2 hover:bg-wr-accent/10 rounded transition-colors relative ${fontScale !== 'default' ? 'text-wr-accent' : 'text-wr-dim hover:text-current'}`}
+          aria-label={`Font size: ${fontScale === 'default' ? '100%' : fontScale === 'large' ? '115%' : '130%'}`}
+          className={`min-h-11 min-w-11 inline-flex items-center justify-center p-2 hover:bg-wr-accent/10 rounded transition-colors relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base ${fontScale !== 'default' ? 'text-wr-accent' : 'text-wr-dim hover:text-current'}`}
           title={`Font size: ${fontScale === 'default' ? '100%' : fontScale === 'large' ? '115%' : '130%'}`}
         >
           <ALargeSmall size={15} />
@@ -321,7 +323,8 @@ export function Header() {
 
         <button
           onClick={cycleTheme}
-          className="p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current"
+          aria-label={`Theme: ${mode}`}
+          className={`min-h-11 min-w-11 inline-flex items-center justify-center p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base`}
           title={`Theme: ${mode}`}
         >
           {mode === 'light' && <Sun size={15} />}
@@ -332,7 +335,8 @@ export function Header() {
         {/* Mobile menu */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="xl:hidden p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current"
+          aria-label={menuOpen ? t('header.close_menu', 'Close menu') : t('header.open_menu', 'Open menu')}
+          className={`xl:hidden min-h-11 min-w-11 inline-flex items-center justify-center p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base`}
         >
           {menuOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
