@@ -600,7 +600,7 @@ export default function DestinationPage() {
         </section>
 
         {/* Sticky rail: product pills + the checkout panel for the chosen plan */}
-        <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8">
+        <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-8">
           {(availableProducts.length > 0 || vpn?.available || checkoutPlan) && (
             <aside
               aria-label={t('destination.products_title', { country, defaultValue: 'Products for {{country}}' })}
@@ -725,7 +725,7 @@ export default function DestinationPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {planItems.slice(0, visiblePlans).map(plan => {
                 const busy = selecting === plan.key;
                 return (
