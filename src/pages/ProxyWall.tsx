@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Shield, Globe, Search, Copy, Check, RefreshCw, ChevronRight,
   Wallet, Zap, X, Plus, Wifi, Server, Smartphone, AlertTriangle,
@@ -122,6 +122,8 @@ export function ProxyWall() {
   // Selection
   const [selectedType, setSelectedType] = useState<ProxyType>('residential');
   const [selectedLocation, setSelectedLocation] = useState<string>('');
+  // Deep link from the command center: /proxy?country=US preselects it once.
+  const initialCountry = useMemo(() => (new URLSearchParams(window.location.search).get('country') || '').toUpperCase(), []);
   const [selectedPlan, setSelectedPlan] = useState<string>('');
   const [locationSearch, setLocationSearch] = useState('');
   // ProxyApp is HTTP-only (provider product page). No SOCKS5 selector.
@@ -160,10 +162,18 @@ export function ProxyWall() {
       const allMaint = h.length > 0 && h.every(e => e.status === 'MAINTENANCE');
       setEngineError(p.length === 0 || allMaint);
       if (l.length > 0 && !selectedLocation) {
-        // Prefer US, otherwise the first country the provider offers — the
-        // live ProxyApp list does not always include US.
-        const preferred = l.find(loc => loc.countryCode === 'US') || l[0];
+        // A deep link wins; otherwise prefer US, then the first country the
+        // provider offers — the live ProxyApp list does not always include US.
+        const linked = initialCountry
+          ? l.find(loc => loc.countryCode.toUpperCase() === initialCountry)
+          : undefined;
+        const preferred = linked || l.find(loc => loc.countryCode === 'US') || l[0];
         if (preferred) setSelectedLocation(preferred.id);
+        if (initialCountry) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('country');
+          window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+        }
       }
     }).finally(() => setLoading(false));
   }, []);

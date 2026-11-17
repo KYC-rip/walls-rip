@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
+import { REGION_I18N_KEYS } from '../config/regions';
 import { WalletBanner } from '../components/WalletBanner';
 import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
@@ -112,16 +113,6 @@ const REGION_API_CODES: Record<string, string[]> = {
   'Africa': ['AF'],
   'Middle East': ['ME'],
   'Oceania': ['OC'],
-};
-
-const REGION_I18N_KEYS: Record<string, string> = {
-  'Asia': 'esim.region_asia',
-  'Europe': 'esim.region_europe',
-  'North America': 'esim.region_north_america',
-  'South America': 'esim.region_south_america',
-  'Africa': 'esim.region_africa',
-  'Middle East': 'esim.region_middle_east',
-  'Oceania': 'esim.region_oceania',
 };
 
 /** Known regional codes that look like ISO but represent regions */

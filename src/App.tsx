@@ -20,6 +20,7 @@ import APIPage from './pages/APIPage';
 import NotFound from './pages/NotFound';
 import { InstallPrompt } from './components/InstallPrompt';
 import { QuoteConfirmation } from './components/QuoteConfirmation';
+import { CommandPalette } from './components/CommandPalette';
 
 // Routes without the language prefix
 const PAGES = [
@@ -85,6 +86,7 @@ export default function App() {
         </Routes>
         <InstallPrompt />
         <QuoteConfirmation />
+        <CommandPalette />
       </LangRouter>
     </BrowserRouter>
   );

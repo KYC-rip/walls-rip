@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Sun, Moon, Monitor, Eye, EyeOff, ALargeSmall, Palette, Menu, X, Globe, ChevronDown } from 'lucide-react';
+import { Sun, Moon, Monitor, Eye, EyeOff, ALargeSmall, Palette, Menu, X, Globe, ChevronDown, Search } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../hooks/useTheme';
@@ -15,7 +15,7 @@ const LANG_LABELS: Record<SupportedLang, string> = {
   ja: 'JA',
 };
 
-const NAV_KEYS = [
+export const NAV_KEYS = [
   { path: '/', key: 'header.home' },
   { path: '/mail', key: 'header.ghost_mail' },
   { path: '/mail/pro', key: 'header.ghost_mail_pro' },
@@ -287,6 +287,15 @@ export function Header() {
             </div>
           )}
         </div>
+
+        <button
+          onClick={() => window.dispatchEvent(new Event('walls:command-open'))}
+          aria-label={t('command.open', 'Search')}
+          title={t('command.open', 'Search')}
+          className="min-h-11 min-w-11 inline-flex items-center justify-center p-2 hover:bg-wr-accent/10 rounded transition-colors text-wr-dim hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
+        >
+          <Search size={15} />
+        </button>
 
         <button
           onClick={cycleSkin}

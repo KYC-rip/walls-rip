@@ -697,6 +697,22 @@
     "cmp_vpn_bill": "Fixed term, 7–365 days, crypto checkout",
     "cmp_proxy_bill": "Prepaid 31-day package metered in GB (0.5–100 GB)"
   },
+  "command": {
+    "title": "Search walls.rip",
+    "open": "Search",
+    "placeholder": "Search products, destinations, regions…",
+    "results_label": "Search results",
+    "results": "{{count}} results",
+    "products": "Products",
+    "destinations": "Destinations",
+    "regions": "Regions",
+    "proxy_countries": "Proxy countries",
+    "loading": "Searching…",
+    "no_results": "No matches",
+    "navigate": "navigate",
+    "open_hint": "open",
+    "close_hint": "close"
+  },
   "proxy": {
     "title": "Proxy",
     "title_accent": "Wall",
