@@ -540,7 +540,9 @@
     "faq_q3": "Do I need an ID or KYC for a {{country}} eSIM?",
     "faq_a3": "No. No account, name, email or identity document is required. Pay with Monero, Lightning or USDT; the plan is delivered as an installable eSIM profile.",
     "faq_q4": "Can I top up a {{country}} eSIM later?",
-    "faq_a4": "Yes, where the provider supports top-ups: open the eSIM top-up page with your order id and choose a recharge option. If a plan is not rechargeable, buy a new plan instead."
+    "faq_a4": "Yes, where the provider supports top-ups: open the eSIM top-up page with your order id and choose a recharge option. If a plan is not rechargeable, buy a new plan instead.",
+    "coverage_title": "Coverage",
+    "coverage_countries": "countries"
   },
   "esim": {
     "all_destinations": "All destinations",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Globe, MessageSquare, Phone, Shield, Wifi, Zap } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -66,6 +66,22 @@ const DURATION_FILTERS: Array<{ key: DurationFilter; label: string; fallback: st
 ];
 
 const PLAN_PAGE_SIZE = 12;
+
+/**
+ * The checkout lives in the sticky rail on desktop (one less click, the plan is
+ * preselected) and stays a modal on smaller screens where there is no rail.
+ */
+function useIsDesktop(): boolean {
+  const [desktop, setDesktop] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => setDesktop(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+  return desktop;
+}
 
 /** One plan row, whether it came from `/esim/compare` (buyable id) or the cached payload. */
 interface PlanItem {
@@ -183,6 +199,10 @@ export default function DestinationPage() {
   const lang = resolveLang(i18n.language);
   const navigate = useNavigate();
   const [payload, setPayload] = useState<DestinationPayload | null>(null);
+  // The slug `payload` belongs to. Navigating between destination pages keeps
+  // the old payload for one render; without this the canonical-slug redirect
+  // fired on the stale country and bounced the visitor back.
+  const [payloadSlug, setPayloadSlug] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [walletToken, setWalletToken] = useState<string | null>(() => localStorage.getItem(ESIM_WALLET_KEY));
   const [balanceUSD, setBalanceUSD] = useState(0);
@@ -190,6 +210,8 @@ export default function DestinationPage() {
   const [selecting, setSelecting] = useState<string | null>(null);
   // Full, buyable plan list for this destination (filters + load more).
   const [comparePlans, setComparePlans] = useState<ComparePlan[] | null>(null);
+  const isDesktop = useIsDesktop();
+  const autoPicked = useRef(false);
   const [dataFilter, setDataFilter] = useState<DataFilter>('all');
   const [durationFilter, setDurationFilter] = useState<DurationFilter>('all');
   const [visiblePlans, setVisiblePlans] = useState(PLAN_PAGE_SIZE);
@@ -204,9 +226,10 @@ export default function DestinationPage() {
   useEffect(() => {
     let cancelled = false;
     setPayload(null);
+    setPayloadSlug(null);
     setFailed(false);
     apiClient<DestinationPayload>(`/v1/tools/destinations/${encodeURIComponent(slug)}`)
-      .then(data => { if (!cancelled) setPayload(data); })
+      .then(data => { if (!cancelled) { setPayload(data); setPayloadSlug(slug); } })
       .catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
   }, [slug]);
@@ -215,6 +238,8 @@ export default function DestinationPage() {
   // full public list once so filters and "load more" work without leaving the
   // page; a failure keeps the cached six (with the resolve-on-click fallback).
   const destinationCode = payload?.country.code ?? '';
+  useEffect(() => { autoPicked.current = false; }, [destinationCode]);
+
   useEffect(() => {
     if (!destinationCode) return;
     let cancelled = false;
@@ -245,6 +270,16 @@ export default function DestinationPage() {
   );
 
   useEffect(() => { setVisiblePlans(PLAN_PAGE_SIZE); }, [dataFilter, durationFilter, destinationCode]);
+
+  // Desktop: preselect the cheapest plan so the rail is already a checkout.
+  useEffect(() => {
+    if (!isDesktop || autoPicked.current) return;
+    const first = planItems.find(plan => plan.compare);
+    if (!first?.compare) return;
+    autoPicked.current = true;
+    setCheckoutPlan(current => current ?? first.compare);
+  }, [isDesktop, planItems]);
+
 
   // Same prepaid wallet as /esim and the rest of walls.rip.
   useEffect(() => {
@@ -337,7 +372,10 @@ export default function DestinationPage() {
     return purchasePlan(checkoutPlan, token, clientRef);
   }, [checkoutPlan, purchasePlan]);
 
+  const stalePayload = !!payload && payloadSlug !== slug;
+
   const redirectToPlans = useMemo(() => {
+    if (stalePayload) return null;
     if (failed) return localePath('/esim', lang);
     if (payload && payload.esim.planCount < 5) {
       // Multi-area bundles have no country tab to preselect.
@@ -345,11 +383,11 @@ export default function DestinationPage() {
       return localePath(target, lang);
     }
     return null;
-  }, [failed, payload, lang]);
+  }, [failed, payload, lang, stalePayload]);
 
   if (redirectToPlans) return <Navigate to={redirectToPlans} replace />;
 
-  if (!payload) {
+  if (stalePayload || !payload) {
     return (
       <>
         <SEO
@@ -366,6 +404,7 @@ export default function DestinationPage() {
 
   // `/destination/TH` resolves through the API, then the URL is replaced with
   // the canonical slug. Keeping one URL per country avoids duplicate pages.
+  // (Only for the payload fetched for this slug — see `stalePayload`.)
   if (payload.country.slug && payload.country.slug !== slug.toLowerCase()) {
     return <Navigate to={localePath(`/destination/${payload.country.slug}`, lang)} replace />;
   }
@@ -400,6 +439,31 @@ export default function DestinationPage() {
   const availableProducts = products.filter(product => product.available && PRODUCT_META[product.key]);
   const vpn = payload.global?.vpn ?? null;
   const landmark = LANDMARKS[payload.country.code.toUpperCase()] ?? null;
+
+  // Multi-area bundles cover several countries; list them (with the operators
+  // on each) the way the plan detail modal does. Country pages keep the
+  // network chips in the hero instead.
+  const isBundle = /-AREAS$/i.test(payload.country.code);
+  const coverage = (() => {
+    if (!isBundle || !comparePlans?.length) return [];
+    const byCountry = new Map<string, Set<string>>();
+    for (const plan of comparePlans) {
+      for (const entry of plan.coverage ?? []) {
+        const country = String(entry.country || '').trim();
+        if (!country) continue;
+        const operators = byCountry.get(country) ?? new Set<string>();
+        for (const operator of entry.operators ?? []) {
+          const name = String(operator.name || '').trim();
+          if (!name) continue;
+          operators.add(operator.networkType ? `${name} (${operator.networkType})` : name);
+        }
+        byCountry.set(country, operators);
+      }
+    }
+    return [...byCountry.entries()]
+      .map(([country, operators]) => ({ country, operators: [...operators] }))
+      .sort((a, b) => a.country.localeCompare(b.country));
+  })();
 
   const faqs = [
     {
@@ -535,67 +599,68 @@ export default function DestinationPage() {
           )}
         </section>
 
-        {/* Products rail (desktop) / block above the plans (mobile) */}
+        {/* Sticky rail: product pills + the checkout panel for the chosen plan */}
         <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8">
-          {(availableProducts.length > 0 || vpn?.available) && (
+          {(availableProducts.length > 0 || vpn?.available || checkoutPlan) && (
             <aside
               aria-label={t('destination.products_title', { country, defaultValue: 'Products for {{country}}' })}
               className="lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1"
             >
-              <h2 className="mb-3 font-display text-lg font-bold tracking-tight text-current">
+              <h2 className="mb-2 font-display text-sm font-bold tracking-tight text-current">
                 {t('destination.products_title', { country, defaultValue: 'Products for {{country}}' })}
               </h2>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              {availableProducts.map(product => {
-                const meta = PRODUCT_META[product.key];
-                const Icon = meta.icon;
-                return (
-                  <Link
-                    key={product.key}
-                    to={localePath(meta.link(payload.country.code), lang)}
-                    className="group flex flex-col justify-between rounded-sm border border-wr-border bg-wr-base p-4 transition-colors hover:border-wr-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
-                  >
-                    <span className="inline-flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-current">
-                      <Icon size={13} className="text-wr-accent" aria-hidden />
+              <div className="flex flex-wrap gap-1.5">
+                {availableProducts.map(product => {
+                  const meta = PRODUCT_META[product.key];
+                  const Icon = meta.icon;
+                  return (
+                    <Link
+                      key={product.key}
+                      to={localePath(meta.link(payload.country.code), lang)}
+                      title={t(meta.desc, meta.fallbackDesc)}
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-wr-border bg-wr-base px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-wr-dim transition-colors hover:border-wr-accent/60 hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
+                    >
+                      <Icon size={12} className="text-wr-accent" aria-hidden />
                       {t(meta.label, meta.fallback)}
-                    </span>
-                    <p className="mt-2 text-xs leading-relaxed text-wr-dim">{t(meta.desc, meta.fallbackDesc)}</p>
-                    <span className="mt-3 flex items-center justify-between border-t border-wr-border/60 pt-2 text-sm font-mono font-bold tabular-nums text-current">
-                      {product.fromUsd != null
-                        ? t('destination.from_price', { price: product.fromUsd.toFixed(2), defaultValue: 'from ${{price}}' })
-                        : t('destination.available', 'Available')}
-                      <span aria-hidden className="text-[11px] text-wr-dim transition-colors group-hover:text-wr-accent">→</span>
-                    </span>
+                      {product.fromUsd != null && (
+                        <span className="text-current">${product.fromUsd.toFixed(2)}</span>
+                      )}
+                    </Link>
+                  );
+                })}
+                {vpn?.available && (
+                  <Link
+                    to={localePath('/vpn', lang)}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-wr-border bg-wr-base px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-wr-dim transition-colors hover:border-wr-accent/60 hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
+                  >
+                    <Globe size={12} className="text-wr-accent" aria-hidden />
+                    {t('destination.product_vpn', 'VPN')}
+                    {vpn.fromUsd != null && <span className="text-current">${vpn.fromUsd.toFixed(2)}</span>}
                   </Link>
-                );
-              })}
-            </div>
-              {vpn?.available && (
-                <Link
-                  to={localePath('/vpn', lang)}
-                  className="group mt-3 flex flex-col gap-1.5 rounded-sm border border-wr-border bg-wr-surface p-4 transition-colors hover:border-wr-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
-                >
-                  <span className="flex items-center justify-between gap-2 text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-current">
-                    <span className="inline-flex items-center gap-2">
-                      <Globe size={13} className="text-wr-accent" aria-hidden />
-                      {t('destination.product_vpn', 'VPN')}
-                    </span>
-                    <span className="rounded-sm border border-wr-border px-1.5 py-0.5 text-[10px] font-normal tracking-[0.14em] text-wr-dim">
-                      {t('destination.global_service', 'Worldwide')}
-                    </span>
-                  </span>
-                  <p className="text-xs leading-relaxed text-wr-dim">{t('destination.product_vpn_desc', 'WireGuard, OpenVPN and VLESS')}</p>
-                  <span className="flex items-center justify-between text-sm font-mono font-bold tabular-nums text-current">
-                    {vpn.fromUsd != null
-                      ? t('destination.from_price', { price: vpn.fromUsd.toFixed(2), defaultValue: 'from ${{price}}' })
-                      : t('destination.available', 'Available')}
-                    <span aria-hidden className="text-[11px] text-wr-dim transition-colors group-hover:text-wr-accent">→</span>
-                  </span>
-                </Link>
+                )}
+              </div>
+
+              {/* Desktop checkout: the shared panel, pinned in the rail. The
+                  cheapest plan is preselected so arriving here already shows
+                  what you would buy. */}
+              {isDesktop && checkoutPlan && (
+                <div className="mt-4">
+                  <ESIMCheckoutModal
+                    variant="inline"
+                    plan={checkoutPlan}
+                    locationLabel={country}
+                    badgeLabel={payload.country.code}
+                    walletToken={walletToken}
+                    balanceUSD={balanceUSD}
+                    onClose={closeCheckout}
+                    onWalletCreated={handleWalletCreated}
+                    onDeposit={handleCheckoutDeposit}
+                    purchase={purchaseCheckout}
+                  />
+                </div>
               )}
             </aside>
           )}
-
 
           {/* Plans: filters + load more keep the visitor on this page */}
           <section className="mt-8 lg:col-start-1 lg:row-start-1 lg:mt-0">
@@ -607,6 +672,23 @@ export default function DestinationPage() {
                 {t('destination.plan_count', { count: planItems.length, defaultValue: '{{count}} plans' })}
               </span>
             </div>
+
+            {/* Desktop shows the same list inside the pinned checkout panel. */}
+            {isBundle && coverage.length > 0 && !isDesktop && (
+              <div className="mb-4">
+                <h3 className="mb-2 font-display text-sm font-bold tracking-tight text-current">
+                  {t('destination.coverage_title', 'Coverage')} ({coverage.length} {t('destination.coverage_countries', 'countries')})
+                </h3>
+                <div className="rounded-sm border border-wr-border bg-wr-base">
+                  {coverage.map(row => (
+                    <div key={row.country} className="flex items-start justify-between gap-4 border-b border-wr-border/50 px-4 py-2 text-xs last:border-b-0">
+                      <span className="font-mono font-bold text-current">{row.country}</span>
+                      <span className="text-right font-mono text-wr-dim">{row.operators.join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mb-3 space-y-2">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -723,7 +805,7 @@ export default function DestinationPage() {
       </main>
       <Footer />
 
-      {checkoutPlan && (
+      {checkoutPlan && !isDesktop && (
         <ESIMCheckoutModal
           plan={checkoutPlan}
           locationLabel={country}

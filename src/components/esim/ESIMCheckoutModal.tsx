@@ -49,6 +49,12 @@ interface ESIMCheckoutModalProps {
    *  `clientRef` is stable for this checkout (retries reuse it) so a held or
    *  double-submitted purchase cannot become a second provider order. */
   purchase: (token: string, clientRef: string) => Promise<ESIMCheckoutResult>;
+  /**
+   * `modal` (default) is the overlay used by /esim. `inline` renders the same
+   * panel without the overlay so a destination page can pin it in its sticky
+   * rail — one purchase path, two placements.
+   */
+  variant?: 'modal' | 'inline';
 }
 
 /**
@@ -68,7 +74,9 @@ export function ESIMCheckoutModal({
   onWalletCreated,
   onDeposit,
   purchase,
+  variant = 'modal',
 }: ESIMCheckoutModalProps) {
+  const inline = variant === 'inline';
   const { t } = useTranslation();
   const [step, setStep] = useState<'details' | 'purchasing' | 'success' | 'error'>('details');
   const [error, setError] = useState('');
@@ -138,9 +146,8 @@ export function ESIMCheckoutModal({
     }
   }, [onDeposit, purchaseOnce, walletToken, t]);
 
-  return (
-    <div className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300" onClick={() => { if (step === 'details') onClose(); }}>
-      <div className={`border border-wr-border bg-wr-base ${modalMaxW} w-full relative shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-sm max-h-[90vh] overflow-y-auto transition-all duration-300`} onClick={e => e.stopPropagation()}>
+  const card = (
+      <div className={`border border-wr-border bg-wr-base ${inline ? 'w-full max-h-[calc(100vh-5rem)]' : `${modalMaxW} shadow-[0_0_50px_rgba(0,0,0,0.3)] max-h-[90vh]`} relative overflow-hidden rounded-sm overflow-y-auto transition-all duration-300`} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="p-4 md:p-6 border-b border-wr-border/30 flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -195,7 +202,7 @@ export function ESIMCheckoutModal({
 
               <div>
                 <h4 className="text-xs font-bold uppercase text-wr-dim tracking-widest mb-3">{t('esim.detail_additional_info')}</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 text-xs">
+                <div className={`grid grid-cols-1 ${inline ? "" : "md:grid-cols-2"} gap-x-6 gap-y-0 text-xs`}>
                   <div className="flex items-center justify-between py-2 border-b border-wr-border/20">
                     <span className="text-wr-dim flex items-center gap-1.5 shrink-0"><MapPin size={10} /> {t('esim.detail_location')}</span>
                     <span className="font-mono text-current text-right truncate ml-2">{locationLabel}</span>
@@ -415,7 +422,17 @@ export function ESIMCheckoutModal({
           )}
 
         </div>
-      </div>
+            </div>
+  );
+
+  if (inline) return card;
+
+  return (
+    <div
+      className="fixed inset-0 bg-wr-base/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300"
+      onClick={() => { if (step === 'details') onClose(); }}
+    >
+      {card}
     </div>
   );
 }
