@@ -9,6 +9,7 @@ import {
 import { localePath } from '../../lib/i18n';
 import {
   checkCsrf,
+  clearClientRef,
   clientRefFor,
   localeFrom,
   safeReturn,
@@ -64,6 +65,10 @@ export const POST: APIRoute = async (context) => {
     });
 
     if (!result.orderId) throw new Error('The provider did not return an order id.');
+
+    // A completed purchase consumes the idempotency reference: buying the same
+    // plan again tomorrow must create a new order, not replay this one.
+    clearClientRef(context);
 
     setOrderState(context, {
       orderId: result.orderId,

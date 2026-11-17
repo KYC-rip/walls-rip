@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkCsrf,
+  clearClientRef,
   clientRefFor,
   ensureCsrf,
   localeFrom,
@@ -69,6 +70,13 @@ describe('clientRefFor', () => {
     const first = clientRefFor(ctx, 'plan-a');
     expect(clientRefFor(ctx, 'plan-a')).toBe(first);
     expect(clientRefFor(ctx, 'plan-b')).not.toBe(first);
+  });
+
+  it('mints a fresh reference after a completed purchase', () => {
+    const ctx = mockContext();
+    const first = clientRefFor(ctx, 'plan-a');
+    clearClientRef(ctx);
+    expect(clientRefFor(ctx, 'plan-a')).not.toBe(first);
   });
 });
 

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { fetchRegionBundles } from '../lib/catalogue';
-import { fetchDestinationIndex as fetchDestinations } from '../lib/data';
+import { fetchDestination, fetchDestinationIndex as fetchDestinations } from '../lib/data';
 import { SUPPORTED_LANGS, localePath } from '../lib/i18n';
 
 const STATIC_PAGES = ['/', '/esim', '/sms', '/phone', '/proxy', '/vpn', '/uk-sim', '/network', '/faq', '/api'];
@@ -37,8 +37,26 @@ export const GET: APIRoute = async ({ locals }) => {
         if ((row.planCount ?? 0) < 5) continue;
         entries.push(urlEntry(origin, localePath(`/destination/${row.slug}`, lang), lastmod));
       }
-      for (const bundle of bundles) {
-        entries.push(urlEntry(origin, localePath(`/destination/${bundle.slug}`, lang), lastmod));
+      // Bundles are only page-worthy when they still have five funded plans;
+      // probe them (small payload, served from the API's own cache) in small
+      // batches instead of listing redirects in the sitemap.
+      const bundleCodes: string[] = [];
+      for (let i = 0; i < bundles.length; i += 5) {
+        const batch = bundles.slice(i, i + 5);
+        const results = await Promise.all(
+          batch.map(async (bundle) => {
+            try {
+              const payload = await fetchDestination(locals, bundle.code);
+              return payload && payload.esim.planCount >= 5 ? bundle : null;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        for (const bundle of results) if (bundle) bundleCodes.push(bundle.slug);
+      }
+      for (const slug of bundleCodes) {
+        entries.push(urlEntry(origin, localePath(`/destination/${slug}`, lang), lastmod));
       }
     }
   } catch {

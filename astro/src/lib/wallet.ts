@@ -63,7 +63,7 @@ export function ensureCsrf(ctx: CookieContext): string {
   const existing = ctx.cookies.get(COOKIE.csrf)?.value;
   if (existing && /^[a-f0-9]{32,64}$/.test(existing)) return existing;
   const token = randomToken();
-  ctx.cookies.set(COOKIE.csrf, token, cookieOptions(ctx, 2 * 60 * 60));
+  ctx.cookies.set(COOKIE.csrf, token, cookieOptions(ctx, 12 * 60 * 60));
   return token;
 }
 
@@ -167,6 +167,10 @@ export function readOrderState(ctx: CookieContext): OrderState | null {
  * the API's dedup cannot create a second provider order; a different plan
  * gets a fresh reference.
  */
+export function clearClientRef(ctx: CookieContext) {
+  ctx.cookies.delete(COOKIE.ref, { path: '/' });
+}
+
 export function clientRefFor(ctx: CookieContext, planId: string): string {
   const existing = readJson<{ planId: string; ref: string }>(ctx, COOKIE.ref);
   if (existing && existing.planId === planId && /^[a-f0-9-]{16,64}$/i.test(existing.ref)) {
