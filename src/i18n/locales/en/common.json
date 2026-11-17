@@ -499,6 +499,7 @@
     "view_all": "View all {{count}} plans for {{country}}",
     "instant": "Instant delivery",
     "products_title": "Products for {{country}}",
+    "photo_credit": "Photo",
     "product_esim": "eSIM data",
     "product_esim_desc": "Prepaid data-only eSIM, no KYC",
     "product_phone": "Phone number plan",

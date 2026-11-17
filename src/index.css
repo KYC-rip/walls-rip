@@ -204,8 +204,16 @@ body {
   font-size: 14px;
   line-height: 1.6;
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* hidden creates a scroll container and breaks position: sticky; clip does
+     the same visual job without one. Browsers without clip keep hidden. */
   overflow-x: hidden;
   margin: 0;
+}
+
+@supports (overflow-x: clip) {
+  body {
+    overflow-x: clip;
+  }
 }
 
 .font-display {

@@ -23,6 +23,7 @@
  *   - 0–25% probes fail            → write the successes, log skipped slugs
  *   - every probe succeeds         → write the full qualified set
  */
+import { readFileSync } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,8 +32,16 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DIST = join(ROOT, 'dist');
 const API = (process.env.PRERENDER_API || 'https://api.kyc.rip').replace(/\/+$/, '');
 const LIMIT = Math.max(0, Number(process.env.PRERENDER_LIMIT || 0) || 0);
-const CONCURRENCY = Math.max(1, Math.min(16, Number(process.env.PRERENDER_CONCURRENCY || 8) || 8));
+const CONCURRENCY = Math.max(1, Math.min(16, Number(process.env.PRERENDER_CONCURRENCY || 5) || 5));
 const MIN_PLANS = 5;
+const LANDMARKS = (() => {
+  try {
+    return JSON.parse(readFileSync(join(ROOT, 'src/data/landmarks.json'), 'utf8'));
+  } catch {
+    return {};
+  }
+})();
+
 const SITE = 'https://walls.rip';
 const DAY = new Date().toISOString().slice(0, 10);
 
@@ -193,6 +202,9 @@ function buildPage(base, payload) {
 
   const head = [
     `<meta name="x-prerender" content="${esc(country.slug)}" data-prerender="1" />`,
+    ...(LANDMARKS[country.code]
+      ? [`<link rel="preload" as="image" href="/landmarks/${esc(country.code)}.webp" fetchpriority="high" data-prerender="1" />`]
+      : []),
     `<link rel="canonical" href="${esc(canonical)}" data-prerender="1" />`,
     `<meta name="robots" content="index,follow" data-prerender="1" />`,
     `<meta property="og:type" content="website" data-prerender="1" />`,
@@ -325,24 +337,43 @@ async function main() {
     return;
   }
 
-  log(`probing ${rows.length} destinations (concurrency ${CONCURRENCY})…`);
-  const probed = await mapPool(rows, CONCURRENCY, async row => {
+  const probe = async row => {
     try {
       const payload = await getJson(`/v1/tools/destinations/${encodeURIComponent(row.slug)}`);
       return { row, payload };
     } catch (error) {
       return { row, error: error.message };
     }
-  });
+  };
+
+  log(`probing ${rows.length} destinations (concurrency ${CONCURRENCY})…`);
+  let probed = await mapPool(rows, CONCURRENCY, probe);
+
+  // An engine timing out yields a `partial` payload: real plans, but fewer of
+  // them. The API refuses to cache those; the build must refuse to publish
+  // them too. Retry once at low concurrency, then drop them from the run.
+  const partialFirst = probed.filter(item => !item.error && item.payload?.partial);
+  if (partialFirst.length) {
+    warn(`${partialFirst.length} partial payloads (an engine timed out) — retrying`);
+    const retried = await mapPool(partialFirst.map(item => item.row), Math.max(1, Math.min(3, CONCURRENCY)), probe);
+    const bySlug = new Map(retried.map(item => [item.row.slug, item]));
+    probed = probed.map(item => (item.payload?.partial && bySlug.get(item.row.slug)) || item);
+  }
+  const stillPartial = probed.filter(item => !item.error && item.payload?.partial);
+  if (stillPartial.length) {
+    warn(`${stillPartial.length} destinations stayed partial; not publishing them: ${stillPartial.map(i => i.row.slug).join(', ')}`);
+  }
 
   const failed = probed.filter(item => item.error);
-  if (failed.length > 0 && failed.length / probed.length > 0.25) {
-    console.error(`[prerender] ${failed.length}/${probed.length} probes failed — refusing a partial index`);
+  const unusable = failed.length + stillPartial.length;
+  if (unusable > 0 && unusable / probed.length > 0.25) {
+    console.error(`[prerender] ${unusable}/${probed.length} probes unusable (${failed.length} failed, ${stillPartial.length} partial) — refusing a partial index`);
     process.exit(1);
   }
   if (failed.length > 0) warn(`${failed.length} probes failed; skipping: ${failed.map(item => item.row.slug).join(', ')}`);
 
   const usable = probed.filter(item => !item.error
+    && !item.payload?.partial
     && item.payload?.country?.slug === item.row.slug
     && Number.isFinite(item.payload?.esim?.planCount));
   if (usable.length === 0) {
