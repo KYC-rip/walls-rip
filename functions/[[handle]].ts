@@ -137,7 +137,7 @@ export const onRequest: PagesFunction = async (context) => {
   const url = new URL(context.request.url);
 
   // Let static assets through
-  if (url.pathname.match(/\.(js|css|svg|png|jpg|ico|woff2?|txt|xml|json|webmanifest|html)$/)) {
+  if (url.pathname.match(/\.(js|css|svg|png|jpe?g|webp|avif|gif|ico|woff2?|ttf|otf|txt|xml|json|webmanifest|html)$/)) {
     return context.next();
   }
 
