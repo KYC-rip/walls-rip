@@ -157,7 +157,8 @@ export const onRequest: PagesFunction = async (context) => {
     const key = destination[1];
     const redirects = await loadDestinationRedirects(context.env.ASSETS, url.origin);
     const target = redirects[key] ?? redirects[key.toUpperCase()] ?? redirects[key.toLowerCase()];
-    if (target) {
+    // Never redirect a page to itself (a self entry would loop forever).
+    if (target && target !== key) {
       const isPath = target.startsWith('/');
       return Response.redirect(
         new URL(isPath ? target : `/destination/${target}`, url.origin).toString(),

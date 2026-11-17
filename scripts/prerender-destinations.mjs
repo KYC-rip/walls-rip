@@ -309,7 +309,10 @@ async function writeRedirectMap(selected, belowThreshold) {
   for (const { payload } of selected) {
     const { code, slug } = payload.country;
     map[code] = slug;
-    map[code.toLowerCase()] = slug;
+    // A bundle's code lowercases to its own slug ("ASIA-12-AREAS" →
+    // "asia-12-areas"); mapping it again would make the Function redirect the
+    // page to itself forever.
+    if (code.toLowerCase() !== slug) map[code.toLowerCase()] = slug;
   }
   for (const { payload } of belowThreshold) {
     const { code, slug } = payload.country;
