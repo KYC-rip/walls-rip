@@ -343,6 +343,9 @@ export function ESIMWall() {
   // Same-page query navigation (command palette, shared links, back/forward)
   // must update the view without remounting the page.
   const location = useLocation();
+  // The Regional/Global tabs open on the packages; their long plan/region
+  // lists are opt-in with ?list=1.
+  const listMode = new URLSearchParams(location.search).has('list');
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (!params.has('t') && !params.has('c') && !params.has('r')) return;
@@ -569,6 +572,8 @@ export function ESIMWall() {
   // Multi-area packages ("Asia (12 areas)") have their own destination pages;
   // the API owns the registry (their plans never appear in the country index).
   const [regionBundles, setRegionBundles] = useState<Array<{ code: string; name: string; slug: string; areas: number | null }>>([]);
+  const regionalBundles = useMemo(() => regionBundles.filter(b => !b.code.startsWith('GLOBAL')), [regionBundles]);
+  const globalBundles = useMemo(() => regionBundles.filter(b => b.code.startsWith('GLOBAL')), [regionBundles]);
   useEffect(() => {
     let cancelled = false;
     apiClient<{ bundles?: Array<{ code: string; name: string; slug: string; areas: number | null }> }>('/v1/tools/esim/region-bundles')
@@ -576,6 +581,47 @@ export function ESIMWall() {
       .catch(() => { /* the Regional tab still works without the bundle list */ });
     return () => { cancelled = true; };
   }, []);
+
+  const renderPackages = (bundles: typeof regionBundles, title: string, tab: string) => (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
+          <Globe size={12} className="text-wr-accent" /> {title}
+        </label>
+        <Link
+          to={localePath(`/esim?t=${tab}&list=1`, lang)}
+          className="text-[11px] font-mono uppercase tracking-widest text-wr-accent transition-colors hover:text-wr-accent/80"
+        >
+          {t('esim.show_plan_list', 'Show plan list')} <span aria-hidden>→</span>
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {bundles.map(bundle => (
+          <Link
+            key={bundle.code}
+            to={localePath(`/destination/${bundle.slug}`, lang)}
+            className="flex min-h-11 items-center gap-3 rounded-sm border border-wr-border bg-wr-base p-3 text-left transition-colors hover:border-wr-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
+          >
+            <img
+              src={`/region-maps/${bundle.slug}.svg`}
+              alt=""
+              width={72}
+              height={36}
+              loading="lazy"
+              decoding="async"
+              className="h-9 w-[72px] shrink-0 rounded-sm"
+            />
+            <span className="min-w-0">
+              <span className="block text-[11px] font-mono font-bold uppercase tracking-widest text-current">{bundle.name}</span>
+              <span className="mt-0.5 block text-[11px] font-mono text-wr-dim">
+                {t('esim.view_bundle_plans', 'View plans')} <span aria-hidden>→</span>
+              </span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
 
   const filteredCountries = useMemo(() => {
     return countries
@@ -1034,6 +1080,17 @@ export function ESIMWall() {
                   </div>
 
                   {/* ═══ TAB: Country ═══ */}
+                  {listMode && activeTab !== 'country' && (
+                    <div className="pt-3">
+                      <Link
+                        to={localePath(`/esim?t=${activeTab}`, lang)}
+                        className="text-[11px] font-mono uppercase tracking-widest text-wr-accent transition-colors hover:text-wr-accent/80"
+                      >
+                        <span aria-hidden>←</span> {t('esim.show_packages', 'Show packages')}
+                      </Link>
+                    </div>
+                  )}
+
                   {activeTab === 'country' && (
                     <div className={`grid grid-cols-1 gap-6 md:gap-8 ${selectedCountry ? 'md:grid-cols-[280px_1fr]' : ''}`}>
                       {/* LEFT: Country Selection (only while browsing plans) */}
@@ -1167,7 +1224,7 @@ export function ESIMWall() {
                   )}
 
                   {/* ═══ TAB: Regional ═══ */}
-                  {activeTab === 'regional' && (
+                  {activeTab === 'regional' && (listMode ? (
                     <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 md:gap-8">
                       {/* LEFT: Region Selection */}
                       <div className="space-y-3">
@@ -1267,27 +1324,6 @@ export function ESIMWall() {
                         </div>
                       ) : (
                         <div className="space-y-5">
-                          {regionBundles.length > 0 && (
-                            <div className="space-y-2">
-                              <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                                <Globe size={12} className="text-wr-accent" /> {t('esim.regional_packages', 'Regional & global packages')}
-                              </label>
-                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                {regionBundles.map(bundle => (
-                                  <Link
-                                    key={bundle.code}
-                                    to={localePath(`/destination/${bundle.slug}`, lang)}
-                                    className="min-h-11 rounded-sm border border-wr-border bg-wr-base p-3 text-left transition-colors hover:border-wr-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
-                                  >
-                                    <div className="text-[11px] font-mono font-bold uppercase tracking-widest text-current">{bundle.name}</div>
-                                    <div className="mt-0.5 text-[11px] font-mono text-wr-dim">
-                                      {t('esim.view_bundle_plans', 'View plans')} <span aria-hidden>→</span>
-                                    </div>
-                                  </Link>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                           <div className="flex flex-col items-center justify-center py-10 text-center">
                             <MapPin size={32} className="text-wr-dim/30 mb-3" />
                             <p className="text-sm text-wr-dim">{t('esim.select_region_prompt', 'Select a region to browse available plans')}</p>
@@ -1295,10 +1331,12 @@ export function ESIMWall() {
                         </div>
                       )}
                     </div>
-                  )}
+                  ) : (
+                    renderPackages(regionalBundles, t('esim.regional_packages', 'Regional & global packages'), 'regional')
+                  ))}
 
                   {/* ═══ TAB: Global ═══ */}
-                  {activeTab === 'global' && (
+                  {activeTab === 'global' && (listMode ? (
                     <div className="space-y-4">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                         <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
@@ -1357,7 +1395,9 @@ export function ESIMWall() {
                         </div>
                       )}
                     </div>
-                  )}
+                  ) : (
+                    renderPackages(globalBundles, t('esim.global_packages', 'Global packages'), 'global')
+                  ))}
 
                 </div>
               </div>
