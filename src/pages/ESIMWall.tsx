@@ -1160,6 +1160,7 @@ export function ESIMWall() {
                           search={countrySearch}
                           onSearch={setCountrySearch}
                           onSelect={(code) => { setSelectedCountry(code); scrollToPlans(); }}
+                          onOpenRegions={() => setActiveTab('regional')}
                         />
                       )}
                     </div>
@@ -1210,27 +1211,6 @@ export function ESIMWall() {
                           </div>
                         )}
 
-                        {regionBundles.length > 0 && (
-                          <div className="space-y-2 pt-2">
-                            <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
-                              <Globe size={12} className="text-wr-accent" /> {t('esim.regional_packages', 'Regional & global packages')}
-                            </label>
-                            <div className="flex flex-col gap-1">
-                              {regionBundles.map(bundle => (
-                                <Link
-                                  key={bundle.code}
-                                  to={localePath(`/destination/${bundle.slug}`, lang)}
-                                  className="min-h-11 rounded-sm border border-wr-border bg-wr-base p-3 text-left transition-colors hover:border-wr-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
-                                >
-                                  <div className="text-[11px] font-mono font-bold uppercase tracking-widest text-current">{bundle.name}</div>
-                                  <div className="mt-0.5 text-[11px] font-mono text-wr-dim">
-                                    {t('esim.view_bundle_plans', 'View plans')} <span aria-hidden>→</span>
-                                  </div>
-                                </Link>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       {/* RIGHT: Regional Plans */}
@@ -1286,9 +1266,32 @@ export function ESIMWall() {
                           )}
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                          <MapPin size={40} className="text-wr-dim/30 mb-4" />
-                          <p className="text-sm text-wr-dim">{t('esim.select_region_prompt', 'Select a region to browse available plans')}</p>
+                        <div className="space-y-5">
+                          {regionBundles.length > 0 && (
+                            <div className="space-y-2">
+                              <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
+                                <Globe size={12} className="text-wr-accent" /> {t('esim.regional_packages', 'Regional & global packages')}
+                              </label>
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {regionBundles.map(bundle => (
+                                  <Link
+                                    key={bundle.code}
+                                    to={localePath(`/destination/${bundle.slug}`, lang)}
+                                    className="min-h-11 rounded-sm border border-wr-border bg-wr-base p-3 text-left transition-colors hover:border-wr-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
+                                  >
+                                    <div className="text-[11px] font-mono font-bold uppercase tracking-widest text-current">{bundle.name}</div>
+                                    <div className="mt-0.5 text-[11px] font-mono text-wr-dim">
+                                      {t('esim.view_bundle_plans', 'View plans')} <span aria-hidden>→</span>
+                                    </div>
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex flex-col items-center justify-center py-10 text-center">
+                            <MapPin size={32} className="text-wr-dim/30 mb-3" />
+                            <p className="text-sm text-wr-dim">{t('esim.select_region_prompt', 'Select a region to browse available plans')}</p>
+                          </div>
                         </div>
                       )}
                     </div>

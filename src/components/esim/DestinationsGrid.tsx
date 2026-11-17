@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Globe, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { localePath, resolveLang } from '../../utils/localePath';
@@ -28,6 +28,8 @@ interface DestinationsGridProps {
   search: string;
   onSearch: (value: string) => void;
   onSelect: (code: string) => void;
+  /** Jump to the Regional tab (regions + multi-area bundles). Optional. */
+  onOpenRegions?: () => void;
 }
 
 const matches = (query: string, code: string, name: string) => countryMatches(query, code, name);
@@ -51,6 +53,7 @@ export function DestinationsGrid({
   search,
   onSearch,
   onSelect,
+  onOpenRegions,
 }: DestinationsGridProps) {
   const { t, i18n } = useTranslation();
   const lang = resolveLang(i18n.language);
@@ -76,33 +79,48 @@ export function DestinationsGrid({
 
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
-        <input
-          type="search"
-          value={search}
-          onChange={e => onSearch(e.target.value)}
-          placeholder={t('esim.destination_search', 'Where are you traveling?')}
-          aria-label={t('esim.destination_search', 'Where are you traveling?')}
-          className="min-h-12 w-full rounded-sm border border-wr-border bg-wr-base py-3 pl-10 pr-3 font-mono text-base text-current outline-none transition-colors placeholder-wr-dim/50 focus:border-wr-accent md:text-sm"
-        />
-      </div>
+      {/* One toolbar row: search, the regions entrance, then the order toggle. */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+        <div className="relative w-full md:max-w-sm">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
+          <input
+            type="search"
+            value={search}
+            onChange={e => onSearch(e.target.value)}
+            placeholder={t('esim.destination_search', 'Where are you traveling?')}
+            aria-label={t('esim.destination_search', 'Where are you traveling?')}
+            className="min-h-12 w-full rounded-sm border border-wr-border bg-wr-base py-3 pl-10 pr-3 font-mono text-base text-current outline-none transition-colors placeholder-wr-dim/50 focus:border-wr-accent md:text-sm"
+          />
+        </div>
 
-      <div className="flex items-center justify-end gap-2">
-        <span className="text-[11px] font-mono uppercase tracking-widest text-wr-dim">
-          {t('esim.sort_by', 'Sort')}
-        </span>
-        {(['popular', 'az'] as SortMode[]).map(mode => (
+        {onOpenRegions && (
           <button
-            key={mode}
             type="button"
-            aria-pressed={sortMode === mode}
-            onClick={() => changeSort(mode)}
-            className={`inline-flex min-h-11 items-center rounded-sm border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0 ${sortMode === mode ? 'border-wr-accent bg-wr-accent text-black' : 'border-wr-border text-wr-dim hover:border-wr-accent/60 hover:text-current'}`}
+            onClick={onOpenRegions}
+            className="inline-flex min-h-11 items-center gap-1.5 self-start rounded-sm text-[11px] font-mono font-bold uppercase tracking-widest text-wr-accent transition-colors hover:text-wr-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0 md:self-auto"
           >
-            {mode === 'popular' ? t('esim.sort_popular', 'Popular') : t('esim.sort_az', 'A–Z')}
+            <Globe size={12} aria-hidden />
+            {t('esim.regions_entry', 'Regions & global packages')}
+            <span aria-hidden>→</span>
           </button>
-        ))}
+        )}
+
+        <div className="flex items-center gap-2 md:ml-auto">
+          <span className="text-[11px] font-mono uppercase tracking-widest text-wr-dim">
+            {t('esim.sort_by', 'Sort')}
+          </span>
+          {(['popular', 'az'] as SortMode[]).map(mode => (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={sortMode === mode}
+              onClick={() => changeSort(mode)}
+              className={`inline-flex min-h-11 items-center rounded-sm border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0 ${sortMode === mode ? 'border-wr-accent bg-wr-accent text-black' : 'border-wr-border text-wr-dim hover:border-wr-accent/60 hover:text-current'}`}
+            >
+              {mode === 'popular' ? t('esim.sort_popular', 'Popular') : t('esim.sort_az', 'A–Z')}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
