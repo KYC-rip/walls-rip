@@ -47,6 +47,56 @@ interface DestinationPayload {
   global?: { vpn?: { available: boolean; fromUsd: number | null } };
 }
 
+type DataFilter = 'all' | 'lt1' | '1to5' | '5to20' | '20plus';
+const DATA_FILTERS: Array<{ key: DataFilter; label: string; fallback: string }> = [
+  { key: 'all', label: 'destination.filter_all', fallback: 'All' },
+  { key: 'lt1', label: 'destination.filter_lt1', fallback: '< 1GB' },
+  { key: '1to5', label: 'destination.filter_1to5', fallback: '1–5GB' },
+  { key: '5to20', label: 'destination.filter_5to20', fallback: '5–20GB' },
+  { key: '20plus', label: 'destination.filter_20plus', fallback: '20GB+' },
+];
+
+type DurationFilter = 'all' | 'le7' | '8to15' | '16to30' | 'gt30';
+const DURATION_FILTERS: Array<{ key: DurationFilter; label: string; fallback: string }> = [
+  { key: 'all', label: 'destination.filter_all', fallback: 'All' },
+  { key: 'le7', label: 'destination.filter_le7', fallback: '≤ 7d' },
+  { key: '8to15', label: 'destination.filter_8to15', fallback: '8–15d' },
+  { key: '16to30', label: 'destination.filter_16to30', fallback: '16–30d' },
+  { key: 'gt30', label: 'destination.filter_gt30', fallback: '30d+' },
+];
+
+const PLAN_PAGE_SIZE = 12;
+
+/** One plan row, whether it came from `/esim/compare` (buyable id) or the cached payload. */
+interface PlanItem {
+  key: string;
+  name: string;
+  dataGB: number;
+  durationDays: number;
+  price: number;
+  compare: ComparePlan | null;
+}
+
+function dataMatches(filter: DataFilter, gb: number): boolean {
+  switch (filter) {
+    case 'lt1': return gb < 1;
+    case '1to5': return gb >= 1 && gb <= 5;
+    case '5to20': return gb > 5 && gb <= 20;
+    case '20plus': return gb > 20;
+    default: return true;
+  }
+}
+
+function durationMatches(filter: DurationFilter, days: number): boolean {
+  switch (filter) {
+    case 'le7': return days <= 7;
+    case '8to15': return days > 7 && days <= 15;
+    case '16to30': return days > 15 && days <= 30;
+    case 'gt30': return days > 30;
+    default: return true;
+  }
+}
+
 /** Where each product lives, with the country preselected where it takes one. */
 const PRODUCT_META: Record<ProductKey, {
   icon: typeof Wifi;
@@ -138,6 +188,11 @@ export default function DestinationPage() {
   const [balanceUSD, setBalanceUSD] = useState(0);
   const [checkoutPlan, setCheckoutPlan] = useState<ComparePlan | null>(null);
   const [selecting, setSelecting] = useState<string | null>(null);
+  // Full, buyable plan list for this destination (filters + load more).
+  const [comparePlans, setComparePlans] = useState<ComparePlan[] | null>(null);
+  const [dataFilter, setDataFilter] = useState<DataFilter>('all');
+  const [durationFilter, setDurationFilter] = useState<DurationFilter>('all');
+  const [visiblePlans, setVisiblePlans] = useState(PLAN_PAGE_SIZE);
 
   // Prerendered head tags (Phase 2) exist for crawlers without JS. Once the app
   // is running, React Helmet is the single source of truth — drop the static
@@ -155,6 +210,41 @@ export default function DestinationPage() {
       .catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
   }, [slug]);
+
+  // The destination payload only carries the cheapest six plans. Fetch the
+  // full public list once so filters and "load more" work without leaving the
+  // page; a failure keeps the cached six (with the resolve-on-click fallback).
+  const destinationCode = payload?.country.code ?? '';
+  useEffect(() => {
+    if (!destinationCode) return;
+    let cancelled = false;
+    setComparePlans(null);
+    apiClient<{ plans: ComparePlan[] }>(`/v1/tools/esim/compare?country=${encodeURIComponent(destinationCode)}`)
+      .then(res => { if (!cancelled && Array.isArray(res?.plans)) setComparePlans(res.plans); })
+      .catch(() => { /* keep the cached six */ });
+    return () => { cancelled = true; };
+  }, [destinationCode]);
+
+  const allPlanItems: PlanItem[] = useMemo(() => {
+    if (comparePlans && comparePlans.length) {
+      return comparePlans.map(plan => ({
+        key: plan.id, name: plan.name, dataGB: plan.dataGB, durationDays: plan.durationDays,
+        price: plan.price, compare: plan,
+      }));
+    }
+    return (payload?.esim.plans ?? []).map(plan => ({
+      key: `${plan.name}|${plan.dataGB}|${plan.durationDays}|${plan.price}`,
+      name: plan.name, dataGB: plan.dataGB, durationDays: plan.durationDays,
+      price: plan.price, compare: null,
+    }));
+  }, [comparePlans, payload]);
+
+  const planItems = useMemo(
+    () => allPlanItems.filter(plan => dataMatches(dataFilter, plan.dataGB) && durationMatches(durationFilter, plan.durationDays)),
+    [allPlanItems, dataFilter, durationFilter],
+  );
+
+  useEffect(() => { setVisiblePlans(PLAN_PAGE_SIZE); }, [dataFilter, durationFilter, destinationCode]);
 
   // Same prepaid wallet as /esim and the rest of walls.rip.
   useEffect(() => {
@@ -221,6 +311,16 @@ export default function DestinationPage() {
     }
   };
 
+  /**
+   * A plan fetched from `/esim/compare` is buyable as-is; only the cached
+   * six-plan payload needs the resolve-on-click step.
+   */
+  const selectPlan = (plan: PlanItem) => {
+    if (plan.compare) { setCheckoutPlan(plan.compare); return; }
+    // openCheckout reads payload; it is non-null wherever this button renders.
+    void openCheckout(payload!.country.code, plan);
+  };
+
   // Below the 5-plan threshold (or on any lookup failure) the canonical place
   // for this country is the existing plan browser — never a thin page.
   const closeCheckout = useCallback(() => setCheckoutPlan(null), []);
@@ -239,7 +339,11 @@ export default function DestinationPage() {
 
   const redirectToPlans = useMemo(() => {
     if (failed) return localePath('/esim', lang);
-    if (payload && payload.esim.planCount < 5) return localePath(`/esim?c=${payload.country.code}`, lang);
+    if (payload && payload.esim.planCount < 5) {
+      // Multi-area bundles have no country tab to preselect.
+      const target = /^[A-Z0-9-]+-AREAS$/i.test(payload.country.code) ? '/esim?t=regional' : `/esim?c=${payload.country.code}`;
+      return localePath(target, lang);
+    }
     return null;
   }, [failed, payload, lang]);
 
@@ -396,13 +500,15 @@ export default function DestinationPage() {
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/25" aria-hidden />
           <div className="relative flex flex-col gap-5 p-5 pb-8 md:p-7 md:pb-9 sm:flex-row sm:items-center">
-            <img
-              src={`https://flagcdn.com/w160/${payload.country.code.toLowerCase()}.png`}
-              alt=""
-              width={96}
-              height={64}
-              className="h-16 w-24 shrink-0 rounded-sm object-cover shadow-lg ring-1 ring-white/20"
-            />
+            {/^[A-Za-z]{2}$/.test(payload.country.code) && (
+              <img
+                src={`https://flagcdn.com/w160/${payload.country.code.toLowerCase()}.png`}
+                alt=""
+                width={96}
+                height={64}
+                className="h-16 w-24 shrink-0 rounded-sm object-cover shadow-lg ring-1 ring-white/20"
+              />
+            )}
             <div className="min-w-0">
               <div className="mb-1 flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-white/70">
                 <span className="inline-flex items-center gap-1"><Globe size={11} /> eSIM</span>
@@ -491,52 +597,106 @@ export default function DestinationPage() {
           )}
 
 
-          {/* Plans */}
+          {/* Plans: filters + load more keep the visitor on this page */}
           <section className="mt-8 lg:col-start-1 lg:row-start-1 lg:mt-0">
-          <div className="mb-3 flex items-end justify-between gap-3">
-            <h2 className="font-display text-lg font-bold tracking-tight text-current">
-              {t('destination.best_value', 'Best value plans')}
-            </h2>
-            <span className="text-[11px] font-mono uppercase tracking-widest text-wr-dim">
-              {t('destination.plan_count', { count: payload.esim.planCount, defaultValue: '{{count}} plans' })}
-            </span>
-          </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {payload.esim.plans.map(plan => {
-              const planKey = `${plan.name}|${plan.dataGB}|${plan.durationDays}|${plan.price}`;
-              const busy = selecting === planKey;
-              return (
-                <div key={planKey} className="flex flex-col justify-between rounded-sm border border-wr-border bg-wr-base p-4 transition-colors hover:border-wr-accent/40">
-                  <div>
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="font-mono text-2xl font-black tabular-nums text-current">
-                        {formatDataGB(plan.dataGB)}
-                      </span>
-                      <span className="font-mono text-xl font-black tabular-nums text-wr-accent">${plan.price.toFixed(2)}</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between text-[11px] font-mono text-wr-dim">
-                      <span>{t('destination.plan_days', { count: plan.durationDays, defaultValue: '{{count}} days' })}</span>
-                      <span className="flex items-center gap-1"><Wifi size={10} /> 3G/4G/5G</span>
-                    </div>
-                  </div>
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <h2 className="font-display text-lg font-bold tracking-tight text-current">
+                {t('destination.plans_title', 'Plans')}
+              </h2>
+              <span className="text-[11px] font-mono uppercase tracking-widest text-wr-dim">
+                {t('destination.plan_count', { count: planItems.length, defaultValue: '{{count}} plans' })}
+              </span>
+            </div>
+
+            <div className="mb-3 space-y-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-[10px] font-mono uppercase tracking-widest text-wr-dim">
+                  {t('destination.filter_data', 'Data')}
+                </span>
+                {DATA_FILTERS.map(filter => (
                   <button
-                    onClick={() => openCheckout(payload.country.code, plan)}
-                    disabled={busy}
-                    className="mt-4 flex min-h-11 items-center justify-center rounded-sm border border-wr-border py-2 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base disabled:cursor-wait disabled:opacity-60 md:min-h-0"
+                    key={filter.key}
+                    type="button"
+                    aria-pressed={dataFilter === filter.key}
+                    onClick={() => setDataFilter(filter.key)}
+                    className={`inline-flex min-h-11 items-center rounded-sm border px-2.5 py-1 text-[11px] font-mono font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0 ${dataFilter === filter.key ? 'border-wr-accent bg-wr-accent text-black' : 'border-wr-border text-wr-dim hover:border-wr-accent/60 hover:text-current'}`}
                   >
-                    {busy ? t('destination.loading_plan', 'Loading…') : t('destination.select', 'Select')}
+                    {t(filter.label, filter.fallback)}
                   </button>
-                </div>
-              );
-            })}
-          </div>
-          <Link
-            to={localePath(`/esim?c=${payload.country.code}`, lang)}
-            className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-accent transition-colors hover:text-wr-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0"
-          >
-            {t('destination.view_all', { count: payload.esim.planCount, country, defaultValue: 'View all {{count}} plans for {{country}}' })}
-            <span aria-hidden>→</span>
-          </Link>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-[10px] font-mono uppercase tracking-widest text-wr-dim">
+                  {t('destination.filter_duration', 'Duration')}
+                </span>
+                {DURATION_FILTERS.map(filter => (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    aria-pressed={durationFilter === filter.key}
+                    onClick={() => setDurationFilter(filter.key)}
+                    className={`inline-flex min-h-11 items-center rounded-sm border px-2.5 py-1 text-[11px] font-mono font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0 ${durationFilter === filter.key ? 'border-wr-accent bg-wr-accent text-black' : 'border-wr-border text-wr-dim hover:border-wr-accent/60 hover:text-current'}`}
+                  >
+                    {t(filter.label, filter.fallback)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {planItems.slice(0, visiblePlans).map(plan => {
+                const busy = selecting === plan.key;
+                return (
+                  <div key={plan.key} className="flex flex-col justify-between rounded-sm border border-wr-border bg-wr-base p-4 transition-colors hover:border-wr-accent/40">
+                    <div>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="font-mono text-2xl font-black tabular-nums text-current">
+                          {formatDataGB(plan.dataGB)}
+                        </span>
+                        <span className="font-mono text-xl font-black tabular-nums text-wr-accent">${plan.price.toFixed(2)}</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-[11px] font-mono text-wr-dim">
+                        <span>{t('destination.plan_days', { count: plan.durationDays, defaultValue: '{{count}} days' })}</span>
+                        <span className="flex items-center gap-1"><Wifi size={10} /> 3G/4G/5G</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => selectPlan(plan)}
+                      disabled={busy}
+                      className="mt-4 flex min-h-11 items-center justify-center rounded-sm border border-wr-border py-2 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base disabled:cursor-wait disabled:opacity-60 md:min-h-0"
+                    >
+                      {busy ? t('destination.loading_plan', 'Loading…') : t('destination.select', 'Select')}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {planItems.length === 0 && (
+              <p className="rounded-sm border border-wr-border bg-wr-base/50 px-4 py-6 text-center text-xs text-wr-dim">
+                {t('destination.no_plan_match', 'No plans match these filters.')}
+              </p>
+            )}
+
+            {visiblePlans < planItems.length && (
+              <div className="mt-3 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setVisiblePlans(value => value + PLAN_PAGE_SIZE)}
+                  className="min-h-11 rounded-sm border border-wr-border px-6 py-2.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0"
+                >
+                  {t('destination.show_more', 'Show more')} ({planItems.length - visiblePlans})
+                </button>
+              </div>
+            )}
+
+            <Link
+              to={localePath(`/esim?c=${payload.country.code}`, lang)}
+              className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-accent transition-colors hover:text-wr-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0"
+            >
+              {t('destination.view_all', { count: planItems.length, country, defaultValue: 'View all {{count}} plans for {{country}}' })}
+              <span aria-hidden>→</span>
+            </Link>
 
         {/* FAQ */}
         <section className="mt-10">

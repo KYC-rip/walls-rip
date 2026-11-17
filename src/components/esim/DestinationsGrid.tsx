@@ -1,14 +1,18 @@
+import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { localePath, resolveLang } from '../../utils/localePath';
 import { countryMatches, countrySearchRank } from '../../utils/countryAliases';
+import { compareDestinations } from '../../utils/popularDestinations';
 
 export interface Destination {
   code: string;
   name: string;
   /** API-owned country slug; absent on rows built before the v3 index. */
   slug?: string;
+  /** 'region' for multi-area bundles ("Asia (12 areas)"); country rows omit it. */
+  kind?: 'region';
   fromUsd: number;
   planCount: number;
   /** False when a provider covers the country but cannot report a full plan list. */
@@ -28,6 +32,18 @@ interface DestinationsGridProps {
 
 const matches = (query: string, code: string, name: string) => countryMatches(query, code, name);
 
+/** Storefront order matches the SimJuno reference: Popular (curated) | A–Z. */
+type SortMode = 'popular' | 'az';
+const SORT_KEY = 'walls_dest_sort';
+
+function readSortMode(): SortMode {
+  try {
+    return localStorage.getItem(SORT_KEY) === 'az' ? 'az' : 'popular';
+  } catch {
+    return 'popular';
+  }
+}
+
 export function DestinationsGrid({
   destinations,
   fallbackCountries,
@@ -38,14 +54,25 @@ export function DestinationsGrid({
 }: DestinationsGridProps) {
   const { t, i18n } = useTranslation();
   const lang = resolveLang(i18n.language);
+  const [sortMode, setSortMode] = useState<SortMode>(readSortMode);
+
+  const changeSort = (mode: SortMode) => {
+    setSortMode(mode);
+    try { localStorage.setItem(SORT_KEY, mode); } catch { /* private mode */ }
+  };
 
   type Card = { code: string; name: string; slug?: string; fromUsd: number | null; planCount: number | null; countComplete?: boolean };
   const priced = destinations.length > 0;
+  // The country grid stays countries: multi-area bundles are linked from the
+  // Regional tab (and have their own /destination/<slug> pages).
+  const countriesOnly = destinations.filter(d => d.kind !== 'region' && !/-AREAS$/i.test(d.code));
   const items: Card[] = (priced
-    ? destinations
+    ? countriesOnly
     : fallbackCountries.map(c => ({ code: c.code, name: c.name, fromUsd: null, planCount: null }))
   ).filter(item => matches(search, item.code, item.name))
-    .sort((a, b) => countrySearchRank(search, a.code, a.name) - countrySearchRank(search, b.code, b.name));
+    // Relevance first while searching, then the chosen storefront order.
+    .sort((a, b) => countrySearchRank(search, a.code, a.name) - countrySearchRank(search, b.code, b.name)
+      || (sortMode === 'az' ? a.name.localeCompare(b.name) : compareDestinations(a, b)));
 
   return (
     <div className="space-y-4">
@@ -59,6 +86,23 @@ export function DestinationsGrid({
           aria-label={t('esim.destination_search', 'Where are you traveling?')}
           className="min-h-12 w-full rounded-sm border border-wr-border bg-wr-base py-3 pl-10 pr-3 font-mono text-base text-current outline-none transition-colors placeholder-wr-dim/50 focus:border-wr-accent md:text-sm"
         />
+      </div>
+
+      <div className="flex items-center justify-end gap-2">
+        <span className="text-[11px] font-mono uppercase tracking-widest text-wr-dim">
+          {t('esim.sort_by', 'Sort')}
+        </span>
+        {(['popular', 'az'] as SortMode[]).map(mode => (
+          <button
+            key={mode}
+            type="button"
+            aria-pressed={sortMode === mode}
+            onClick={() => changeSort(mode)}
+            className={`inline-flex min-h-11 items-center rounded-sm border px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0 ${sortMode === mode ? 'border-wr-accent bg-wr-accent text-black' : 'border-wr-border text-wr-dim hover:border-wr-accent/60 hover:text-current'}`}
+          >
+            {mode === 'popular' ? t('esim.sort_popular', 'Popular') : t('esim.sort_az', 'A–Z')}
+          </button>
+        ))}
       </div>
 
       {loading ? (

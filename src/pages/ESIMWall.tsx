@@ -3,7 +3,7 @@ import { Smartphone, Globe, Search, Copy, Check, RefreshCw, AlertTriangle, Chevr
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { REGION_I18N_KEYS } from '../config/regions';
 import { WalletBanner } from '../components/WalletBanner';
@@ -11,9 +11,11 @@ import { Footer } from '../components/Footer';
 import { SEO } from '../components/SEO';
 import { apiClient } from '../services/client';
 import { countryMatches, countrySearchRank } from '../utils/countryAliases';
+import { compareDestinations } from '../utils/popularDestinations';
 import { PaymentGate } from '../components/PaymentGate';
 import { DestinationsGrid, type Destination } from '../components/esim/DestinationsGrid';
 import { formatDataGB } from '../utils/format';
+import { localePath, resolveLang } from '../utils/localePath';
 import { ESIMCheckoutModal, ESIM_WALLET_KEY } from '../components/esim/ESIMCheckoutModal';
 
 // ─── Types ───
@@ -305,7 +307,8 @@ function PlanCard({ plan, isCheapest, onSelect }: { plan: ComparePlan; isCheapes
 }
 
 export function ESIMWall() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = resolveLang(i18n.language);
   const initial = useMemo(getInitialParams, []);
   const [countries, setCountries] = useState<MergedCountry[]>([]);
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -563,11 +566,23 @@ export function ESIMWall() {
 
   // ─── Derived ───
 
+  // Multi-area packages ("Asia (12 areas)") have their own destination pages;
+  // the API owns the registry (their plans never appear in the country index).
+  const [regionBundles, setRegionBundles] = useState<Array<{ code: string; name: string; slug: string; areas: number | null }>>([]);
+  useEffect(() => {
+    let cancelled = false;
+    apiClient<{ bundles?: Array<{ code: string; name: string; slug: string; areas: number | null }> }>('/v1/tools/esim/region-bundles')
+      .then(res => { if (!cancelled && Array.isArray(res?.bundles)) setRegionBundles(res.bundles); })
+      .catch(() => { /* the Regional tab still works without the bundle list */ });
+    return () => { cancelled = true; };
+  }, []);
+
   const filteredCountries = useMemo(() => {
     return countries
       .filter(c => isSingleCountryPlan(c.code)) // Only show single-country entries in Country tab
       .filter(c => countryMatches(countrySearch, c.code, c.name))
-      .sort((a, b) => countrySearchRank(countrySearch, a.code, a.name) - countrySearchRank(countrySearch, b.code, b.name))
+      .sort((a, b) => countrySearchRank(countrySearch, a.code, a.name) - countrySearchRank(countrySearch, b.code, b.name)
+        || compareDestinations(a, b))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [countries, countrySearch]);
 
@@ -1192,6 +1207,28 @@ export function ESIMWall() {
                                 </button>
                               );
                             })}
+                          </div>
+                        )}
+
+                        {regionBundles.length > 0 && (
+                          <div className="space-y-2 pt-2">
+                            <label className="flex items-center gap-2 text-xs text-wr-dim uppercase tracking-widest font-bold">
+                              <Globe size={12} className="text-wr-accent" /> {t('esim.regional_packages', 'Regional & global packages')}
+                            </label>
+                            <div className="flex flex-col gap-1">
+                              {regionBundles.map(bundle => (
+                                <Link
+                                  key={bundle.code}
+                                  to={localePath(`/destination/${bundle.slug}`, lang)}
+                                  className="min-h-11 rounded-sm border border-wr-border bg-wr-base p-3 text-left transition-colors hover:border-wr-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base"
+                                >
+                                  <div className="text-[11px] font-mono font-bold uppercase tracking-widest text-current">{bundle.name}</div>
+                                  <div className="mt-0.5 text-[11px] font-mono text-wr-dim">
+                                    {t('esim.view_bundle_plans', 'View plans')} <span aria-hidden>→</span>
+                                  </div>
+                                </Link>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>

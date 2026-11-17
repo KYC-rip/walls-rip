@@ -313,9 +313,12 @@ async function writeRedirectMap(selected, belowThreshold) {
   }
   for (const { payload } of belowThreshold) {
     const { code, slug } = payload.country;
-    map[slug] = `/esim?c=${code}`;
-    map[code] = `/esim?c=${code}`;
-    map[code.toLowerCase()] = `/esim?c=${code}`;
+    // A multi-area bundle has no country tab to preselect; send it to the
+    // regional browser instead of an empty /esim?c=CODE.
+    const target = /^[A-Z0-9-]+-AREAS$/i.test(code) ? '/esim?t=regional' : `/esim?c=${code}`;
+    map[slug] = target;
+    map[code] = target;
+    map[code.toLowerCase()] = target;
   }
   await writeFile(join(DIST, 'destination-redirects.json'), JSON.stringify(map));
   // A previous run's _redirects is inert behind the catch-all Function.
@@ -335,6 +338,17 @@ async function main() {
   if (rows.length === 0) {
     warn('destination index is empty — writing no destination pages');
     return;
+  }
+
+  // Multi-area bundles are destinations too, but they never appear in the
+  // country index (their plans carry a real ISO country). Probe the registry.
+  try {
+    const bundles = await getJson('/v1/tools/esim/region-bundles');
+    for (const bundle of bundles.bundles || []) {
+      if (bundle?.slug && /^[a-z0-9-]+$/.test(bundle.slug)) rows.push({ code: bundle.code, name: bundle.name, slug: bundle.slug });
+    }
+  } catch (error) {
+    warn(`region-bundle registry unavailable (${error.message}) — country pages only`);
   }
 
   const probe = async row => {
