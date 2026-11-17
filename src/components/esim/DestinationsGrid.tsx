@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Globe, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -37,6 +37,8 @@ const matches = (query: string, code: string, name: string) => countryMatches(qu
 /** Storefront order matches the SimJuno reference: Popular (curated) | A–Z. */
 type SortMode = 'popular' | 'az';
 const SORT_KEY = 'walls_dest_sort';
+/** Countries rendered before the first "Show more" — 208 cards is a lot. */
+const PAGE_SIZE = 24;
 
 function readSortMode(): SortMode {
   try {
@@ -58,11 +60,15 @@ export function DestinationsGrid({
   const { t, i18n } = useTranslation();
   const lang = resolveLang(i18n.language);
   const [sortMode, setSortMode] = useState<SortMode>(readSortMode);
+  const [visible, setVisible] = useState(PAGE_SIZE);
 
   const changeSort = (mode: SortMode) => {
     setSortMode(mode);
     try { localStorage.setItem(SORT_KEY, mode); } catch { /* private mode */ }
   };
+
+  // A new search or order is a new list: fold it back to the first page.
+  useEffect(() => { setVisible(PAGE_SIZE); }, [search, sortMode]);
 
   type Card = { code: string; name: string; slug?: string; fromUsd: number | null; planCount: number | null; countComplete?: boolean };
   const priced = destinations.length > 0;
@@ -130,8 +136,9 @@ export function DestinationsGrid({
           ))}
         </div>
       ) : items.length > 0 ? (
+        <>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3 xl:grid-cols-4">
-          {items.map(item => {
+          {items.slice(0, visible).map(item => {
             const code = item.code;
             const name = item.name;
             const from = item.fromUsd;
@@ -184,6 +191,18 @@ export function DestinationsGrid({
             );
           })}
         </div>
+        {visible < items.length && (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => setVisible(value => value + PAGE_SIZE)}
+              className="min-h-11 rounded-sm border border-wr-border px-6 py-2.5 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base md:min-h-0"
+            >
+              {t('esim.show_more', 'Show More')} ({items.length - visible} {t('esim.remaining', 'remaining')})
+            </button>
+          </div>
+        )}
+        </>
       ) : (
         <div className="rounded-sm border border-wr-border bg-wr-base/50 px-4 py-6 text-center text-xs text-wr-dim">
           {t('esim.no_countries', 'No destinations match this search.')}
