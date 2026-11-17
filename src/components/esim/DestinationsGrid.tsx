@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Globe, Search } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { localePath, resolveLang } from '../../utils/localePath';
@@ -25,8 +25,8 @@ interface DestinationsGridProps {
   destinations: Destination[];
   fallbackCountries: FallbackCountry[];
   loading: boolean;
+  /** Query from the page hero; the grid has no input of its own. */
   search: string;
-  onSearch: (value: string) => void;
   onSelect: (code: string) => void;
   /** Jump to the Regional tab (regions + multi-area bundles). Optional. */
   onOpenRegions?: () => void;
@@ -53,7 +53,6 @@ export function DestinationsGrid({
   fallbackCountries,
   loading,
   search,
-  onSearch,
   onSelect,
   onOpenRegions,
 }: DestinationsGridProps) {
@@ -85,20 +84,9 @@ export function DestinationsGrid({
 
   return (
     <div className="space-y-4">
-      {/* One toolbar row: search, the regions entrance, then the order toggle. */}
+      {/* Toolbar row: the regions entrance on the left, the order toggle right.
+          The search lives in the page hero (one input, one state). */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-        <div className="relative w-full md:max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
-          <input
-            type="search"
-            value={search}
-            onChange={e => onSearch(e.target.value)}
-            placeholder={t('esim.destination_search', 'Where are you traveling?')}
-            aria-label={t('esim.destination_search', 'Where are you traveling?')}
-            className="min-h-12 w-full rounded-sm border border-wr-border bg-wr-base py-3 pl-10 pr-3 font-mono text-base text-current outline-none transition-colors placeholder-wr-dim/50 focus:border-wr-accent md:text-sm"
-          />
-        </div>
-
         {onOpenRegions && (
           <button
             type="button"

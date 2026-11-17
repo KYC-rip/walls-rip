@@ -986,7 +986,7 @@ export function ESIMWall() {
                 <p className="mt-2 max-w-2xl text-sm text-wr-dim">
                   {t('esim.what', 'A prepaid data plan for one country, delivered as a QR code. No account, no ID — compare every provider in one list.')}
                 </p>
-                {!notConfigured && (
+                {!notConfigured && activeTab === 'country' && (
                   <div className="relative mt-4 max-w-md">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-wr-dim" />
                     <input
@@ -1215,7 +1215,6 @@ export function ESIMWall() {
                           fallbackCountries={countries}
                           loading={destinationsLoading}
                           search={countrySearch}
-                          onSearch={setCountrySearch}
                           onSelect={(code) => { setSelectedCountry(code); scrollToPlans(); }}
                           onOpenRegions={() => setActiveTab('regional')}
                         />
