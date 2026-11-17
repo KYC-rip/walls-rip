@@ -161,7 +161,7 @@ export function ESIMCheckoutModal({
           </div>
         </div>
 
-        <div className="p-4 md:p-6 space-y-5">
+        <div className={`p-4 md:p-6 ${inline ? 'flex flex-col gap-4' : 'space-y-5'}`}>
 
           {/* ═══ STEP: DETAILS ═══ */}
           {step === 'details' && (
@@ -279,7 +279,7 @@ export function ESIMCheckoutModal({
 
               {/* Balance + confirm stay pinned at the bottom of the panel so the
                   primary action is always visible while the details scroll. */}
-              <div className={inline ? 'sticky bottom-0 -mx-4 md:-mx-6 border-t border-wr-border bg-wr-base px-4 pb-3 pt-3 md:px-6' : ''}>
+              <div className={inline ? 'order-first sticky top-0 z-10 -mx-4 md:-mx-6 border-b border-wr-border bg-wr-base px-4 py-3 md:px-6' : ''}>
                 {walletToken && (
                   <div className={`flex items-center gap-2 text-xs ${inline ? '' : 'border-t border-wr-border/30 pt-4'}`}>
                     <Wallet size={12} className="text-wr-accent" />
