@@ -166,28 +166,39 @@ export function CommandPalette() {
 
     if (!query.trim()) {
       return [
-        { group: 'products' as Group, items: products, total: products.length },
-        { group: 'regions' as Group, items: regions, total: regions.length },
+        { group: 'products' as Group, items: products, total: products.length, best: 0 },
+        { group: 'regions' as Group, items: regions, total: regions.length, best: 0 },
       ];
     }
 
+    // The hint is only useful for matching when it adds information (an ISO
+    // code); duplicating the label would lower an exact match's score.
+    const searchText = (item: Item) => item.hint && item.hint !== item.label
+      ? `${item.label} ${item.hint}`
+      : item.label;
     const scored = [...products, ...destinations, ...regions, ...proxyCountries]
-      .map(item => ({ item, score: matchScore(query, `${item.label} ${item.hint || ''}`) }))
+      .map(item => ({ item, score: matchScore(query, searchText(item)) }))
       .filter((entry): entry is { item: Item; score: number } => entry.score != null)
       .sort((a, b) => b.score - a.score || a.item.label.localeCompare(b.item.label));
 
     const byGroup: Record<Group, Item[]> = { products: [], destinations: [], regions: [], proxy: [] };
     const totals: Record<Group, number> = { products: 0, destinations: 0, regions: 0, proxy: 0 };
-    for (const { item } of scored) {
+    const best: Record<Group, number> = { products: 0, destinations: 0, regions: 0, proxy: 0 };
+    for (const { item, score } of scored) {
       totals[item.group] += 1;
+      best[item.group] = Math.max(best[item.group], score);
       if (byGroup[item.group].length < GROUP_LIMIT) byGroup[item.group].push(item);
     }
+    // When searching, the strongest group comes first so Enter selects the
+    // best match rather than whatever happens to be first in group order.
     return GROUP_ORDER
-      .map(group => ({ group, items: byGroup[group], total: totals[group] }))
-      .filter(entry => entry.items.length > 0);
+      .map(group => ({ group, items: byGroup[group], total: totals[group], best: best[group] }))
+      .filter(entry => entry.items.length > 0)
+      .sort((a, b) => b.best - a.best);
   }, [query, t, destinations, proxyCountries]);
 
   const flat = useMemo(() => groups.flatMap(entry => entry.items), [groups]);
+  const indexById = useMemo(() => new Map(flat.map((item, index) => [item.id, index])), [flat]);
 
   useEffect(() => {
     setActive(current => (flat.length === 0 ? 0 : Math.min(current, flat.length - 1)));
@@ -248,13 +259,14 @@ export function CommandPalette() {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/60 px-3 pt-[10vh] backdrop-blur-sm"
+      className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/60 px-3 pt-[10vh] backdrop-blur-sm"
       onMouseDown={event => { if (event.target === event.currentTarget) close(); }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={t('command.title', 'Search walls.rip')}
+        onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); close(); } }}
         className="mb-10 w-full max-w-xl overflow-hidden rounded-sm border border-wr-border bg-wr-base shadow-2xl"
       >
         <div className="flex items-center gap-2 border-b border-wr-border px-3">
@@ -285,7 +297,7 @@ export function CommandPalette() {
                 {entry.total > entry.items.length && <span>{entry.items.length}/{entry.total}</span>}
               </div>
               {entry.items.map(item => {
-                const index = flat.indexOf(item);
+                const index = indexById.get(item.id) ?? -1;
                 const selected = index === active;
                 return (
                   <div
@@ -294,7 +306,7 @@ export function CommandPalette() {
                     role="option"
                     aria-selected={selected}
                     onMouseDown={event => event.preventDefault()}
-                    onMouseEnter={() => setActive(index)}
+                    onMouseMove={() => { if (!selected) setActive(index); }}
                     onClick={() => select(item)}
                     className={`flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-sm px-3 py-2 text-left text-sm transition-colors ${selected ? 'bg-wr-accent/10 text-wr-accent' : 'text-current hover:bg-wr-surface'}`}
                   >

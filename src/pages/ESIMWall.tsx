@@ -3,6 +3,7 @@ import { Smartphone, Globe, Search, Copy, Check, RefreshCw, AlertTriangle, Chevr
 import { toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { REGION_I18N_KEYS } from '../config/regions';
 import { WalletBanner } from '../components/WalletBanner';
@@ -335,6 +336,21 @@ export function ESIMWall() {
     _setActiveTab(t);
     updateUrlParams(t, t === 'country' ? selectedCountry : '', '');
   }, [selectedCountry]);
+  // Same-page query navigation (command palette, shared links, back/forward)
+  // must update the view without remounting the page.
+  const location = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (!params.has('t') && !params.has('c') && !params.has('r')) return;
+    const tab = params.get('t');
+    const nextTab: BrowseTab = (['country', 'regional', 'global'] as BrowseTab[]).includes(tab as BrowseTab)
+      ? tab as BrowseTab
+      : 'country';
+    _setActiveTab(nextTab);
+    _setSelectedCountry((params.get('c') || '').toUpperCase());
+    const region = params.get('r') || '';
+    _setSelectedRegion(CONTINENT_REGION[region] || region);
+  }, [location.search]);
   const [allPlans, setAllPlans] = useState<ComparePlan[]>([]);
   const [loadingAllPlans, setLoadingAllPlans] = useState(false);
   const PLANS_PER_PAGE = 12;
