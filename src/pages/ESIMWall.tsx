@@ -514,10 +514,10 @@ export function ESIMWall() {
 
   // ─── Actions ───
 
-  const executePurchase = async (planId: string, token: string, engine: string | undefined, country: string | undefined, clientRef: string) => {
+  const executePurchase = async (planId: string, token: string, engine: string | undefined, country: string | undefined, clientRef: string, opts?: { activationDate?: string }) => {
     const data = await apiClient<PurchaseResult>('/v1/tools/esim/purchase', {
       method: 'POST',
-      body: { planId, token, engine, country: country || selectedCountry || undefined, clientRef },
+      body: { planId, token, engine, country: country || selectedCountry || undefined, clientRef, ...(opts?.activationDate ? { activationDate: opts.activationDate } : {}) },
     });
     if (data.orderId) {
       setPurchase(data);
@@ -1535,7 +1535,7 @@ export function ESIMWall() {
             localStorage.setItem(WALLET_KEY, token);
           }}
           onDeposit={handlePaymentDeposit}
-          purchase={(token, clientRef) => executePurchase(selectedPlanDetail.id, token, selectedPlanDetail.engine, selectedPlanDetail.country, clientRef)}
+          purchase={(token, clientRef, opts) => executePurchase(selectedPlanDetail.id, token, selectedPlanDetail.engine, selectedPlanDetail.country, clientRef, opts)}
         />
       )}
 

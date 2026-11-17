@@ -713,7 +713,10 @@
     "check_compatibility": "Check device compatibility",
     "compat_1": "The phone must have eSIM support (iPhone XS or newer, most recent Android flagships).",
     "compat_2": "It must be carrier-unlocked and not tied to another eSIM profile.",
-    "compat_3": "An eSIM profile can only be installed on one device, once."
+    "compat_3": "An eSIM profile can only be installed on one device, once.",
+    "activation_date": "Start date",
+    "activation_date_hint": "Choose a date 2–60 days ahead. The plan activates on that day.",
+    "non_refundable_notice": "This plan cannot be cancelled or refunded once purchased, even if it is never installed."
   },
   "network": {
     "nav_overview": "Network overview",

@@ -23,6 +23,10 @@ export interface ESIMCheckoutPlan {
   currency?: string;
   engine: string;
   coverage?: ESIMCoverageEntry[];
+  /** Provider will not cancel or refund this plan once purchased. */
+  nonRefundable?: boolean;
+  /** The order must book a start date (YYYY-MM-DD, 2–60 days ahead). */
+  requiresActivationDate?: boolean;
 }
 
 export interface ESIMCheckoutResult {
@@ -48,7 +52,7 @@ interface ESIMCheckoutModalProps {
   /** Authoritative purchase call. Must resolve only after the provider accepted.
    *  `clientRef` is stable for this checkout (retries reuse it) so a held or
    *  double-submitted purchase cannot become a second provider order. */
-  purchase: (token: string, clientRef: string) => Promise<ESIMCheckoutResult>;
+  purchase: (token: string, clientRef: string, opts?: { activationDate?: string }) => Promise<ESIMCheckoutResult>;
   /**
    * `modal` (default) is the overlay used by /esim. `inline` renders the same
    * panel without the overlay so a destination page can pin it in its sticky
@@ -85,6 +89,7 @@ export function ESIMCheckoutModal({
   // Inline (rail) checkouts ask the buyer to confirm eSIM readiness first, the
   // way the reference storefront does. The modal keeps its single-click flow.
   const [deviceReady, setDeviceReady] = useState(false);
+  const [activationDate, setActivationDate] = useState('');
   useEffect(() => { setDeviceReady(false); }, [plan.id]);
   // One purchase at a time. PaymentGate polls every 3s (a slow check can
   // overlap) and a double-click can land before the re-render; both used to
@@ -97,6 +102,14 @@ export function ESIMCheckoutModal({
   useEffect(() => { clientRef.current = crypto.randomUUID(); }, [plan.id]);
 
   const hasSufficientBalance = walletToken !== null && balanceUSD >= plan.price;
+  // Country plans that book a start date need a valid future date first.
+  const activationBounds = (() => {
+    const day = 86400000;
+    const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+    return { min: iso(Date.now() + 2 * day), max: iso(Date.now() + 60 * day) };
+  })();
+  const activationReady = !plan.requiresActivationDate
+    || (!!activationDate && activationDate >= activationBounds.min && activationDate <= activationBounds.max);
   const modalMaxW = step === 'details' ? 'max-w-lg' : 'max-w-xl';
 
   const copyText = (text: string) => {
@@ -109,7 +122,8 @@ export function ESIMCheckoutModal({
   const purchaseOnce = useCallback(async (token: string) => {
     setStep('purchasing');
     try {
-      const next = await purchase(token, clientRef.current);
+      const next = await purchase(token, clientRef.current,
+        activationDate ? { activationDate } : undefined);
       setResult(next);
       setStep('success');
     } catch (e: unknown) {
@@ -292,6 +306,32 @@ export function ESIMCheckoutModal({
                 </ul>
               </div>
 
+              {plan.requiresActivationDate && (
+                <label className="flex flex-col gap-1 text-xs text-wr-dim">
+                  <span className="font-mono uppercase tracking-widest text-[11px]">
+                    {t('esim.activation_date', 'Start date')}
+                  </span>
+                  <input
+                    type="date"
+                    value={activationDate}
+                    min={activationBounds.min}
+                    max={activationBounds.max}
+                    onChange={e => setActivationDate(e.target.value)}
+                    className="min-h-11 rounded-sm border border-wr-border bg-wr-base px-3 py-2 text-sm text-current outline-none focus:border-wr-accent"
+                  />
+                  <span className="text-[11px]">
+                    {t('esim.activation_date_hint', 'Choose a date 2–60 days ahead. The plan activates on that day.')}
+                  </span>
+                </label>
+              )}
+
+              {plan.nonRefundable && (
+                <div className="flex items-start gap-2 rounded-sm border border-wr-warning/40 bg-wr-warning/10 p-3 text-xs text-wr-dim">
+                  <AlertTriangle size={12} className="mt-0.5 shrink-0 text-wr-warning" />
+                  <span>{t('esim.non_refundable_notice', 'This plan cannot be cancelled or refunded once purchased, even if it is never installed.')}</span>
+                </div>
+              )}
+
               {/* Balance + confirm stay pinned at the bottom of the panel so the
                   primary action is always visible while the details scroll. */}
               <div className={inline ? 'sticky bottom-0 z-10 -mx-4 md:-mx-6 border-t border-wr-border bg-wr-base px-4 pb-3 pt-3 md:px-6' : ''}>
@@ -344,7 +384,7 @@ export function ESIMCheckoutModal({
                       </button>
                       <button
                         onClick={() => buyWithBalance(walletToken)}
-                        disabled={inline && !deviceReady}
+                        disabled={(inline && !deviceReady) || !activationReady}
                         className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-sm bg-wr-accent py-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-wr-accent/90 disabled:cursor-not-allowed disabled:bg-wr-accent/40 disabled:text-black/60"
                       >
                         <Check size={14} /> {t('esim.detail_confirm_purchase')}

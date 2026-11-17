@@ -14,11 +14,19 @@ import { PaymentGate } from '../components/PaymentGate';
 
 const displayOrderId = (id: string): string => (id.includes(':') ? id.split(':').slice(1).join(':') : id);
 
+/** Provider voice/SMS allowances: null = included, -1 = unlimited. */
+const allowance = (value: number | null | undefined, unit?: string): string => {
+  if (value == null) return '✓';
+  if (value < 0) return '∞';
+  return unit ? `${value} ${unit}` : String(value);
+};
+
 // ─── Types ───
 interface PhonePlan {
   id: string; name: string; country: string; dataGB: number;
   durationDays: number; price: number; currency: string; engine: string;
   planType?: 'data' | 'phone'; hasVoice?: boolean; hasSms?: boolean;
+  nonRefundable?: boolean; requiresActivationDate?: boolean;
   voiceMinutes?: number; smsCount?: number;
   coverageCount?: number;
 }
@@ -73,6 +81,7 @@ export default function PhoneWall() {
   const [selected, setSelected] = useState<PhonePlan | null>(null);
   const [modalStep, setModalStep] = useState<'details' | 'purchasing' | 'success' | 'error'>('details');
   const [modalError, setModalError] = useState('');
+  const [activationDate, setActivationDate] = useState('');
 
   const [purchase, setPurchase] = useState<PurchaseResult | null>(null);
   const [profileData, setProfileData] = useState<ProfileResult | null>(null);
@@ -126,9 +135,9 @@ export default function PhoneWall() {
   };
 
   // ─── Purchase flow (reuses eSIM lifecycle — same packageCode) ───
-  const executePurchase = async (planId: string, token: string, engine?: string, country?: string) => {
+  const executePurchase = async (planId: string, token: string, engine?: string, country?: string, activation?: string) => {
     const data = await apiClient<PurchaseResult>('/v1/tools/esim/purchase', {
-      method: 'POST', body: { planId, token, engine, country },
+      method: 'POST', body: { planId, token, engine, country, ...(activation ? { activationDate: activation } : {}) },
     });
     if (!data.orderId) throw new Error('Purchase failed — no order ID returned');
     setPurchase(data); setBalanceUSD(data.balanceUSD); setStep('PURCHASED');
@@ -151,7 +160,7 @@ export default function PhoneWall() {
   const handleModalPurchase = async (plan: PhonePlan) => {
     if (!walletToken || balanceUSD < plan.price) return;
     setModalStep('purchasing');
-    try { await executePurchase(plan.id, walletToken, plan.engine, plan.country); setModalStep('success'); }
+    try { await executePurchase(plan.id, walletToken, plan.engine, plan.country, activationDate || undefined); setModalStep('success'); }
     catch (e: any) { setModalStep('error'); setModalError(e?.message || 'Purchase failed'); }
   };
 
@@ -162,14 +171,14 @@ export default function PhoneWall() {
     if (token) {
       try { const d = await apiClient<{ balanceUSD: number }>(`/v1/tools/esim/balance?token=${token}`); setBalanceUSD(d.balanceUSD); } catch { /* optimistic */ }
       setModalStep('purchasing');
-      try { await executePurchase(auto.planId, token, auto.engine, auto.country); setModalStep('success'); }
+      try { await executePurchase(auto.planId, token, auto.engine, auto.country, activationDate || undefined); setModalStep('success'); }
       catch { setModalStep('error'); setModalError('Purchase failed after payment'); }
     }
   };
 
   const copy = (text: string, key: string) => { navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 2000); };
 
-  const openPlan = (p: PhonePlan) => { setSelected(p); setModalStep('details'); setModalError(''); };
+  const openPlan = (p: PhonePlan) => { setSelected(p); setModalStep('details'); setModalError(''); setActivationDate(''); };
   const closeModal = () => { setSelected(null); setModalStep('details'); };
   const reset = () => {
     setPurchase(null); setProfileData(null); setStep('SELECT');
@@ -194,6 +203,13 @@ export default function PhoneWall() {
 
   const visible = plans.filter((p) => p.country === region);
   const hasBalance = !!selected && !!walletToken && balanceUSD >= selected.price;
+  const activationBounds = (() => {
+    const day = 86400000;
+    const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+    return { min: iso(Date.now() + 2 * day), max: iso(Date.now() + 60 * day) };
+  })();
+  const activationReady = !selected?.requiresActivationDate
+    || (!!activationDate && activationDate >= activationBounds.min && activationDate <= activationBounds.max);
   const qrValue = profileData?.qrCode || profileData?.activationUrl || '';
 
   return (
@@ -320,11 +336,11 @@ export default function PhoneWall() {
                       <div className="mt-3 space-y-1.5 border-t border-wr-border/60 pt-3 text-[11px] font-mono">
                         <div className="flex items-center justify-between gap-2 text-wr-dim">
                           <span className="inline-flex items-center gap-1.5"><PhoneCall size={11} className="text-wr-secondary" /> {t('phone.voice', 'Voice')}</span>
-                          <span className="text-current tabular-nums">{p.voiceMinutes != null ? `${p.voiceMinutes} min` : '✓'}</span>
+                          <span className="text-current tabular-nums">{allowance(p.voiceMinutes, 'min')}</span>
                         </div>
                         <div className="flex items-center justify-between gap-2 text-wr-dim">
                           <span className="inline-flex items-center gap-1.5"><MessageSquare size={11} className="text-wr-info" /> {t('phone.tag_sms', 'SMS')}</span>
-                          <span className="text-current tabular-nums">{p.smsCount != null ? `${p.smsCount}` : '✓'}</span>
+                          <span className="text-current tabular-nums">{allowance(p.smsCount)}</span>
                         </div>
                         <div className="flex items-center justify-between gap-2 text-wr-dim">
                           <span className="inline-flex items-center gap-1.5"><Database size={11} className="text-wr-accent" /> {t('phone.data', 'Data')}</span>
@@ -350,7 +366,7 @@ export default function PhoneWall() {
         <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm p-0 md:p-4" onClick={closeModal}>
           <div className="bg-wr-base border border-wr-border rounded-t-lg md:rounded-lg w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-wr-base border-b border-wr-border px-5 py-4 flex items-center justify-between z-10">
-              <div className="flex items-center gap-2 text-sm font-bold"><Phone size={16} className="text-wr-accent" /> {selected.country === 'US' ? '🇺🇸 US' : '🌐 Global'} {t('phone.plan', 'Phone Plan')}</div>
+              <div className="flex items-center gap-2 text-sm font-bold"><Phone size={16} className="text-wr-accent" /> {/^[A-Z]{2}$/.test(selected.country) ? <>{flagOf(selected.country)} {selected.country}</> : <>{'🌐'} {selected.country}</>} {t('phone.plan', 'Phone Plan')}</div>
               <button onClick={closeModal} className="text-wr-dim hover:text-current"><X size={18} /></button>
             </div>
 
@@ -363,14 +379,36 @@ export default function PhoneWall() {
                     <div className="bg-wr-base border border-wr-border rounded-sm py-3 px-2"><div className="text-lg font-black tabular-nums text-wr-accent">${selected.price.toFixed(2)}</div><div className="text-[11px] font-mono text-wr-dim uppercase tracking-[0.14em]">{t('phone.price', 'Price')}</div></div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-wr-secondary/5 border border-wr-secondary/20 rounded-sm py-2.5 px-1"><div className="text-sm font-black text-wr-secondary inline-flex items-center gap-1 tabular-nums"><PhoneCall size={13} /> {selected.voiceMinutes != null ? selected.voiceMinutes : '✓'}</div><div className="text-[11px] font-mono text-wr-dim uppercase tracking-[0.14em]">{selected.voiceMinutes != null ? t('phone.voice_min', 'Voice min') : t('phone.voice', 'Voice')}</div></div>
-                    <div className="bg-wr-info/5 border border-wr-info/20 rounded-sm py-2.5 px-1"><div className="text-sm font-black text-wr-info inline-flex items-center gap-1 tabular-nums"><MessageSquare size={13} /> {selected.smsCount != null ? selected.smsCount : '✓'}</div><div className="text-[11px] font-mono text-wr-dim uppercase tracking-[0.14em]">{selected.smsCount != null ? t('phone.texts', 'Texts') : 'SMS'}</div></div>
+                    <div className="bg-wr-secondary/5 border border-wr-secondary/20 rounded-sm py-2.5 px-1"><div className="text-sm font-black text-wr-secondary inline-flex items-center gap-1 tabular-nums"><PhoneCall size={13} /> {allowance(selected.voiceMinutes)}</div><div className="text-[11px] font-mono text-wr-dim uppercase tracking-[0.14em]">{selected.voiceMinutes != null ? t('phone.voice_min', 'Voice min') : t('phone.voice', 'Voice')}</div></div>
+                    <div className="bg-wr-info/5 border border-wr-info/20 rounded-sm py-2.5 px-1"><div className="text-sm font-black text-wr-info inline-flex items-center gap-1 tabular-nums"><MessageSquare size={13} /> {allowance(selected.smsCount)}</div><div className="text-[11px] font-mono text-wr-dim uppercase tracking-[0.14em]">{selected.smsCount != null ? t('phone.texts', 'Texts') : 'SMS'}</div></div>
                     <div className="bg-wr-accent/5 border border-wr-accent/20 rounded-sm py-2.5 px-1"><div className="text-sm font-black text-wr-accent inline-flex items-center gap-1"><Phone size={13} /> ✓</div><div className="text-[11px] font-mono text-wr-dim uppercase tracking-[0.14em]">{t('phone.number', 'Number')}</div></div>
                   </div>
                   <div className="flex items-start gap-2 text-[11px] text-wr-dim bg-wr-warning/5 border border-wr-warning/25 rounded-sm p-3">
                     <AlertTriangle size={14} className="text-wr-warning shrink-0 mt-0.5" />
                     <span>{t('phone.number_notice', 'The phone number is assigned automatically after you activate the eSIM on your device. Voice + SMS + data are included for the plan duration.')}</span>
                   </div>
+
+                  {selected.requiresActivationDate && (
+                    <label className="flex flex-col gap-1 text-xs text-wr-dim">
+                      <span className="font-mono uppercase tracking-widest text-[11px]">{t('esim.activation_date', 'Start date')}</span>
+                      <input
+                        type="date"
+                        value={activationDate}
+                        min={activationBounds.min}
+                        max={activationBounds.max}
+                        onChange={e => setActivationDate(e.target.value)}
+                        className="min-h-11 rounded-sm border border-wr-border bg-wr-base px-3 py-2 text-sm text-current outline-none focus:border-wr-accent"
+                      />
+                      <span className="text-[11px]">{t('esim.activation_date_hint', 'Choose a date 2–60 days ahead. The plan activates on that day.')}</span>
+                    </label>
+                  )}
+
+                  {selected.nonRefundable && (
+                    <div className="flex items-start gap-2 rounded-sm border border-wr-warning/40 bg-wr-warning/10 p-3 text-[11px] text-wr-dim">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0 text-wr-warning" />
+                      <span>{t('esim.non_refundable_notice', 'This plan cannot be cancelled or refunded once purchased, even if it is never installed.')}</span>
+                    </div>
+                  )}
 
                   {walletToken && (
                     <div className="flex items-center justify-between text-xs font-mono">
@@ -382,7 +420,7 @@ export default function PhoneWall() {
                   {hasBalance ? (
                     <div className="sticky bottom-0 -mx-5 px-5 -mb-5 pb-5 pt-3 bg-wr-base border-t border-wr-border flex items-center gap-3">
                       <button onClick={closeModal} className="min-h-11 px-4 py-2.5 text-[11px] font-mono text-wr-dim hover:text-current uppercase tracking-[0.18em]">{t('common.cancel', 'Cancel')}</button>
-                      <button onClick={() => handleModalPurchase(selected)} className="min-h-11 flex-1 py-3 text-xs font-black uppercase tracking-[0.18em] rounded-sm bg-wr-accent text-black hover:opacity-90 flex items-center justify-center gap-2">
+                      <button onClick={() => handleModalPurchase(selected)} disabled={!activationReady} className="min-h-11 flex-1 py-3 text-xs font-black uppercase tracking-[0.18em] rounded-sm bg-wr-accent text-black hover:opacity-90 disabled:cursor-not-allowed disabled:bg-wr-accent/40 disabled:text-black/60 flex items-center justify-center gap-2">
                         <Check size={14} /> {t('phone.confirm', 'Confirm purchase')}
                       </button>
                     </div>
