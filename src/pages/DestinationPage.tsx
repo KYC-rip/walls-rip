@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Globe, MessageSquare, Phone, Shield, Wifi, Zap } from 'lucide-react';
+import { ChevronRight, Globe, MessageSquare, Phone, RefreshCw, Shield, Wifi, Zap } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Header } from '../components/Header';
@@ -728,8 +728,22 @@ export default function DestinationPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {planItems.slice(0, visiblePlans).map(plan => {
                 const busy = selecting === plan.key;
+                const selected = checkoutPlan?.id === plan.key;
                 return (
-                  <div key={plan.key} className="flex flex-col justify-between rounded-sm border border-wr-border bg-wr-base p-4 transition-colors hover:border-wr-accent/40">
+                  // The card is the control: hover + selected states replace a
+                  // per-card Select button.
+                  <button
+                    key={plan.key}
+                    type="button"
+                    onClick={() => selectPlan(plan)}
+                    disabled={busy}
+                    aria-pressed={selected}
+                    className={`flex flex-col justify-between rounded-sm border bg-wr-base p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base disabled:cursor-wait disabled:opacity-60 ${
+                      selected
+                        ? 'border-wr-accent bg-wr-accent/5'
+                        : 'border-wr-border hover:border-wr-accent/60 hover:bg-wr-accent/5'
+                    }`}
+                  >
                     <div>
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="font-mono text-2xl font-black tabular-nums text-current">
@@ -739,17 +753,12 @@ export default function DestinationPage() {
                       </div>
                       <div className="mt-1 flex items-center justify-between text-[11px] font-mono text-wr-dim">
                         <span>{t('destination.plan_days', { count: plan.durationDays, defaultValue: '{{count}} days' })}</span>
-                        <span className="flex items-center gap-1"><Wifi size={10} /> 3G/4G/5G</span>
+                        <span className="flex items-center gap-1">
+                          {busy ? <RefreshCw size={10} className="animate-spin" /> : <Wifi size={10} />} 3G/4G/5G
+                        </span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => selectPlan(plan)}
-                      disabled={busy}
-                      className="mt-4 flex min-h-11 items-center justify-center rounded-sm border border-wr-border py-2 text-[11px] font-mono font-bold uppercase tracking-widest text-wr-dim transition-colors hover:border-wr-accent hover:text-wr-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wr-base disabled:cursor-wait disabled:opacity-60 md:min-h-0"
-                    >
-                      {busy ? t('destination.loading_plan', 'Loading…') : t('destination.select', 'Select')}
-                    </button>
-                  </div>
+                  </button>
                 );
               })}
             </div>
