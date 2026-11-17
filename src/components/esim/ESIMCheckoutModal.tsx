@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, Clock, Copy, Database, DollarSign, Globe, MapPin, RefreshCw, Shield, Smartphone, Wallet, Wifi, X, Zap } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
@@ -45,8 +45,10 @@ interface ESIMCheckoutModalProps {
   onWalletCreated: (token: string) => void;
   /** Deposit confirmed; the caller refreshes the wallet balance. */
   onDeposit: (usd: number) => Promise<void> | void;
-  /** Authoritative purchase call. Must resolve only after the provider accepted. */
-  purchase: (token: string) => Promise<ESIMCheckoutResult>;
+  /** Authoritative purchase call. Must resolve only after the provider accepted.
+   *  `clientRef` is stable for this checkout (retries reuse it) so a held or
+   *  double-submitted purchase cannot become a second provider order. */
+  purchase: (token: string, clientRef: string) => Promise<ESIMCheckoutResult>;
 }
 
 /**
@@ -76,6 +78,11 @@ export function ESIMCheckoutModal({
   // overlap) and a double-click can land before the re-render; both used to
   // reach the purchase endpoint twice on a balance that covers two plans.
   const busyRef = useRef(false);
+  // One capability per checkout. A retry of the same plan reuses it; picking a
+  // different plan starts a new one. The ref lives in this modal on purpose:
+  // the modal unmounts per checkout, so close/reopen is a fresh capability.
+  const clientRef = useRef<string>(crypto.randomUUID());
+  useEffect(() => { clientRef.current = crypto.randomUUID(); }, [plan.id]);
 
   const hasSufficientBalance = walletToken !== null && balanceUSD >= plan.price;
   const modalMaxW = step === 'details' ? 'max-w-lg' : 'max-w-xl';
@@ -90,7 +97,7 @@ export function ESIMCheckoutModal({
   const purchaseOnce = useCallback(async (token: string) => {
     setStep('purchasing');
     try {
-      const next = await purchase(token);
+      const next = await purchase(token, clientRef.current);
       setResult(next);
       setStep('success');
     } catch (e: unknown) {

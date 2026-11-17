@@ -118,9 +118,9 @@ export default function DestinationPage() {
     } catch { /* keep the optimistic balance */ }
   }, [walletToken]);
 
-  const purchasePlan = useCallback(async (plan: ComparePlan, token: string): Promise<ESIMCheckoutResult> => {
+  const purchasePlan = useCallback(async (plan: ComparePlan, token: string, clientRef: string): Promise<ESIMCheckoutResult> => {
     const result = await apiClient<ESIMCheckoutResult>('/v1/tools/esim/purchase', {
-      body: { planId: plan.id, token, engine: plan.engine, country: plan.country },
+      body: { planId: plan.id, token, engine: plan.engine, country: plan.country, clientRef },
     });
     if (result.balanceUSD != null) setBalanceUSD(result.balanceUSD);
     return result;
@@ -170,9 +170,9 @@ export default function DestinationPage() {
     setBalanceUSD(prev => prev + usd);
     await refreshBalance();
   }, [refreshBalance]);
-  const purchaseCheckout = useCallback((token: string) => {
+  const purchaseCheckout = useCallback((token: string, clientRef: string) => {
     if (!checkoutPlan) return Promise.reject(new Error('No plan selected'));
-    return purchasePlan(checkoutPlan, token);
+    return purchasePlan(checkoutPlan, token, clientRef);
   }, [checkoutPlan, purchasePlan]);
 
   const redirectToPlans = useMemo(() => {

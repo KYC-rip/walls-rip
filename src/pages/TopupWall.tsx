@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Zap, Search, RefreshCw, Check, X, AlertTriangle, Clock, Database, Wallet, Lock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +36,10 @@ export default function TopupWall() {
   const [balanceUSD, setBalanceUSD] = useState(0);
 
   const [selected, setSelected] = useState<TopupPlan | null>(null);
+  // Stable per top-up attempt: a retry of the same plan reuses it, so the
+  // server's purchase bookkeeping cannot turn it into a second provider order.
+  const topupRef = useRef<string>(crypto.randomUUID());
+  useEffect(() => { topupRef.current = crypto.randomUUID(); }, [selected?.id, query]);
   const [modalStep, setModalStep] = useState<'details' | 'processing' | 'success' | 'error'>('details');
   const [modalError, setModalError] = useState('');
 
@@ -67,17 +71,19 @@ export default function TopupWall() {
   };
 
   const openBuy = (p: TopupPlan) => { setSelected(p); setModalStep('details'); setModalError(''); };
-  const closeModal = () => { setSelected(null); setModalStep('details'); };
+  const closeModal = () => { setSelected(null); setModalStep('details'); topupRef.current = crypto.randomUUID(); };
 
   const doTopup = async (token: string) => {
     if (!selected) return;
     setModalStep('processing');
     try {
       const res = await apiClient<{ ok: boolean; charged: number; balanceUSD: number; message?: string }>('/v1/tools/esim/topup/purchase', {
-        method: 'POST', body: { order_id: query.trim(), plan: selected.id, token },
+        method: 'POST', body: { order_id: query.trim(), plan: selected.id, token, clientRef: topupRef.current },
       });
       if (!res.ok) throw new Error(res.message || 'Top-up failed');
       setBalanceUSD(res.balanceUSD); setModalStep('success');
+      // A second top-up is a new attempt, even for the same plan/order.
+      topupRef.current = crypto.randomUUID();
     } catch (e: any) { setModalStep('error'); setModalError(e?.message || 'Top-up failed'); }
   };
 
