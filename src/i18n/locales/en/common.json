@@ -705,7 +705,12 @@
     "no_filter_match": "No plans match the current filters. Try adjusting the data size or provider filters.",
     "select_country_prompt": "Select a territory to browse available plans",
     "select_region_prompt": "Select a region to browse available plans",
-    "sufficient_balance": "Sufficient"
+    "sufficient_balance": "Sufficient",
+    "device_ready_check": "I have checked that my phone supports eSIM and is carrier-unlocked.",
+    "check_compatibility": "Check device compatibility",
+    "compat_1": "The phone must have eSIM support (iPhone XS or newer, most recent Android flagships).",
+    "compat_2": "It must be carrier-unlocked and not tied to another eSIM profile.",
+    "compat_3": "An eSIM profile can only be installed on one device, once."
   },
   "network": {
     "nav_overview": "Network overview",

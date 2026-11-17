@@ -600,11 +600,11 @@ export default function DestinationPage() {
         </section>
 
         {/* Sticky rail: product pills + the checkout panel for the chosen plan */}
-        <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-8">
+        <div className="mt-8 lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
           {(availableProducts.length > 0 || vpn?.available || checkoutPlan) && (
             <aside
               aria-label={t('destination.products_title', { country, defaultValue: 'Products for {{country}}' })}
-              className="lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1"
+              className="lg:sticky lg:top-6 lg:col-span-5 lg:col-start-8 lg:row-start-1"
             >
               <h2 className="mb-2 font-display text-sm font-bold tracking-tight text-current">
                 {t('destination.products_title', { country, defaultValue: 'Products for {{country}}' })}
@@ -663,7 +663,7 @@ export default function DestinationPage() {
           )}
 
           {/* Plans: filters + load more keep the visitor on this page */}
-          <section className="mt-8 lg:col-start-1 lg:row-start-1 lg:mt-0">
+          <section className="mt-8 lg:col-span-7 lg:col-start-1 lg:row-start-1 lg:mt-0">
             <div className="mb-3 flex items-end justify-between gap-3">
               <h2 className="font-display text-lg font-bold tracking-tight text-current">
                 {t('destination.plans_title', 'Plans')}
@@ -725,7 +725,7 @@ export default function DestinationPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {planItems.slice(0, visiblePlans).map(plan => {
                 const busy = selecting === plan.key;
                 return (

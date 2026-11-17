@@ -82,6 +82,10 @@ export function ESIMCheckoutModal({
   const [error, setError] = useState('');
   const [result, setResult] = useState<ESIMCheckoutResult | null>(null);
   const [copied, setCopied] = useState(false);
+  // Inline (rail) checkouts ask the buyer to confirm eSIM readiness first, the
+  // way the reference storefront does. The modal keeps its single-click flow.
+  const [deviceReady, setDeviceReady] = useState(false);
+  useEffect(() => { setDeviceReady(false); }, [plan.id]);
   // One purchase at a time. PaymentGate polls every 3s (a slow check can
   // overlap) and a double-click can land before the re-render; both used to
   // reach the purchase endpoint twice on a balance that covers two plans.
@@ -279,7 +283,7 @@ export function ESIMCheckoutModal({
 
               {/* Balance + confirm stay pinned at the bottom of the panel so the
                   primary action is always visible while the details scroll. */}
-              <div className={inline ? 'order-first sticky top-0 z-10 -mx-4 md:-mx-6 border-b border-wr-border bg-wr-base px-4 py-3 md:px-6' : ''}>
+              <div className={inline ? 'sticky bottom-0 z-10 -mx-4 md:-mx-6 border-t border-wr-border bg-wr-base px-4 pb-3 pt-3 md:px-6' : ''}>
                 {walletToken && (
                   <div className={`flex items-center gap-2 text-xs ${inline ? '' : 'border-t border-wr-border/30 pt-4'}`}>
                     <Wallet size={12} className="text-wr-accent" />
@@ -296,20 +300,46 @@ export function ESIMCheckoutModal({
                 )}
 
                 {hasSufficientBalance && (
-                  <div className={`flex items-center gap-3 pt-2 ${inline ? '' : 'border-t border-wr-border/30'}`}>
-                    <button
-                      onClick={onClose}
-                      className="px-4 py-2.5 text-xs text-wr-dim hover:text-current transition-colors uppercase tracking-widest"
-                    >
-                      {t('common.cancel')}
-                    </button>
-                    <button
-                      onClick={() => buyWithBalance(walletToken)}
-                      className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-sm bg-wr-accent py-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-wr-accent/90"
-                    >
-                      <Check size={14} /> {t('esim.detail_confirm_purchase')}
-                    </button>
-                  </div>
+                  <>
+                    {inline && (
+                      <div className="pt-2">
+                        <label className="flex items-start gap-2 text-xs text-wr-dim">
+                          <input
+                            type="checkbox"
+                            checked={deviceReady}
+                            onChange={e => setDeviceReady(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 accent-[color:var(--accent)]"
+                          />
+                          <span>{t('esim.device_ready_check', 'I have checked that my phone supports eSIM and is carrier-unlocked.')}</span>
+                        </label>
+                        <details className="mt-1.5">
+                          <summary className="cursor-pointer text-[11px] font-mono uppercase tracking-widest text-wr-accent">
+                            {t('esim.check_compatibility', 'Check device compatibility')}
+                          </summary>
+                          <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[11px] leading-relaxed text-wr-dim">
+                            <li>{t('esim.compat_1', 'The phone must have eSIM support (iPhone XS or newer, most recent Android flagships).')}</li>
+                            <li>{t('esim.compat_2', 'It must be carrier-unlocked and not tied to another eSIM profile.')}</li>
+                            <li>{t('esim.compat_3', 'An eSIM profile can only be installed on one device, once.')}</li>
+                          </ul>
+                        </details>
+                      </div>
+                    )}
+                    <div className={`flex items-center gap-3 pt-2 ${inline ? '' : 'border-t border-wr-border/30'}`}>
+                      <button
+                        onClick={onClose}
+                        className="px-4 py-2.5 text-xs text-wr-dim hover:text-current transition-colors uppercase tracking-widest"
+                      >
+                        {t('common.cancel')}
+                      </button>
+                      <button
+                        onClick={() => buyWithBalance(walletToken)}
+                        disabled={inline && !deviceReady}
+                        className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-sm bg-wr-accent py-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-wr-accent/90 disabled:cursor-not-allowed disabled:bg-wr-accent/40 disabled:text-black/60"
+                      >
+                        <Check size={14} /> {t('esim.detail_confirm_purchase')}
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
 
