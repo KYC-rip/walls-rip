@@ -604,7 +604,7 @@ export default function DestinationPage() {
           {(availableProducts.length > 0 || vpn?.available || checkoutPlan) && (
             <aside
               aria-label={t('destination.products_title', { country, defaultValue: 'Products for {{country}}' })}
-              className="lg:sticky lg:top-6 lg:col-span-5 lg:col-start-8 lg:row-start-1"
+              className="lg:col-span-5 lg:col-start-8 lg:row-start-1"
             >
               <h2 className="mb-2 font-display text-sm font-bold tracking-tight text-current">
                 {t('destination.products_title', { country, defaultValue: 'Products for {{country}}' })}

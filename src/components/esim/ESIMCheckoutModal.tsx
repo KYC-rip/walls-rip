@@ -151,9 +151,9 @@ export function ESIMCheckoutModal({
   }, [onDeposit, purchaseOnce, walletToken, t]);
 
   const card = (
-      <div className={`border border-wr-border bg-wr-base ${inline ? 'w-full max-h-[calc(100vh-5rem)]' : `${modalMaxW} shadow-[0_0_50px_rgba(0,0,0,0.3)] max-h-[90vh]`} relative overflow-hidden rounded-sm overflow-y-auto transition-all duration-300`} onClick={e => e.stopPropagation()}>
+      <div className={`border border-wr-border bg-wr-base ${inline ? 'w-full' : `${modalMaxW} shadow-[0_0_50px_rgba(0,0,0,0.3)] max-h-[90vh] overflow-y-auto`} relative overflow-hidden rounded-sm transition-all duration-300`} onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-4 md:p-6 border-b border-wr-border/30 flex items-start justify-between gap-3">
+        <div className={`border-b border-wr-border/30 flex items-start justify-between gap-3 ${inline ? 'p-4' : 'p-4 md:p-6'}`}>
           <div className="min-w-0">
             <h3 className="text-sm md:text-base font-bold text-current tracking-wide leading-tight">{plan.name}</h3>
           </div>
@@ -165,7 +165,7 @@ export function ESIMCheckoutModal({
           </div>
         </div>
 
-        <div className={`p-4 md:p-6 ${inline ? 'flex flex-col gap-4' : 'space-y-5'}`}>
+        <div className={inline ? 'flex flex-col gap-4 p-4' : 'p-4 md:p-6 space-y-5'}>
 
           {/* ═══ STEP: DETAILS ═══ */}
           {step === 'details' && (
@@ -206,7 +206,7 @@ export function ESIMCheckoutModal({
 
               <div>
                 <h4 className="text-xs font-bold uppercase text-wr-dim tracking-widest mb-3">{t('esim.detail_additional_info')}</h4>
-                <div className={`grid grid-cols-1 ${inline ? "" : "md:grid-cols-2"} gap-x-6 gap-y-0 text-xs`}>
+                <div className="grid grid-cols-1 gap-x-6 gap-y-0 text-xs sm:grid-cols-2">
                   <div className="flex items-center justify-between py-2 border-b border-wr-border/20">
                     <span className="text-wr-dim flex items-center gap-1.5 shrink-0"><MapPin size={10} /> {t('esim.detail_location')}</span>
                     <span className="font-mono text-current text-right truncate ml-2">{locationLabel}</span>
