@@ -1,7 +1,9 @@
 import type { APIRoute } from 'astro';
 
 export const GET: APIRoute = ({ url }) => {
-  const origin = `${url.protocol}//${url.host}`;
+  // Clearnet always advertises the canonical origin, even when the request
+  // arrives through the Pages proxy at astro.walls.rip.
+  const origin = __ONION__ ? `${url.protocol}//${url.host}` : 'https://walls.rip';
   const body = __ONION__
     ? 'User-agent: *\nDisallow: /\n'
     : [

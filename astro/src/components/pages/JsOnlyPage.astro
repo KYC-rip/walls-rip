@@ -1,0 +1,38 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
+import { localePath, type Lang } from '../../lib/i18n';
+
+export interface Props {
+  lang: Lang;
+  title: string;
+  description: string;
+  body: string;
+}
+
+const { lang, title, description, body } = Astro.props;
+---
+
+<Base title={`${title} — walls.rip`} description={description} path="/" lang={lang} noindex>
+  <section class="js-only">
+    <p class="mono-label">JavaScript required</p>
+    <h1>{title}</h1>
+    <p class="body">{body}</p>
+    <p class="body">
+      This tool encrypts and decrypts in your browser, so it cannot work without JavaScript.
+      The rest of walls.rip — eSIM data, SMS numbers, phone plans, VPN and proxies — works
+      fully without it.
+    </p>
+    <p class="actions">
+      <a class="btn btn-primary" href={localePath('/esim', lang)}>Browse eSIM plans <Icon name="arrow" size={12} /></a>
+      <a class="btn" href={localePath('/network', lang)}>All products</a>
+    </p>
+  </section>
+</Base>
+
+<style>
+  .js-only { max-width: 42rem; padding: 4rem 0; }
+  h1 { margin-top: 0.6rem; font-size: clamp(1.8rem, 5vw, 2.6rem); font-weight: 900; }
+  .body { margin-top: 0.75rem; font-size: 0.95rem; line-height: 1.65; color: var(--text-dim); }
+  .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.5rem; }
+</style>

@@ -248,11 +248,14 @@ export async function fetchProxyLocations(locals: unknown): Promise<ProxyLocatio
     return (Array.isArray(data) ? data : [])
       .map((entry): ProxyLocation | null => {
         const row = entry as Record<string, unknown>;
-        const code = str(row.code ?? row.country).toUpperCase();
+        // ProxyApp: { country: "Afghanistan", countryCode: "AF" }. Accept the
+        // older {code, name} shape too so a provider change cannot blank the page.
+        const code = str(row.countryCode ?? row.code).toUpperCase();
         if (!/^[A-Z]{2}$/.test(code)) return null;
+        const name = str(row.name) || str(row.country);
         return {
           code,
-          name: str(row.name) || regionDisplayName(code),
+          name: name && name.toUpperCase() !== code ? name : regionDisplayName(code),
           count: typeof row.count === 'number' ? row.count : undefined,
         };
       })
@@ -279,8 +282,10 @@ export async function fetchProxyPlans(locals: unknown, country: string): Promise
           id,
           name: str(plan.name) || id,
           country: str(plan.country) || undefined,
-          days: typeof plan.days === 'number' ? plan.days : undefined,
-          gb: typeof plan.gb === 'number' ? plan.gb : undefined,
+          days: typeof plan.durationDays === 'number' ? plan.durationDays
+            : typeof plan.days === 'number' ? plan.days : undefined,
+          gb: typeof plan.bandwidthGB === 'number' ? plan.bandwidthGB
+            : typeof plan.gb === 'number' ? plan.gb : undefined,
           price: num(plan.price),
           currency: str(plan.currency) || 'USD',
         };

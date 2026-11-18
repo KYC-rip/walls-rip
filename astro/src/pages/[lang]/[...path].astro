@@ -9,6 +9,10 @@ import UkSimPage from '../../components/pages/UkSimPage.astro';
 import NetworkPage from '../../components/pages/NetworkPage.astro';
 import FaqPage from '../../components/pages/FaqPage.astro';
 import ApiPage from '../../components/pages/ApiPage.astro';
+import MailJsPage from '../../components/pages/MailJsPage.astro';
+import MailProJsPage from '../../components/pages/MailProJsPage.astro';
+import DropJsPage from '../../components/pages/DropJsPage.astro';
+import CommsJsPage from '../../components/pages/CommsJsPage.astro';
 import DestinationPage from '../../components/pages/DestinationPage.astro';
 import CheckoutPage from '../../components/pages/CheckoutPage.astro';
 import PayPage from '../../components/pages/PayPage.astro';
@@ -42,11 +46,18 @@ const SIMPLE = [
   'checkout',
   'pay',
   'order',
+  'mail',
+  'drop',
+  'comms',
 ];
 const isDestination = valid && page === 'destination' && segments.length === 2 && !!slug;
 const known =
   valid &&
-  (rest === '' || (SIMPLE.includes(rest) && segments.length === 1) || isDestination);
+  (rest === '' ||
+    (SIMPLE.includes(rest) && segments.length === 1) ||
+    (rest === 'mail/pro' && segments.length === 2) ||
+    (rest === 'comms/invite' && segments.length === 2) ||
+    isDestination);
 
 // Transactional routes load (and may redirect) in the route, before any output
 // is streamed: a status or redirect set inside a child component is too late.
@@ -83,6 +94,11 @@ else if (destinationResult?.kind === 'unavailable') Astro.response.status = 503;
 {known && rest === 'network' && <NetworkPage />}
 {known && rest === 'faq' && <FaqPage />}
 {known && rest === 'api' && <ApiPage />}
+{known && rest === 'mail' && <MailJsPage lang={lang} />}
+{known && rest === 'mail/pro' && <MailProJsPage lang={lang} />}
+{known && rest === 'drop' && <DropJsPage lang={lang} />}
+{known && rest === 'comms' && <CommsJsPage lang={lang} />}
+{known && rest === 'comms/invite' && <CommsJsPage lang={lang} />}
 
 {destinationResult?.kind === 'ok' && <DestinationPage props={destinationResult.props} />}
 {destinationResult?.kind === 'not-found' && <NotFoundPage lang={lang} />}
