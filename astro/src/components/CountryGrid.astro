@@ -25,7 +25,7 @@ const { items, empty = 'No matches.', columns = 4 } = Astro.props;
         <a class="country" href={item.href}>
           {/^[A-Za-z]{2}$/.test(item.code) ? (
             <img
-              src={`/flags/${item.code.toLowerCase()}.svg`}
+              src={`/flags/${item.code.toLowerCase()}.png`}
               alt=""
               width="40"
               height="30"
@@ -86,7 +86,7 @@ const { items, empty = 'No matches.', columns = 4 } = Astro.props;
     width: 2rem;
     height: 1.5rem;
     flex: none;
-    object-fit: cover;
+    object-fit: contain;
     border-radius: 2px;
     outline: 1px solid var(--border-color);
   }

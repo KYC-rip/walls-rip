@@ -101,7 +101,7 @@ const PRODUCTS = [
         {destinations.map((destination) => (
           <a class="dest-card" href={localePath(`/destination/${destination.slug}`, lang)}>
             <img
-              src={`/flags/${destination.code.toLowerCase()}.svg`}
+              src={`/flags/${destination.code.toLowerCase()}.png`}
               alt=""
               width="40"
               height="30"
@@ -287,7 +287,7 @@ const PRODUCTS = [
     width: 2rem;
     height: 1.5rem;
     flex: none;
-    object-fit: cover;
+    object-fit: contain;
     border-radius: 2px;
     outline: 1px solid var(--border-color);
   }

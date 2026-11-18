@@ -131,7 +131,7 @@ const esimHref = localePath(`/esim?c=${code}`, lang);
     {/^[A-Za-z]{2}$/.test(code) && (
       <img
         class="hero-flag"
-        src={`/flags/${code.toLowerCase()}.svg`}
+        src={`/flags/${code.toLowerCase()}.png`}
         alt={`Flag of ${country}`}
         width="96"
         height="72"
@@ -410,7 +410,7 @@ const esimHref = localePath(`/esim?c=${code}`, lang);
     width: 4.5rem;
     height: 3.1rem;
     flex: none;
-    object-fit: cover;
+    object-fit: contain;
     border-radius: var(--radius-sm);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
     outline: 1px solid rgba(255, 255, 255, 0.2);
