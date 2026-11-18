@@ -1,0 +1,123 @@
+---
+import '../styles/theme.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import {
+  type Lang,
+  htmlLang,
+  localePath,
+  resolveLang,
+  SUPPORTED_LANGS,
+} from '../lib/i18n';
+import { absolute, siteOrigin } from '../lib/seo';
+
+export interface Props {
+  title: string;
+  description: string;
+  /** Unprefixed path, e.g. `/destination/thailand`. */
+  path: string;
+  lang?: Lang;
+  image?: string;
+  noindex?: boolean;
+  jsonLd?: unknown[];
+  preloadImage?: string;
+  hreflang?: boolean;
+  /** Meta refresh for the no-JS payment/order pages. */
+  refreshSeconds?: number;
+  /** Explicit target for the meta refresh (a same-origin path). */
+  refreshUrl?: string;
+}
+
+const {
+  title,
+  description,
+  path,
+  lang: rawLang,
+  image = '/og-image.jpg',
+  noindex = false,
+  jsonLd = [],
+  preloadImage,
+  hreflang = false,
+  refreshSeconds,
+  refreshUrl,
+} = Astro.props;
+
+const lang = resolveLang(rawLang ?? Astro.url.pathname.split('/')[1]);
+const origin = siteOrigin(Astro);
+const canonical = absolute(origin, localePath(path, lang));
+const ogImage = absolute(origin, image);
+
+const theme = Astro.url.searchParams.get('theme') === 'light' ? 'light' : 'dark';
+const skinParam = Astro.url.searchParams.get('skin');
+const skin = skinParam === 'terminal' || skinParam === 'monero' ? skinParam : 'clean';
+
+// JSON-LD is server-generated from API data; escape `<` so a country name can
+// never terminate the script element.
+function jsonForScript(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, '\\u003c');
+}
+
+const alternates = hreflang
+  ? SUPPORTED_LANGS.filter((code) => code !== 'zh').map((code) => ({
+      code: htmlLang(code),
+      href: absolute(origin, localePath(path, code)),
+    }))
+  : [];
+---
+
+<!doctype html>
+<html
+  lang={htmlLang(lang)}
+  dir="ltr"
+  data-theme={theme}
+  data-skin={skin}
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex, follow" />}
+    {!noindex && <meta name="robots" content="index, follow, max-image-preview:large" />}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="walls.rip" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    {refreshSeconds ? (
+      <meta
+        http-equiv="refresh"
+        content={refreshUrl ? `${refreshSeconds};url=${refreshUrl}` : String(refreshSeconds)}
+      />
+    ) : null}
+    <meta name="theme-color" content={theme === 'light' ? '#ffffff' : '#0f172a'} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    {preloadImage && <link rel="preload" as="image" href={preloadImage} fetchpriority="high" />}
+
+    {alternates.map((alt) => (
+      <link rel="alternate" hreflang={alt.code} href={alt.href} />
+    ))}
+    {alternates.length > 0 && <link rel="alternate" hreflang="x-default" href={alternates[0]?.href} />}
+
+    {jsonLd.map((schema) => (
+      <script type="application/ld+json" set:html={jsonForScript(schema)} />
+    ))}
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Header lang={lang} />
+    <main id="main" class="site-main">
+      <slot />
+    </main>
+    <Footer lang={lang} />
+  </body>
+</html>

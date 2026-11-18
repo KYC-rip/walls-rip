@@ -1,0 +1,9 @@
+---
+import NotFoundPage from '../components/pages/NotFoundPage.astro';
+import { pageLang } from '../lib/page';
+
+Astro.response.status = 404;
+const lang = pageLang(Astro);
+---
+
+<NotFoundPage lang={lang} />

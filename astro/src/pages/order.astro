@@ -1,0 +1,13 @@
+---
+import OrderPage from '../components/pages/OrderPage.astro';
+import { prepareOrder } from '../lib/payment-pages';
+import { pageLang } from '../lib/page';
+import { localePath } from '../lib/i18n';
+
+const lang = pageLang(Astro);
+const result = await prepareOrder(Astro, lang);
+if (result.kind === 'redirect') return result.response;
+if (result.kind !== 'ok') return Astro.redirect(localePath('/esim', lang), 303);
+---
+
+<OrderPage props={result.props} />

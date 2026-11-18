@@ -1,0 +1,8 @@
+node_modules/
+.scratch/
+dist/
+.astro/
+.wrangler/
+.env
+.env.*
+!.env.example

@@ -1,0 +1,223 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+import { localePath } from '../../lib/i18n';
+import { pageLang } from '../../lib/page';
+import { faqSchema, organizationSchema, siteOrigin, websiteSchema } from '../../lib/seo';
+
+const lang = pageLang(Astro);
+const origin = siteOrigin(Astro);
+
+const FAQS = [
+  {
+    q: 'Do I need an account?',
+    a: 'No. None of the products require a sign-up, email address or identity document. Orders are opened through a capability link, and an order stays readable only while you hold that link.',
+  },
+  {
+    q: 'What can I buy on walls.rip?',
+    a: 'Travel eSIM data for 200+ destinations, one-time SMS verification codes, local phone number plans, long-term UK numbers, VPN configurations and residential proxies. Each product is described on its own page.',
+  },
+  {
+    q: 'How do I pay?',
+    a: 'A single prepaid wallet funds every product. Top it up with Monero, Lightning or USDT; the balance is shown in US dollars and never leaves the wallet until you buy something.',
+  },
+  {
+    q: 'How is an eSIM delivered?',
+    a: 'After payment the order page shows a QR code and an activation link. Scan the QR code in your phone settings (Mobile Data → Add eSIM) or open the link on the device. Installation takes about two minutes.',
+  },
+  {
+    q: 'Does this site work without JavaScript?',
+    a: 'Yes. Every catalogue, price and checkout page is rendered on the server. The Tor mirror in particular is designed to work with JavaScript disabled; QR codes are generated on the server, and the payment page refreshes itself with a meta refresh instead of script polling.',
+  },
+  {
+    q: 'What personal data is stored?',
+    a: 'No account, name, email or identity document is collected. A wallet capability token is stored in an HttpOnly cookie on your device to read your own balance and orders. Referrer headers are disabled so capability links in URLs do not leak to other sites.',
+  },
+  {
+    q: 'Can I get a refund?',
+    a: 'It depends on the provider and the plan. Non-refundable plans are labelled before checkout. If an order fails before the provider accepts it, the wallet is not charged or is credited back automatically.',
+  },
+  {
+    q: 'Why do prices change?',
+    a: 'Prices follow live provider catalogues plus a small margin, so they move with stock and exchange rates. The price you pay is the price reserved at checkout; it is never silently re-quoted afterwards.',
+  },
+  {
+    q: 'Is there an onion mirror?',
+    a: 'Yes. The same application is served as a Tor hidden service with the same products and prices, so the clearnet edge never sees your IP address. The onion address is published with the warrant canary.',
+  },
+  {
+    q: 'Is this legal?',
+    a: 'Privacy tools are lawful in most places. You are responsible for how you use a number, a proxy or a connection and for complying with the law where you live. Provider policies for the underlying networks still apply.',
+  },
+];
+
+const links = [
+  { href: '/esim', label: 'eSIM data plans' },
+  { href: '/sms', label: 'SMS verification' },
+  { href: '/phone', label: 'Phone numbers' },
+  { href: '/vpn', label: 'VPN' },
+  { href: '/proxy', label: 'Proxies' },
+  { href: '/api', label: 'API' },
+];
+---
+
+<Base
+  title="FAQ — walls.rip"
+  description="Answers about walls.rip: accounts, payments, eSIM delivery, refunds, the onion mirror and how the no-JavaScript checkout works."
+  path="/faq"
+  lang={lang}
+  jsonLd={[organizationSchema(origin), websiteSchema(origin), faqSchema(FAQS.map((item) => ({ question: item.q, answer: item.a })))]}
+>
+  <section class="head">
+    <p class="mono-label">FAQ</p>
+    <h1>Questions, answered plainly.</h1>
+  </section>
+
+  <div class="layout">
+    <div class="faq-list">
+      {FAQS.map((item, index) => (
+        <details open={index === 0}>
+          <summary>
+            <span>{item.q}</span>
+            <Icon name="chevron" size={14} />
+          </summary>
+          <p>{item.a}</p>
+        </details>
+      ))}
+    </div>
+
+    <aside class="side">
+      <h2>Start here</h2>
+      <ul>
+        {links.map((link) => (
+          <li>
+            <a href={localePath(link.href, lang)}>
+              {link.label} <Icon name="arrow" size={11} />
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p class="hint">
+        Still stuck? The warrant canary and operator contact details live at
+        <a href="/.well-known/canary.txt"> /.well-known/canary.txt</a>.
+      </p>
+    </aside>
+  </div>
+</Base>
+
+<style>
+  .head {
+    max-width: 44rem;
+    padding: 2.5rem 0 1.5rem;
+  }
+
+  .head h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 900;
+    line-height: 1.05;
+  }
+
+  .layout {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  @media (min-width: 1024px) {
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+      align-items: start;
+      gap: 2rem;
+    }
+  }
+
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  details {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 2.75rem;
+    padding: 0.9rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 700;
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary :global(svg) {
+    flex: none;
+    color: var(--brand-color);
+    transition: transform 0.15s ease;
+  }
+
+  details[open] summary :global(svg) {
+    transform: rotate(90deg);
+  }
+
+  details p {
+    padding: 0 1rem 1rem;
+    font-size: 0.85rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .side {
+    padding: 1.1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  .side h2 {
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .side ul {
+    margin: 0.6rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .side li a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 2.5rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.82rem;
+  }
+
+  .side li a:hover {
+    color: var(--brand-color);
+  }
+
+  .hint {
+    margin-top: 1rem;
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+
+  .hint a {
+    color: var(--brand-color);
+  }
+</style>

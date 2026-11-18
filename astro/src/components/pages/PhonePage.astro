@@ -1,0 +1,163 @@
+---
+import Base from '../../layouts/Base.astro';
+import { fetchPhoneCountries, fetchPhonePlans } from '../../lib/catalogue';
+import { formatData, formatDays, formatUsd } from '../../lib/data';
+import { localePath } from '../../lib/i18n';
+import { pageLang } from '../../lib/page';
+import { organizationSchema, siteOrigin, websiteSchema } from '../../lib/seo';
+
+const lang = pageLang(Astro);
+const origin = siteOrigin(Astro);
+
+const requested = (Astro.url.searchParams.get('country') ?? '').toUpperCase();
+
+let countries: Awaited<ReturnType<typeof fetchPhoneCountries>> = [];
+try {
+  countries = await fetchPhoneCountries(Astro.locals);
+} catch {
+  countries = [];
+}
+
+const selected = countries.find((row) => row.code === requested) ?? countries[0] ?? null;
+let plans: Awaited<ReturnType<typeof fetchPhonePlans>> = [];
+if (selected) {
+  try {
+    plans = await fetchPhonePlans(Astro.locals, selected.code);
+  } catch {
+    plans = [];
+  }
+}
+
+const unlimited = (value: number | undefined) => (value === -1 ? '∞' : String(value ?? 0));
+---
+
+<Base
+  title="Phone number plans — real local numbers, no KYC | walls.rip"
+  description="Real local phone numbers with voice, SMS and data where the upstream network supports them. One-time purchase, no account or identity document."
+  path="/phone"
+  lang={lang}
+  jsonLd={[organizationSchema(origin), websiteSchema(origin)]}
+>
+  <section class="head">
+    <p class="mono-label">Phone numbers</p>
+    <h1>A real number, without a contract.</h1>
+    <p class="lede">
+      Local country plans with voice, SMS and data. Buy once, install the eSIM, keep the
+      number for the plan's lifetime. Availability follows the upstream network catalogue.
+    </p>
+  </section>
+
+  <div class="tabs" role="group" aria-label="Country">
+    {countries.map((row) => (
+      <a
+        class="chip"
+        href={localePath(`/phone?country=${row.code}`, lang)}
+        aria-current={selected?.code === row.code ? 'true' : 'false'}
+      >
+        {row.name}
+      </a>
+    ))}
+  </div>
+
+  {selected ? (
+    <>
+      <div class="section-head">
+        <h2>{selected.name} phone plans</h2>
+        <span class="mono-label">{plans.length} plans</span>
+      </div>
+
+      {plans.length === 0 ? (
+        <p class="empty">No phone plans are loaded for {selected.name} right now.</p>
+      ) : (
+        <div class="tile-grid three">
+          {plans.map((plan) => (
+            <article class="tile">
+              <div class="tile-top">
+                <span class="tile-title">
+                  {plan.dataGB > 0 ? formatData(plan.dataGB) : 'Number'}
+                </span>
+                <span class="tile-price">{formatUsd(plan.price)}</span>
+              </div>
+              <p class="tile-meta">
+                <span>{formatDays(plan.durationDays)}</span>
+                <span>{plan.speed || '4G/LTE'}</span>
+              </p>
+              <p class="tile-meta">
+                {plan.hasVoice && <span>Voice {unlimited(plan.voiceMinutes)} min</span>}
+                {plan.hasSms && <span>SMS {unlimited(plan.smsCount)}</span>}
+                <span>Data included</span>
+              </p>
+              {plan.nonRefundable && <p class="tile-note">Non-refundable</p>}
+              {plan.requiresActivationDate && <p class="tile-note">Start date required</p>}
+            </article>
+          ))}
+        </div>
+      )}
+
+      <p class="hint">
+        Phone plans are provisioned upstream and can take a few minutes to activate.
+        Australia requires a start date 2–60 days ahead. Checkout on this mirror arrives in
+        Phase C; the clearnet site completes it today.
+      </p>
+    </>
+  ) : (
+    <p class="empty">No phone catalogue is available right now.</p>
+  )}
+</Base>
+
+<style>
+  .head {
+    max-width: 46rem;
+    padding: 2.5rem 0 1.5rem;
+  }
+
+  .head h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 900;
+    line-height: 1.05;
+  }
+
+  .lede {
+    margin-top: 0.9rem;
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .section-head h2 {
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+
+  .empty {
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+
+  .hint {
+    margin-top: 1.25rem;
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+</style>

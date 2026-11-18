@@ -1,0 +1,426 @@
+/*
+ * walls.rip design tokens — shared with the React app (src/index.css).
+ * Clean is the default skin; Terminal and Monero stay available through
+ * `data-skin` on <html> for the visitor's explicit choice.
+ *
+ * Everything here is self-hosted: system font stacks, data-URI backgrounds,
+ * no webfonts and no third-party origins.
+ */
+
+:root {
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --wrap: 72rem;
+  color-scheme: dark;
+}
+
+/* ── Dark (default) ───────────────────────────────────────────────── */
+:root,
+html[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-panel: #1e293b;
+  --bg-raised: #243447;
+  --brand-color: #22d3ee;
+  --text-primary: #e2e8f0;
+  --text-dim: #94a3b8;
+  --text-accent: #22d3ee;
+  --border-color: #334155;
+  --color-green: #4ade80;
+  --warning-color: #fbbf24;
+  --error-color: #f87171;
+  --info-color: #38bdf8;
+}
+
+html[data-skin="terminal"][data-theme="dark"] {
+  --bg-primary: #050505;
+  --bg-panel: #0c0c0c;
+  --bg-raised: #141414;
+  --brand-color: #34d399;
+  --text-primary: #e2e8f0;
+  --text-dim: #64748b;
+  --text-accent: #a78bfa;
+  --border-color: #1e293b;
+}
+
+html[data-skin="monero"][data-theme="dark"] {
+  --bg-primary: #0c0a09;
+  --bg-panel: #1c1917;
+  --bg-raised: #292524;
+  --brand-color: #fb923c;
+  --text-primary: #fafaf9;
+  --text-dim: #a8a29e;
+  --text-accent: #4ade80;
+  --border-color: #44403c;
+}
+
+/* ── Light ────────────────────────────────────────────────────────── */
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg-primary: #ffffff;
+  --bg-panel: #f8fafc;
+  --bg-raised: #eef2f7;
+  --brand-color: #0891b2;
+  --text-primary: #0f172a;
+  --text-dim: #64748b;
+  --text-accent: #0891b2;
+  --border-color: #e2e8f0;
+  --color-green: #16a34a;
+  --warning-color: #d97706;
+  --error-color: #dc2626;
+  --info-color: #0284c7;
+}
+
+html[data-skin="terminal"][data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-panel: #ffffff;
+  --brand-color: #059669;
+  --text-dim: #475569;
+  --text-accent: #7c3aed;
+}
+
+html[data-skin="monero"][data-theme="light"] {
+  --bg-primary: #fafaf9;
+  --bg-panel: #ffffff;
+  --brand-color: #ea580c;
+  --text-dim: #78716c;
+  --text-accent: #16a34a;
+  --border-color: #d6d3d1;
+}
+
+/* ── Reset / base ─────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-gutter: stable;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  /* clip (not hidden) keeps position: sticky working for the product rail */
+  overflow-x: hidden;
+}
+
+@supports (overflow-x: clip) {
+  body {
+    overflow-x: clip;
+  }
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--brand-color);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-color);
+  outline-offset: 2px;
+}
+
+/* ── Layout primitives ───────────────────────────────────────────── */
+.wrap {
+  width: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 768px) {
+  .wrap {
+    padding-inline: 1.5rem;
+  }
+}
+
+.site-main {
+  width: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding: 0 1rem 4rem;
+}
+
+@media (min-width: 768px) {
+  .site-main {
+    padding-inline: 1.5rem;
+  }
+}
+
+.page-head {
+  padding: 2rem 0 1rem;
+}
+
+.page-title {
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  font-weight: 800;
+}
+
+.muted {
+  color: var(--text-dim);
+}
+
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-primary);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.pill:hover {
+  border-color: var(--brand-color);
+  color: var(--text-primary);
+}
+
+.pill strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--brand-color);
+  color: var(--brand-color);
+}
+
+.btn-primary {
+  border-color: var(--brand-color);
+  background: var(--brand-color);
+  color: #04121a;
+}
+
+.btn-primary:hover {
+  color: #04121a;
+  filter: brightness(1.08);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.chip[aria-current="true"] {
+  border-color: var(--brand-color);
+  background: var(--brand-color);
+  color: #04121a;
+}
+
+.chip:not([aria-current="true"]):hover {
+  border-color: var(--brand-color);
+  color: var(--text-primary);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -3rem;
+  z-index: 100;
+  padding: 0.6rem 1rem;
+  background: var(--brand-color);
+  color: #04121a;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+/* ── Product tiles (plans, packages) ─────────────────────────────── */
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .tile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .tile-grid.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+}
+
+.tile-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.tile-title {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-price {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-color);
+}
+
+.tile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.tile-note {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--warning-color);
+}
+
+.tile-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

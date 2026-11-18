@@ -1,0 +1,879 @@
+---
+import Icon from './Icon.astro';
+import {
+  DATA_FILTERS,
+  DURATION_FILTERS,
+  PRODUCT_META,
+  PRODUCT_ORDER,
+  type DataFilter,
+  type DurationFilter,
+  type DestinationProduct,
+  formatData,
+  formatDays,
+  formatUsd,
+  gradientFor,
+} from '../lib/data';
+import { encodePlanRef } from '../lib/checkout';
+import type { DestinationPageData } from '../lib/destination-page';
+import { PLAN_PAGE_SIZE } from '../lib/destination-page';
+import { destinationFaqs } from '../lib/faqs';
+import { type Lang, localePath, t } from '../lib/i18n';
+import landmarkData from '../i18n/landmarks.json';
+
+export interface Props {
+  data: DestinationPageData;
+  lang: Lang;
+}
+
+const { data, lang } = Astro.props;
+const { payload, visiblePlans, plans, totalMatching, dataFilter, durationFilter, visibleCount } = data;
+
+interface LandmarkCredit {
+  landmark: string | null;
+  artist: string;
+  license: string;
+  license_url: string | null;
+  source_url: string | null;
+}
+const LANDMARKS = landmarkData as unknown as Record<string, LandmarkCredit>;
+
+const code = payload.country.code;
+const country = payload.country.name;
+const slug = payload.country.slug;
+const price = payload.esim.fromUsd ?? 0;
+const landmark = LANDMARKS[code.toUpperCase()] ?? null;
+const faqs = destinationFaqs(lang, country, price);
+
+const products: DestinationProduct[] = payload.products ?? [
+  { key: 'esim', available: payload.esim.planCount > 0, fromUsd: payload.esim.fromUsd },
+  { key: 'proxy', available: payload.proxy.available, fromUsd: payload.proxy.fromUsd },
+  { key: 'sms', available: payload.sms.available, fromUsd: null },
+];
+const availableProducts = PRODUCT_ORDER
+  .map((key) => products.find((product) => product.key === key))
+  .filter((product): product is DestinationProduct => !!product && product.available);
+const vpn = payload.global?.vpn ?? null;
+
+const durations = payload.esim.durations.length ? payload.esim.durations.join(', ') : '';
+const networks = payload.esim.networks.join(', ');
+const intro =
+  networks && durations
+    ? t(
+        lang,
+        'destination.intro',
+        { count: payload.esim.planCount, price: price.toFixed(2), durations, networks },
+        `${payload.esim.planCount} plans from $${price.toFixed(2)} · ${durations} days · ${networks}`,
+      )
+    : t(
+        lang,
+        'destination.intro_plain',
+        { count: payload.esim.planCount, price: price.toFixed(2) },
+        `${payload.esim.planCount} plans from $${price.toFixed(2)}.`,
+      );
+
+/**
+ * Every control on this page is a link, so filtering, pagination and the
+ * language/theme switches work with JavaScript disabled and are crawlable.
+ */
+function pageHref(next: {
+  data?: DataFilter;
+  dur?: DurationFilter;
+  n?: number;
+}): string {
+  const params = new URLSearchParams();
+  const nextData = next.data ?? dataFilter;
+  const nextDur = next.dur ?? durationFilter;
+  const nextN = next.n ?? (next.data != null || next.dur != null ? PLAN_PAGE_SIZE : visibleCount);
+  if (nextData !== 'all') params.set('data', nextData);
+  if (nextDur !== 'all') params.set('dur', nextDur);
+  if (nextN > PLAN_PAGE_SIZE) params.set('n', String(nextN));
+  const theme = Astro.url.searchParams.get('theme');
+  const skin = Astro.url.searchParams.get('skin');
+  if (theme) params.set('theme', theme);
+  if (skin) params.set('skin', skin);
+  const qs = params.toString();
+  return `${localePath(`/destination/${slug}`, lang)}${qs ? `?${qs}` : ''}`;
+}
+
+function planHref(plan: { id: string }): string {
+  // Only a plan from `/esim/compare` has a buyable id; the cached six-plan
+  // fallback stays a browse link until compare recovers.
+  return data.buyable
+    ? localePath(`/checkout?c=${code}&plan=${encodePlanRef(plan.id)}`, lang)
+    : localePath(`/esim?c=${code}`, lang);
+}
+
+const esimHref = localePath(`/esim?c=${code}`, lang);
+---
+
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a href={localePath('/', lang)}>{t(lang, 'destination.breadcrumb_home', undefined, 'Home')}</a>
+  <Icon name="chevron" size={10} />
+  <a href={localePath('/esim', lang)}>{t(lang, 'destination.breadcrumb_esim', undefined, 'eSIM')}</a>
+  <Icon name="chevron" size={10} />
+  <span aria-current="page">{country}</span>
+</nav>
+
+<section class="hero" style={`background:${gradientFor(code)}`}>
+  {landmark && (
+    <img
+      class="hero-photo"
+      src={`/landmarks/${code.toUpperCase()}.webp`}
+      alt=""
+      width="1280"
+      height="720"
+      fetchpriority="high"
+      decoding="async"
+    />
+  )}
+  <div class="hero-scrim" aria-hidden="true"></div>
+  <div class="hero-inner">
+    {/^[A-Za-z]{2}$/.test(code) && (
+      <img
+        class="hero-flag"
+        src={`/flags/${code.toLowerCase()}.svg`}
+        alt={`Flag of ${country}`}
+        width="96"
+        height="72"
+        loading="eager"
+      />
+    )}
+    <div class="hero-copy">
+      <p class="hero-kicker">
+        <span><Icon name="globe" size={11} /> eSIM</span>
+        <span aria-hidden="true">·</span>
+        <span><Icon name="zap" size={11} /> {t(lang, 'destination.instant', undefined, 'Instant delivery')}</span>
+      </p>
+      <h1>{t(lang, 'destination.hero_title', { country }, `${country} eSIM`)}</h1>
+      <p class="hero-intro">{intro}</p>
+      <p class="hero-actions">
+        <a class="btn btn-primary" href="#plans">
+          {t(lang, 'destination.plans_title', undefined, 'Plans')} <Icon name="arrow" size={13} />
+        </a>
+        <a class="btn" href={esimHref}>eSIM</a>
+      </p>
+    </div>
+  </div>
+  {landmark && (
+    <p class="hero-credit">
+      <a
+        href={landmark.source_url || undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {t(lang, 'destination.photo_credit', undefined, 'Photo')}: {landmark.landmark} · {landmark.artist} · {landmark.license}
+      </a>
+    </p>
+  )}
+</section>
+
+<div class="layout">
+  <!-- ── Plans (left column) ─────────────────────────────────────── -->
+  <section class="plans" id="plans" aria-labelledby="plans-title">
+    <div class="plans-head">
+      <h2 id="plans-title">{t(lang, 'destination.plans_title', undefined, 'Plans')}</h2>
+      <span class="mono-label">
+        {t(lang, 'destination.plan_count', { count: totalMatching }, `${totalMatching} plans`)}
+      </span>
+    </div>
+
+    <div class="filters">
+      <div class="filter-row" role="group" aria-label={t(lang, 'destination.filter_data', undefined, 'Data')}>
+        <span class="mono-label">{t(lang, 'destination.filter_data', undefined, 'Data')}</span>
+        {DATA_FILTERS.map((filter) => (
+          <a
+            class="chip"
+            href={pageHref({ data: filter.key, n: PLAN_PAGE_SIZE })}
+            aria-current={dataFilter === filter.key ? 'true' : 'false'}
+          >
+            {t(lang, filter.label, undefined, filter.fallback)}
+          </a>
+        ))}
+      </div>
+      <div class="filter-row" role="group" aria-label={t(lang, 'destination.filter_duration', undefined, 'Duration')}>
+        <span class="mono-label">{t(lang, 'destination.filter_duration', undefined, 'Duration')}</span>
+        {DURATION_FILTERS.map((filter) => (
+          <a
+            class="chip"
+            href={pageHref({ dur: filter.key, n: PLAN_PAGE_SIZE })}
+            aria-current={durationFilter === filter.key ? 'true' : 'false'}
+          >
+            {t(lang, filter.label, undefined, filter.fallback)}
+          </a>
+        ))}
+      </div>
+    </div>
+
+    {data.bundle && data.coverage.length > 0 && (
+      <div class="coverage">
+        <h3>
+          {t(lang, 'destination.coverage_title', undefined, 'Coverage')} · {data.coverage.length}{' '}
+          {t(lang, 'destination.coverage_countries', undefined, 'countries')}
+        </h3>
+        <ul>
+          {data.coverage.map((row) => (
+            <li>
+              <strong>{row.country}</strong>
+              <span>{row.operators.join(', ')}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    <div class="plan-grid">
+      {visiblePlans.map((plan) => (
+        <a class="plan-card" href={planHref(plan)}>
+          <span class="plan-top">
+            <span class="plan-data">{formatData(plan.dataGB)}</span>
+            <span class="plan-price">{formatUsd(plan.price)}</span>
+          </span>
+          <span class="plan-meta">
+            <span>{formatDays(plan.durationDays)}</span>
+            <span class="plan-speed"><Icon name="wifi" size={10} /> {plan.speed || '3G/4G/5G'}</span>
+          </span>
+          {(plan.nonRefundable || plan.requiresActivationDate) && (
+            <span class="plan-note">
+              {plan.nonRefundable ? 'Non-refundable' : ''}
+              {plan.nonRefundable && plan.requiresActivationDate ? ' · ' : ''}
+              {plan.requiresActivationDate ? 'Start date required' : ''}
+            </span>
+          )}
+          <span class="plan-cta">
+            {t(lang, 'destination.select', undefined, 'Select')} <Icon name="arrow" size={11} />
+          </span>
+        </a>
+      ))}
+    </div>
+
+    {totalMatching === 0 && (
+      <p class="empty">{t(lang, 'destination.no_plan_match', undefined, 'No plans match these filters.')}</p>
+    )}
+
+    {visibleCount < totalMatching && (
+      <p class="more">
+        <a class="btn" href={pageHref({ n: visibleCount + PLAN_PAGE_SIZE })}>
+          {t(lang, 'destination.show_more', undefined, 'Show more')} ({totalMatching - visibleCount})
+        </a>
+      </p>
+    )}
+
+    <p class="view-all">
+      <a href={esimHref}>
+        {t(
+          lang,
+          'destination.view_all',
+          { count: plans.length, country },
+          `View all ${plans.length} plans for ${country}`,
+        )}
+        <Icon name="arrow" size={12} />
+      </a>
+    </p>
+  </section>
+
+  <!-- ── Products (right rail) ───────────────────────────────────── -->
+  <aside class="rail" aria-label={t(lang, 'destination.products_title', { country }, `Products for ${country}`)}>
+    <h2>{t(lang, 'destination.products_title', { country }, `Products for ${country}`)}</h2>
+    <div class="product-list">
+      {availableProducts.map((product) => {
+        const meta = PRODUCT_META[product.key];
+        return (
+          <a class="product" href={localePath(meta.href(code), lang)}>
+            <span class="product-body">
+              <span class="product-label">
+                <Icon
+                  name={
+                    product.key === 'phone' || product.key === 'uk_number'
+                      ? 'phone'
+                      : product.key === 'sms' || product.key === 'sms_rental'
+                        ? 'message'
+                        : product.key === 'proxy'
+                          ? 'shield'
+                          : 'wifi'
+                  }
+                  size={13}
+                />
+                {t(lang, meta.labelKey, undefined, meta.labelFallback)}
+              </span>
+              <span class="product-desc">{t(lang, meta.descKey, undefined, meta.descFallback)}</span>
+            </span>
+            {product.fromUsd != null && <span class="product-price">{formatUsd(product.fromUsd)}</span>}
+          </a>
+        );
+      })}
+
+      {vpn?.available && (
+        <a class="product" href={localePath('/vpn', lang)}>
+          <span class="product-body">
+            <span class="product-label"><Icon name="globe" size={13} /> {t(lang, 'destination.product_vpn', undefined, 'VPN')}</span>
+            <span class="product-desc">
+              {t(lang, 'destination.global_service', undefined, 'Worldwide')} ·{' '}
+              {t(lang, 'destination.product_vpn_desc', undefined, 'WireGuard, OpenVPN and VLESS')}
+            </span>
+          </span>
+          {vpn.fromUsd != null && <span class="product-price">{formatUsd(vpn.fromUsd)}</span>}
+        </a>
+      )}
+    </div>
+
+    <div class="rail-note">
+      <p class="mono-label"><Icon name="lock" size={11} /> No KYC</p>
+      <p>Pay with Monero, Lightning or USDT. The eSIM profile is delivered as a QR code after payment.</p>
+    </div>
+  </aside>
+</div>
+
+<!-- ── FAQ ───────────────────────────────────────────────────────── -->
+<section class="faq" aria-labelledby="faq-title">
+  <h2 id="faq-title">
+    {t(lang, 'destination.faq_title', { country }, `${country} eSIM FAQ`)}
+  </h2>
+  <div class="faq-list">
+    {faqs.map((faq) => (
+      <details>
+        <summary>
+          <span>{faq.question}</span>
+          <Icon name="chevron" size={14} class="faq-chevron" />
+        </summary>
+        <p>{faq.answer}</p>
+      </details>
+    ))}
+  </div>
+</section>
+
+<style>
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 1.1rem 0;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .crumbs a:hover {
+    color: var(--brand-color);
+  }
+
+  .crumbs span[aria-current] {
+    color: var(--text-primary);
+  }
+
+  /* Hero */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    min-height: 13rem;
+  }
+
+  .hero-photo,
+  .hero-scrim {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .hero-photo {
+    object-fit: cover;
+  }
+
+  .hero-scrim {
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.45) 60%, rgba(0, 0, 0, 0.2));
+  }
+
+  .hero-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.25rem;
+    padding-bottom: 2rem;
+  }
+
+  @media (min-width: 640px) {
+    .hero-inner {
+      flex-direction: row;
+      align-items: center;
+      padding: 1.75rem;
+    }
+  }
+
+  .hero-flag {
+    width: 4.5rem;
+    height: 3.1rem;
+    flex: none;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+    outline: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .hero-copy {
+    min-width: 0;
+  }
+
+  .hero-kicker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .hero-kicker span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .hero h1 {
+    color: #fff;
+    font-size: clamp(1.85rem, 5vw, 2.6rem);
+    font-weight: 900;
+  }
+
+  .hero-intro {
+    margin-top: 0.5rem;
+    max-width: 38rem;
+    font-size: 1rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.84);
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .hero-actions .btn {
+    background: rgba(0, 0, 0, 0.25);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+  }
+
+  .hero-actions .btn-primary {
+    background: var(--brand-color);
+    border-color: var(--brand-color);
+    color: #04121a;
+  }
+
+  .hero-credit {
+    position: relative;
+    padding: 0 1.25rem 0.5rem;
+    font-size: 0.62rem;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  @media (min-width: 640px) {
+    .hero-credit {
+      position: absolute;
+      right: 0.6rem;
+      bottom: 0.4rem;
+      max-width: 85%;
+      padding: 0;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .hero-credit a {
+    display: inline-block;
+    padding: 0.3rem 0.5rem;
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .hero-credit a:hover {
+    color: #fff;
+  }
+
+  /* Layout: plans left, sticky product rail right on lg+ */
+  .layout {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+
+  /* Phones keep the product switcher above the long plan list, exactly like
+     the React page; the sticky rail is a large-screen affordance only. */
+  .rail {
+    order: -1;
+  }
+
+  @media (min-width: 1024px) {
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      align-items: start;
+      gap: 2rem;
+    }
+
+    .plans {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .rail {
+      grid-column: 2;
+      grid-row: 1;
+      order: 0;
+      position: sticky;
+      top: 1rem;
+    }
+  }
+
+  .plans-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .plans-head h2,
+  .faq h2,
+  .rail h2 {
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+
+  /* Filters */
+  .filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0.85rem 0 1rem;
+  }
+
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .filter-row .mono-label {
+    margin-right: 0.25rem;
+  }
+
+  /* Plans */
+  .plan-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .plan-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .plan-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .plan-card:hover {
+    border-color: var(--brand-color);
+    background: color-mix(in srgb, var(--brand-color) 6%, var(--bg-primary));
+    color: inherit;
+  }
+
+  .plan-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .plan-data {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .plan-price {
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--brand-color);
+  }
+
+  .plan-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+  }
+
+  .plan-speed {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .plan-note {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--warning-color);
+  }
+
+  .plan-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .plan-card:hover .plan-cta {
+    color: var(--brand-color);
+  }
+
+  .empty {
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .more {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.9rem;
+  }
+
+  .view-all {
+    margin-top: 1rem;
+  }
+
+  .view-all a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--brand-color);
+  }
+
+  /* Coverage */
+  .coverage {
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+  }
+
+  .coverage h3 {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.82rem;
+    font-weight: 800;
+  }
+
+  .coverage ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .coverage li {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.45rem 1rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+  }
+
+  .coverage li:last-child {
+    border-bottom: 0;
+  }
+
+  .coverage li span {
+    text-align: right;
+    color: var(--text-dim);
+  }
+
+  /* Rail */
+  .rail {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+    padding: 1rem;
+  }
+
+  .product-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+  }
+
+  .product {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+  }
+
+  .product:hover {
+    border-color: var(--brand-color);
+    color: inherit;
+  }
+
+  .product-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  .product-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .product-label svg {
+    color: var(--brand-color);
+  }
+
+  .product-desc {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+
+  .product-price {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+  }
+
+  .rail-note {
+    margin-top: 1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.74rem;
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+
+  .rail-note .mono-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+  }
+
+  /* FAQ */
+  .faq {
+    margin-top: 2.5rem;
+  }
+
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .faq details {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  .faq summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 2.75rem;
+    padding: 0.9rem 1rem;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 700;
+    list-style: none;
+  }
+
+  .faq summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq summary :global(svg) {
+    flex: none;
+    color: var(--brand-color);
+    transition: transform 0.15s ease;
+  }
+
+  .faq details[open] summary :global(svg) {
+    transform: rotate(90deg);
+  }
+
+  .faq details p {
+    padding: 0 1rem 1rem;
+    font-size: 0.84rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+</style>

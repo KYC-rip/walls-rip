@@ -1,0 +1,19 @@
+---
+import DestinationPage from '../../components/pages/DestinationPage.astro';
+import NotFoundPage from '../../components/pages/NotFoundPage.astro';
+import UnavailablePage from '../../components/pages/UnavailablePage.astro';
+import { prepareDestinationRoute } from '../../lib/destination-route';
+import { pageLang } from '../../lib/page';
+
+const lang = pageLang(Astro);
+const slug = Astro.params.slug ?? '';
+const result = await prepareDestinationRoute(Astro, lang, slug);
+
+if (result.kind === 'redirect') return result.response;
+if (result.kind === 'not-found') Astro.response.status = 404;
+if (result.kind === 'unavailable') Astro.response.status = 503;
+---
+
+{result.kind === 'ok' && <DestinationPage props={result.props} />}
+{result.kind === 'not-found' && <NotFoundPage lang={lang} />}
+{result.kind === 'unavailable' && <UnavailablePage lang={lang} />}

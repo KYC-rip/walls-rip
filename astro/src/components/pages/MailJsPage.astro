@@ -1,0 +1,12 @@
+---
+import JsOnlyPage from './JsOnlyPage.astro';
+import { type Lang } from '../../lib/i18n';
+const lang = (Astro.props.lang ?? 'en') as Lang;
+---
+
+<JsOnlyPage
+  lang={lang}
+  title="Ghost Mail needs JavaScript"
+  description="Ghost Mail is a browser-side burner inbox and requires JavaScript."
+  body="Ghost Mail creates and reads your inbox in the browser, so it needs JavaScript enabled."
+/>

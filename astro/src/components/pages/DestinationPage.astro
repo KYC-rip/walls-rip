@@ -1,0 +1,24 @@
+---
+import Base from '../../layouts/Base.astro';
+import DestinationView from '../DestinationView.astro';
+import type { DestinationRouteProps } from '../../lib/destination-route';
+
+export interface Props {
+  props: DestinationRouteProps;
+}
+
+const { props } = Astro.props;
+---
+
+<Base
+  title={props.title}
+  description={props.description}
+  path={props.path}
+  lang={props.lang}
+  image={props.image}
+  preloadImage={props.preloadImage}
+  jsonLd={props.jsonLd}
+  hreflang
+>
+  <DestinationView data={props.data} lang={props.lang} />
+</Base>

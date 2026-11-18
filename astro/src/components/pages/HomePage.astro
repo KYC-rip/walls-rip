@@ -1,0 +1,311 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+import { compareDestinations, fetchDestinationIndex, formatUsd, type DestinationRow } from '../../lib/data';
+import { localePath, t } from '../../lib/i18n';
+import { pageLang } from '../../lib/page';
+import { organizationSchema, siteOrigin, websiteSchema } from '../../lib/seo';
+
+const origin = siteOrigin(Astro);
+const lang = pageLang(Astro);
+
+let destinations: DestinationRow[] = [];
+try {
+  const rows = await fetchDestinationIndex(Astro.locals);
+  destinations = [...rows].sort(compareDestinations).slice(0, 24);
+} catch {
+  destinations = [];
+}
+
+const PRODUCTS = [
+  {
+    href: '/esim',
+    icon: 'wifi' as const,
+    title: 'Travel eSIM',
+    body: 'Prepaid data in 200+ destinations. Install with a QR code; no account, no KYC.',
+  },
+  {
+    href: '/sms',
+    icon: 'message' as const,
+    title: 'SMS verification',
+    body: 'Receive one-time codes on numbers from dozens of countries, paid per message.',
+  },
+  {
+    href: '/phone',
+    icon: 'phone' as const,
+    title: 'Phone numbers',
+    body: 'Real local numbers with voice, SMS and data for the countries the network supports.',
+  },
+  {
+    href: '/proxy',
+    icon: 'shield' as const,
+    title: 'Residential proxies',
+    body: 'Residential IPs by country for apps and scripts, paid with Monero or Lightning.',
+  },
+  {
+    href: '/vpn',
+    icon: 'globe' as const,
+    title: 'VPN',
+    body: 'WireGuard, OpenVPN and VLESS access, provisioned without an account.',
+  },
+  {
+    href: '/network',
+    icon: 'zap' as const,
+    title: 'All products',
+    body: 'Compare every walls.rip product and pick where to start.',
+  },
+];
+
+---
+
+<Base
+  title="walls.rip — eSIM, numbers and proxies with no account"
+  description="No-account digital infrastructure: travel eSIM data, phone numbers, SMS verification and residential proxies. Pay with Monero, Lightning or USDT."
+  path="/"
+  image="/og-image.jpg"
+  jsonLd={[organizationSchema(origin), websiteSchema(origin)]}
+>
+  <section class="hero">
+    <p class="mono-label">No account · No identity · No KYC</p>
+    <h1>Connect without a profile.</h1>
+    <p class="lede">
+      eSIM data, phone numbers, SMS verification and residential proxies — bought with
+      Monero or Lightning and delivered instantly. No sign-up, no email, no identity document.
+    </p>
+    <p class="hero-actions">
+      <a class="btn btn-primary" href={localePath('/esim', lang)}>
+        Browse eSIM plans <Icon name="arrow" size={13} />
+      </a>
+      <a class="btn" href={localePath('/network', lang)}>Compare products</a>
+    </p>
+  </section>
+
+  <section class="products" aria-label="Products">
+    {PRODUCTS.map((product) => (
+      <a class="product-card" href={localePath(product.href, lang)}>
+        <span class="product-icon"><Icon name={product.icon} size={18} /></span>
+        <span class="product-title">{product.title}</span>
+        <span class="product-body">{product.body}</span>
+        <span class="product-link">Open <Icon name="arrow" size={11} /></span>
+      </a>
+    ))}
+  </section>
+
+  {destinations.length > 0 && (
+    <section class="destinations" aria-labelledby="dest-title">
+      <div class="section-head">
+        <h2 id="dest-title">Popular destinations</h2>
+        <a href={localePath('/esim', lang)}>All destinations <Icon name="arrow" size={11} /></a>
+      </div>
+      <div class="dest-grid">
+        {destinations.map((destination) => (
+          <a class="dest-card" href={localePath(`/destination/${destination.slug}`, lang)}>
+            <img
+              src={`/flags/${destination.code.toLowerCase()}.svg`}
+              alt=""
+              width="40"
+              height="30"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="dest-name">{destination.name}</span>
+            <span class="dest-price">
+              {t(lang, 'destination.from_price', { price: formatUsd(destination.fromUsd).replace('$', '') }, `from ${formatUsd(destination.fromUsd)}`)}
+            </span>
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
+</Base>
+
+<style>
+  .hero {
+    padding: 3rem 0 2rem;
+    max-width: 46rem;
+  }
+
+  .hero h1 {
+    margin-top: 0.6rem;
+    font-size: clamp(2.2rem, 7vw, 3.8rem);
+    font-weight: 900;
+    line-height: 1.02;
+  }
+
+  .lede {
+    margin-top: 1rem;
+    max-width: 38rem;
+    font-size: 1rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .products {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .products {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .products {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .product-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 1.1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  .product-card:hover {
+    border-color: var(--brand-color);
+    color: inherit;
+  }
+
+  .product-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    margin-bottom: 0.35rem;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--brand-color) 14%, transparent);
+    color: var(--brand-color);
+  }
+
+  .product-title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 800;
+  }
+
+  .product-body {
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+
+  .product-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .product-card:hover .product-link {
+    color: var(--brand-color);
+  }
+
+  .destinations {
+    margin-top: 3rem;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-head h2 {
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+
+  .section-head a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brand-color);
+  }
+
+  .dest-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .dest-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .dest-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  .dest-card {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  .dest-card:hover {
+    border-color: var(--brand-color);
+    color: inherit;
+  }
+
+  .dest-card img {
+    width: 2rem;
+    height: 1.5rem;
+    flex: none;
+    object-fit: cover;
+    border-radius: 2px;
+    outline: 1px solid var(--border-color);
+  }
+
+  .dest-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dest-price {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--brand-color);
+  }
+</style>

@@ -1,0 +1,270 @@
+---
+import Base from '../../layouts/Base.astro';
+import { localePath } from '../../lib/i18n';
+import { pageLang } from '../../lib/page';
+import { organizationSchema, siteOrigin, websiteSchema } from '../../lib/seo';
+
+const lang = pageLang(Astro);
+const origin = siteOrigin(Astro);
+
+const GROUPS = [
+  {
+    title: 'eSIM data',
+    base: 'https://api.kyc.rip/v1/tools/esim',
+    note: 'Public catalogue endpoints need no authentication. Purchases use your wallet token.',
+    endpoints: [
+      ['GET', '/destinations', 'Every destination with a funded from-price.', 'public'],
+      ['GET', '/destinations/:key', 'One destination: plans, products, networks.', 'public'],
+      ['GET', '/compare?country=TH', 'Full buyable plan list for one country.', 'public'],
+      ['GET', '/region-bundles', 'Multi-country packages.', 'public'],
+      ['POST', '/purchase', 'Buy a plan with { planId, token, clientRef }.', 'wallet'],
+      ['GET', '/status?order_id=…', 'Order state and delivered profile.', 'wallet'],
+    ],
+  },
+  {
+    title: 'SMS verification',
+    base: 'https://api.kyc.rip/v1/tools/sms',
+    note: 'Prices are per message and follow live provider stock.',
+    endpoints: [
+      ['GET', '/countries', 'Countries with at least one funded route.', 'public'],
+      ['GET', '/services/unified', 'Service catalogue across providers.', 'public'],
+      ['GET', '/compare?country=US&service=telegram', 'Routes and prices for one pair.', 'public'],
+      ['POST', '/purchase', 'Create an SMS order.', 'wallet'],
+    ],
+  },
+  {
+    title: 'VPN and UK numbers',
+    base: 'https://api.kyc.rip/v1/tools',
+    note: 'Same wallet, same idempotency rules.',
+    endpoints: [
+      ['GET', '/vpn/plans', 'VPN access periods and protocols.', 'public'],
+      ['POST', '/vpn/purchase', 'Provision a VPN order.', 'wallet'],
+      ['GET', '/vpn/config?order_id=…', 'WireGuard / OpenVPN / VLESS config.', 'wallet'],
+      ['GET', '/phone/rentals/plans', 'UK +44 packages.', 'public'],
+      ['POST', '/phone/rentals/purchase', 'Buy a UK number.', 'wallet'],
+    ],
+  },
+];
+---
+
+<Base
+  title="API — walls.rip"
+  description="Public walls.rip API: eSIM catalogues and purchases, SMS verification, VPN and UK numbers. Wallet bearer tokens, idempotent purchases, no account."
+  path="/api"
+  lang={lang}
+  jsonLd={[organizationSchema(origin), websiteSchema(origin)]}
+>
+  <section class="head">
+    <p class="mono-label">API</p>
+    <h1>Build on the same catalogue.</h1>
+    <p class="lede">
+      Everything the site does is an HTTP endpoint. Public catalogues are open; purchases
+      use the bearer token of a prepaid wallet. There is no account layer to integrate.
+    </p>
+  </section>
+
+  <section class="auth">
+    <h2>Authentication</h2>
+    <p>
+      Send <code>Authorization: Bearer &lt;wallet-token&gt;</code> on private endpoints.
+      Wallet tokens are returned when a deposit is created. Always reuse the same
+      <code>clientRef</code> when a purchase response is uncertain — a retry with the same
+      reference cannot create a second provider order.
+    </p>
+    <pre><code>curl https://api.kyc.rip/v1/tools/esim/destinations/thailand
+curl -H "Authorization: Bearer $WALLET" \
+  "https://api.kyc.rip/v1/tools/esim/status?order_id=wallscust:12345"</code></pre>
+  </section>
+
+  {GROUPS.map((group) => (
+    <section class="group">
+      <div class="group-head">
+        <h2>{group.title}</h2>
+        <code class="base">{group.base}</code>
+      </div>
+      <p class="note">{group.note}</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Method</th><th scope="col">Path</th><th scope="col">Description</th><th scope="col">Auth</th></tr>
+          </thead>
+          <tbody>
+            {group.endpoints.map(([method, path, description, auth]) => (
+              <tr>
+                <td><span class:list={['method', method === 'POST' ? 'post' : 'get']}>{method}</span></td>
+                <td><code>{path}</code></td>
+                <td>{description}</td>
+                <td><span class:list={['auth', auth === 'wallet' ? 'wallet' : 'public']}>{auth}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  ))}
+
+  <section class="notes">
+    <h2>Notes</h2>
+    <ul>
+      <li>Responses are white-label: no provider names, raw costs or internal identifiers.</li>
+      <li>Prices are reserved at purchase time. A stale quote is rejected, not silently changed.</li>
+      <li>Catalogues are cached briefly; a funding change is visible within minutes.</li>
+      <li>Rate limits are enforced per wallet on purchase endpoints.</li>
+    </ul>
+    <p><a href={localePath('/network', lang)}>← Back to products</a></p>
+  </section>
+</Base>
+
+<style>
+  .head {
+    max-width: 46rem;
+    padding: 2.5rem 0 1.5rem;
+  }
+
+  .head h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 900;
+    line-height: 1.05;
+  }
+
+  .lede {
+    margin-top: 0.9rem;
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  h2 {
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+
+  .auth,
+  .group,
+  .notes {
+    margin-top: 2rem;
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  .auth p,
+  .note,
+  .notes li {
+    margin-top: 0.6rem;
+    font-size: 0.84rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .auth p code {
+    padding: 0 0.25rem;
+    border-radius: 3px;
+    background: var(--bg-raised);
+    color: var(--text-primary);
+  }
+
+  pre {
+    margin: 0.9rem 0 0;
+    padding: 0.9rem;
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    line-height: 1.6;
+  }
+
+  .group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .base {
+    color: var(--brand-color);
+    overflow-wrap: anywhere;
+  }
+
+  .table-wrap {
+    margin-top: 0.75rem;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+  }
+
+  th,
+  td {
+    padding: 0.55rem 0.6rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .method {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  .method.post {
+    color: var(--warning-color);
+  }
+
+  .method.get {
+    color: var(--color-green);
+  }
+
+  .auth {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .auth.public {
+    color: var(--text-dim);
+  }
+
+  .auth.wallet {
+    color: var(--brand-color);
+  }
+
+  .notes ul {
+    margin: 0.6rem 0 0;
+    padding-left: 1.1rem;
+  }
+
+  .notes p {
+    margin-top: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+</style>
