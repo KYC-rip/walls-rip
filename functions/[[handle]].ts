@@ -136,6 +136,41 @@ async function loadDestinationRedirects(assets: Fetcher, origin: string): Promis
 export const onRequest: PagesFunction = async (context) => {
   const url = new URL(context.request.url);
 
+  // ── Astro cutover (2026-11-18) ─────────────────────────────────────────
+  // The commerce surface is server-rendered by the walls-astro Worker; the
+  // rest of walls.rip (home, Ghost Mail, Dead Drop, Comms, top-ups) stays on
+  // this Pages project. A Worker route cannot override a Pages custom domain,
+  // so the Function proxies the page paths explicitly. Origin is rewritten to
+  // the upstream host so the Worker's same-origin form check accepts the POST
+  // (the browser still sends Origin: https://walls.rip).
+  const ASTRO_ORIGIN = 'https://astro.walls.rip';
+  const ASTRO_EXACT = new Set([
+    '/esim', '/sms', '/phone', '/proxy', '/vpn', '/uk-sim', '/network',
+    '/faq', '/api', '/checkout', '/pay', '/order', '/robots.txt', '/sitemap.xml',
+  ]);
+  const ASTRO_PREFIXES = ['/destination/', '/actions/', '/flags/'];
+  const isAstroPath = ASTRO_EXACT.has(url.pathname)
+    || ASTRO_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+  if (isAstroPath) {
+    const target = new URL(url.pathname + url.search, ASTRO_ORIGIN);
+    const headers = new Headers(context.request.headers);
+    headers.set('origin', ASTRO_ORIGIN);
+    headers.set('referer', ASTRO_ORIGIN + url.pathname);
+    const upstream = await fetch(new Request(target, {
+      method: context.request.method,
+      headers,
+      body: context.request.method === 'GET' || context.request.method === 'HEAD'
+        ? undefined
+        : context.request.body,
+      redirect: 'manual',
+    }));
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: upstream.headers,
+    });
+  }
+
   // Let static assets through
   if (url.pathname.match(/\.(js|css|svg|png|jpe?g|webp|avif|gif|ico|woff2?|ttf|otf|txt|xml|json|webmanifest|html)$/)) {
     return context.next();
