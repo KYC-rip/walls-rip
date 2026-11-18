@@ -447,5 +447,7 @@ export function purchaseErrorMessage(raw: string): string {
   if (/duplicate/i.test(raw)) {
     return 'This purchase was already submitted — check the open order before retrying.';
   }
-  return raw.slice(0, 280);
+  // Never echo upstream text: provider names and raw status codes are not for
+  // the customer. The detail stays in the API response and the logs.
+  return 'The provider could not complete this request. Try again, or pick another route.';
 }

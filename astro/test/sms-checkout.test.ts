@@ -286,6 +286,11 @@ describe('purchaseErrorMessage', () => {
     expect(purchaseErrorMessage('service not in whitelist')).toMatch(/not available from this route/i);
     expect(purchaseErrorMessage('insufficient balance')).toMatch(/add funds/i);
     expect(purchaseErrorMessage('duplicate ref')).toMatch(/already submitted/i);
-    expect(purchaseErrorMessage('boom')).toBe('boom');
+  });
+
+  it('never echoes upstream text (provider names, raw status codes)', () => {
+    const leak = purchaseErrorMessage('herosms setStatus: ACCESS_CANCEL');
+    expect(leak).not.toMatch(/herosms|access_cancel/i);
+    expect(purchaseErrorMessage('boom')).toMatch(/try again/i);
   });
 });

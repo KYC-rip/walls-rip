@@ -38,11 +38,13 @@ export const POST: APIRoute = async (context) => {
     const result = await cancelSms(context.locals, order.orderId, token);
 
     if (!result.success) {
+      // Never render the upstream message: provider names and raw status codes
+      // ("setStatus: ACCESS_CANCEL") are not for the customer.
       setFlash(
         context,
         result.delivered
           ? 'A code was already delivered on this number, so the order cannot be refunded.'
-          : result.message || 'The provider refused to cancel this order.',
+          : 'The number could not be released, so no refund was issued. If a code arrives it will still show here.',
       );
       return context.redirect(checkPath, 303);
     }
@@ -58,7 +60,9 @@ export const POST: APIRoute = async (context) => {
     );
     return context.redirect(localePath('/sms', lang), 303);
   } catch (error) {
-    setFlash(context, (error as Error).message || 'The order could not be cancelled.');
+    // Raw upstream text stays in the logs, never on the page.
+    console.error('[sms cancel]', error);
+    setFlash(context, 'The order could not be cancelled right now. Try again in a moment.');
     return context.redirect(checkPath, 303);
   }
 };
