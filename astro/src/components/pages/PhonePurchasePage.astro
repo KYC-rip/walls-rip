@@ -1,0 +1,430 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
+import { regionDisplayName } from '../../lib/catalogue';
+import { formatData, formatDays, formatUsd } from '../../lib/data';
+import { localePath } from '../../lib/i18n';
+import type { PhonePurchaseProps } from '../../lib/phone-checkout';
+
+export interface Props {
+  props: PhonePurchaseProps;
+}
+
+const {
+  country, planRef, planName, dataGB, durationDays, price, hasVoice, hasSms,
+  voiceMinutes, smsCount, nonRefundable, requiresActivationDate,
+  activationMin, activationMax, balance, hasWallet, csrf, lang, returnTo,
+  flash, depositAmount, depositCapped,
+} = Astro.props.props;
+
+const covered = balance >= price;
+// The covered branch offers an optional top-up; the exact shortfall is only
+// meaningful when the wallet is short.
+const topupAmount = covered ? 5 : depositAmount;
+const countryName = regionDisplayName(country);
+// The API uses -1 for unlimited voice/SMS.
+const unlimited = (value?: number) => (value === undefined || value < 0 ? 'Unlimited' : String(value));
+---
+
+<Base
+  title={`${planName} — checkout | walls.rip`}
+  description="Buy a phone number plan with voice, SMS and data, paid from a prepaid wallet with Monero or Lightning. No account or KYC."
+  path="/phone/purchase"
+  lang={lang}
+  noindex
+>
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href={localePath('/phone', lang)}>Phone</a>
+    <Icon name="chevron" size={10} />
+    <a href={localePath(`/phone?country=${country}`, lang)}>{countryName}</a>
+    <Icon name="chevron" size={10} />
+    <span>Buy</span>
+  </nav>
+
+  <h1>Buy a phone plan</h1>
+
+  {flash && <p class="flash" role="alert">{flash}</p>}
+
+  <div class="layout">
+    <section class="summary" aria-labelledby="summary-title">
+      <h2 id="summary-title">Your plan</h2>
+      <div class="plan">
+        <div class="plan-top">
+          <span class="plan-data">{planName}</span>
+          <span class="plan-price">{formatUsd(price)}</span>
+        </div>
+        <p class="plan-meta">
+          <span>{countryName}</span>
+          {dataGB > 0 && <span>{formatData(dataGB)}</span>}
+          <span>{formatDays(durationDays)}</span>
+          {hasVoice && <span>Voice {unlimited(voiceMinutes)} min</span>}
+          {hasSms && <span>SMS {unlimited(smsCount)}</span>}
+        </p>
+      </div>
+
+      <p class="note">
+        The number is assigned when the eSIM is activated. Provisioning can take a few
+        minutes; the order page updates itself.
+      </p>
+      {nonRefundable && <p class="note">This plan is non-refundable once activated.</p>}
+      {requiresActivationDate && (
+        <p class="note">This plan needs a start date between {activationMin} and {activationMax}.</p>
+      )}
+
+      <div class="wallet-line">
+        <span>Wallet balance</span>
+        <strong>{formatUsd(balance)}</strong>
+      </div>
+      {!hasWallet && (
+        <p class="hint">
+          A wallet is created with your first deposit. It is stored in a secure cookie on
+          this device.
+        </p>
+      )}
+
+      <details class="topup">
+        <summary>Have an existing wallet token?</summary>
+        <form method="post" action="/actions/wallet/import" class="form">
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="lang" value={lang} />
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <label class="field">
+            <span>Wallet token</span>
+            <input
+              type="text"
+              name="token"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              required
+            />
+            <small>
+              Restores a wallet created in the classic app or on another device. The
+              balance comes with it.
+            </small>
+          </label>
+          <button class="btn wide" type="submit">Restore wallet</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="pay" aria-labelledby="pay-title">
+      {covered ? (
+        <>
+          <h2 id="pay-title">Pay from wallet</h2>
+          <p class="hint">
+            {formatUsd(balance)} available. Buying reserves the price atomically — a double
+            submit cannot charge twice.
+          </p>
+
+          <form method="post" action="/actions/phone/buy" class="form">
+            <input type="hidden" name="csrf" value={csrf} />
+            <input type="hidden" name="lang" value={lang} />
+            <input type="hidden" name="returnTo" value={returnTo} />
+            <input type="hidden" name="c" value={country} />
+            <input type="hidden" name="plan" value={planRef} />
+
+            {requiresActivationDate && (
+              <label class="field">
+                <span>Start date</span>
+                <input
+                  type="date"
+                  name="activationDate"
+                  min={activationMin}
+                  max={activationMax}
+                  required
+                />
+                <small>Choose a date between {activationMin} and {activationMax}.</small>
+              </label>
+            )}
+
+            <button class="btn btn-primary wide" type="submit">
+              <Icon name="lock" size={13} /> Pay {formatUsd(price)} from wallet
+            </button>
+          </form>
+
+          <details class="topup">
+            <summary>Add more funds</summary>
+            <form method="post" action="/actions/deposit" class="form">
+              <input type="hidden" name="csrf" value={csrf} />
+              <input type="hidden" name="lang" value={lang} />
+              <input type="hidden" name="returnTo" value={returnTo} />
+              <input type="hidden" name="svc" value="esim" />
+              <label class="field">
+                <span>Amount (USD)</span>
+                <input type="number" name="amount" min="0.5" max="200" step="0.01" value={topupAmount} required />
+                <small>$0.50 – $200 per deposit.</small>
+              </label>
+              <fieldset class="methods">
+                <legend>Payment method</legend>
+                <label><input type="radio" name="method" value="XMR" checked /> Monero (XMR)</label>
+                <label><input type="radio" name="method" value="LN" /> Lightning (BOLT11)</label>
+              </fieldset>
+              <button class="btn wide" type="submit">Create payment</button>
+            </form>
+          </details>
+        </>
+      ) : (
+        <>
+          <h2 id="pay-title">{hasWallet ? 'Add funds' : 'Fund a wallet'}</h2>
+          <p class="hint">
+            {hasWallet
+              ? `Your balance covers ${formatUsd(balance)}; this plan needs ${formatUsd(price)}. Deposit at least ${formatUsd(depositAmount)}.`
+              : `Deposit at least ${formatUsd(depositAmount)} to buy this plan. Any extra stays in the wallet for other products.`}
+          </p>
+          {depositCapped && (
+            <p class="hint">
+              The shortfall is larger than the $200 per-deposit limit. Add funds twice; the
+              balance is cumulative.
+            </p>
+          )}
+
+          <form method="post" action="/actions/deposit" class="form">
+            <input type="hidden" name="csrf" value={csrf} />
+            <input type="hidden" name="lang" value={lang} />
+            <input type="hidden" name="returnTo" value={returnTo} />
+            <input type="hidden" name="svc" value="esim" />
+            <label class="field">
+              <span>Amount (USD)</span>
+              <input type="number" name="amount" min="0.5" max="200" step="0.01" value={depositAmount} required />
+              <small>$0.50 – $200 per deposit.</small>
+            </label>
+            <fieldset class="methods">
+              <legend>Payment method</legend>
+              <label><input type="radio" name="method" value="XMR" checked /> Monero (XMR)</label>
+              <label><input type="radio" name="method" value="LN" /> Lightning (BOLT11)</label>
+            </fieldset>
+            <button class="btn btn-primary wide" type="submit">
+              <Icon name="arrow" size={13} /> Create payment
+            </button>
+          </form>
+          <p class="hint">
+            The payment page shows a Monero address or a Lightning invoice and refreshes
+            itself until it arrives. Then come back here to buy — no JavaScript needed.
+          </p>
+        </>
+      )}
+
+      <p class="secure"><Icon name="lock" size={11} /> Server-rendered checkout — works with JavaScript disabled.</p>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 1.1rem 0;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 5vw, 2.5rem);
+    font-weight: 900;
+  }
+
+  .flash {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--error-color);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--error-color) 10%, transparent);
+    font-size: 0.84rem;
+  }
+
+  .layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  @media (min-width: 900px) {
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      align-items: start;
+      gap: 1.5rem;
+    }
+  }
+
+  .summary,
+  .pay {
+    padding: 1.15rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  h2 {
+    font-size: 1.05rem;
+    font-weight: 800;
+  }
+
+  .plan {
+    margin-top: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+  }
+
+  .plan-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .plan-data {
+    font-family: var(--font-mono);
+    font-size: 1.15rem;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+
+  .plan-price {
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--brand-color);
+  }
+
+  .plan-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.8rem;
+    margin-top: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+  }
+
+  .note {
+    margin-top: 0.8rem;
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+
+  .wallet-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border-color);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .wallet-line strong {
+    font-size: 1rem;
+    color: var(--brand-color);
+  }
+
+  .hint {
+    margin-top: 0.6rem;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    margin-top: 1rem;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .field input {
+    min-height: 2.75rem;
+    padding: 0 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    font-size: 0.95rem;
+  }
+
+  .field small {
+    font-size: 0.66rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--text-dim);
+  }
+
+  .methods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .methods legend {
+    margin-bottom: 0.4rem;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .methods label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.5rem;
+    font-size: 0.84rem;
+  }
+
+  .wide {
+    width: 100%;
+  }
+
+  .topup {
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+  }
+
+  .topup summary {
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .secure {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 1rem;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+  }
+</style>

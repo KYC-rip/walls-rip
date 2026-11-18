@@ -29,6 +29,8 @@ export interface PhonePlan {
   durationDays: number;
   price: number;
   currency: string;
+  /** Engine key — server-side only; never rendered. */
+  engine: string;
   speed?: string;
   planType?: string;
   hasVoice?: boolean;
@@ -146,21 +148,27 @@ export async function fetchPhoneCountries(locals: unknown): Promise<CountryOptio
   return rows;
 }
 
-export async function fetchPhonePlans(locals: unknown, country: string): Promise<PhonePlan[]> {
+export async function fetchPhonePlans(
+  locals: unknown,
+  country: string,
+  options: { fresh?: boolean } = {},
+): Promise<PhonePlan[]> {
   const data = await apiGet<unknown[]>(
     locals,
     `/v1/tools/phone/plans?country=${encodeURIComponent(country)}`,
-    { ttlMs: 5 * 60_000 },
+    { ttlMs: 5 * 60_000, ...(options.fresh ? { fresh: true } : {}) },
   );
   return (Array.isArray(data) ? data : [])
     .map((entry): PhonePlan | null => {
       const plan = entry as Record<string, unknown>;
       const id = str(plan.id);
-      if (!id) return null;
+      const engine = str(plan.engine);
+      if (!id || !engine) return null;
       return {
         id,
         name: cleanPlanName(str(plan.name) || id),
         country: str(plan.country),
+        engine,
         dataGB: num(plan.dataGB),
         durationDays: num(plan.durationDays),
         price: num(plan.price),

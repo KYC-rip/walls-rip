@@ -83,11 +83,15 @@ export const POST: APIRoute = async (context) => {
     const apiError = error instanceof ApiError ? error : null;
     const message = apiError?.message || 'The purchase could not be completed.';
     const held = message.toLowerCase().includes('held') || message.toLowerCase().includes('review');
+    // Never render upstream text: provider names and raw status codes are not
+    // for the customer. The detail stays in the API response and the logs.
     setFlash(
       context,
       held
         ? 'The provider did not confirm. Your funds are held for review — do not pay again; retry this same purchase or contact support with the order time.'
-        : message.slice(0, 280),
+        : message.toLowerCase().includes('insufficient')
+          ? 'Insufficient wallet balance — add funds and try again.'
+          : 'The purchase could not be completed. Try again, or pick another plan.',
     );
     return context.redirect(returnTo, 303);
   }

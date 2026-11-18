@@ -1,0 +1,11 @@
+---
+import PhonePurchasePage from '../../components/pages/PhonePurchasePage.astro';
+import { preparePhonePurchase } from '../../lib/phone-checkout';
+import { pageLang } from '../../lib/page';
+
+const lang = pageLang(Astro);
+const result = await preparePhonePurchase(Astro, lang);
+if (result.kind === 'redirect') return result.response;
+---
+
+<PhonePurchasePage props={result.props} />

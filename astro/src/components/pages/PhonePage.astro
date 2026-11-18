@@ -1,6 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
 import { fetchPhoneCountries, fetchPhonePlans } from '../../lib/catalogue';
+import { encodePhoneRef } from '../../lib/phone-checkout';
 import { formatData, formatDays, formatUsd } from '../../lib/data';
 import { localePath } from '../../lib/i18n';
 import { pageLang } from '../../lib/page';
@@ -89,6 +91,19 @@ const unlimited = (value: number | undefined) => (value === -1 ? '∞' : String(
               </p>
               {plan.nonRefundable && <p class="tile-note">Non-refundable</p>}
               {plan.requiresActivationDate && <p class="tile-note">Start date required</p>}
+              <a
+                class="buy"
+                href={localePath(
+                  `/phone/purchase?c=${encodeURIComponent((plan.country || selected.code).toUpperCase())}&plan=${encodePhoneRef({
+                    engine: plan.engine,
+                    country: (plan.country || selected.code).toUpperCase(),
+                    planId: plan.id,
+                  })}`,
+                  lang,
+                )}
+              >
+                Buy <Icon name="chevron" size={10} />
+              </a>
             </article>
           ))}
         </div>
@@ -96,8 +111,8 @@ const unlimited = (value: number | undefined) => (value === -1 ? '∞' : String(
 
       <p class="hint">
         Phone plans are provisioned upstream and can take a few minutes to activate.
-        Australia requires a start date 2–60 days ahead. Checkout on this mirror arrives in
-        Phase C; the clearnet site completes it today.
+        Australia requires a start date 2–60 days ahead. Buying opens a server-rendered
+        checkout — no JavaScript needed.
       </p>
     </>
   ) : (
@@ -159,5 +174,26 @@ const unlimited = (value: number | undefined) => (value === -1 ? '∞' : String(
     font-size: 0.76rem;
     line-height: 1.55;
     color: var(--text-dim);
+  }
+
+  .buy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 2.5rem;
+    margin-top: 0.75rem;
+    padding: 0 0.9rem;
+    border: 1px solid var(--brand-color);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brand-color);
+  }
+
+  .buy:hover {
+    background: color-mix(in srgb, var(--brand-color) 12%, transparent);
   }
 </style>

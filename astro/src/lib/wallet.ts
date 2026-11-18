@@ -19,6 +19,8 @@ export const COOKIE = {
   /** SMS orders and their idempotency ref live apart from the eSIM ones. */
   sms: 'wr_sms',
   refSms: 'wr_ref_sms',
+  /** Phone purchases keep their own idempotency ref (never clobber eSIM/SMS). */
+  refPhone: 'wr_ref_phone',
   flash: 'wr_flash',
 } as const;
 
