@@ -162,13 +162,13 @@ const links = [
     display: none;
   }
 
-  summary :global(svg) {
+  summary :global(.icon) {
     flex: none;
     color: var(--brand-color);
     transition: transform 0.15s ease;
   }
 
-  details[open] summary :global(svg) {
+  details[open] summary :global(.icon) {
     transform: rotate(90deg);
   }
 
