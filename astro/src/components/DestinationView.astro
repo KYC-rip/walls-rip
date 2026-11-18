@@ -790,7 +790,7 @@ const esimHref = localePath(`/esim?c=${code}`, lang);
     text-transform: uppercase;
   }
 
-  .product-label svg {
+  .product-label :global(.icon) {
     color: var(--brand-color);
   }
 
@@ -860,13 +860,13 @@ const esimHref = localePath(`/esim?c=${code}`, lang);
     display: none;
   }
 
-  .faq summary :global(svg) {
+  .faq summary :global(.icon) {
     flex: none;
     color: var(--brand-color);
     transition: transform 0.15s ease;
   }
 
-  .faq details[open] summary :global(svg) {
+  .faq details[open] summary :global(.icon) {
     transform: rotate(90deg);
   }
 

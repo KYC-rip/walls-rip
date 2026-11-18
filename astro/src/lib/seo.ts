@@ -27,7 +27,7 @@ export function organizationSchema(origin: string) {
     '@type': 'Organization',
     name: 'walls.rip',
     url: origin,
-    logo: absolute(origin, '/favicon.svg'),
+    logo: absolute(origin, '/favicon.png'),
     description:
       'No-account digital infrastructure: eSIM data, phone numbers, SMS verification and residential proxies. Pay with Monero, Lightning or USDT.',
   };

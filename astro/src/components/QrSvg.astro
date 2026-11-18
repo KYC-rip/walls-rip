@@ -9,8 +9,9 @@ export interface Props {
 
 const { value, size = 220, label = 'QR code' } = Astro.props;
 
-const svg = await QRCode.toString(value, {
-  type: 'svg',
+// PNG, not SVG: Tor Browser does not paint SVG images or inline <svg>.
+const png = await QRCode.toDataURL(value, {
+  type: 'image/png',
   margin: 1,
   width: size,
   errorCorrectionLevel: 'M',
@@ -18,7 +19,9 @@ const svg = await QRCode.toString(value, {
 });
 ---
 
-<div class="qr" role="img" aria-label={label} set:html={svg} />
+<div class="qr">
+  <img src={png} width={size} height={size} alt={label} />
+</div>
 
 <style>
   .qr {
@@ -29,7 +32,7 @@ const svg = await QRCode.toString(value, {
     line-height: 0;
   }
 
-  .qr :global(svg) {
+  .qr img {
     width: 100%;
     height: auto;
   }
