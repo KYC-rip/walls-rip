@@ -23,6 +23,8 @@ import PhonePurchasePage from '../../components/pages/PhonePurchasePage.astro';
 import VpnPurchasePage from '../../components/pages/VpnPurchasePage.astro';
 import VpnOrderPage from '../../components/pages/VpnOrderPage.astro';
 import VpnConfigPage from '../../components/pages/VpnConfigPage.astro';
+import UkPurchasePage from '../../components/pages/UkPurchasePage.astro';
+import UkOrderPage from '../../components/pages/UkOrderPage.astro';
 import NotFoundPage from '../../components/pages/NotFoundPage.astro';
 import UnavailablePage from '../../components/pages/UnavailablePage.astro';
 import { prepareDestinationRoute } from '../../lib/destination-route';
@@ -31,6 +33,7 @@ import { prepareCheckout, preparePay, prepareOrder } from '../../lib/payment-pag
 import { prepareSmsCheck, prepareSmsPurchase } from '../../lib/sms-checkout';
 import { preparePhonePurchase } from '../../lib/phone-checkout';
 import { prepareVpnPurchase, prepareVpnOrder, prepareVpnConfig } from '../../lib/vpn-checkout';
+import { prepareUkPurchase, prepareUkOrder } from '../../lib/uk-checkout';
 import { SUPPORTED_LANGS, resolveLang } from '../../lib/i18n';
 
 const requested = Astro.params.lang ?? '';
@@ -66,6 +69,8 @@ const isPhonePurchase = valid && rest === 'phone/purchase' && segments.length ==
 const isVpnPurchase = valid && rest === 'vpn/purchase' && segments.length === 2;
 const isVpnOrder = valid && rest === 'vpn/order' && segments.length === 2;
 const isVpnConfig = valid && rest === 'vpn/config' && segments.length === 2;
+const isUkPurchase = valid && rest === 'uk-sim/purchase' && segments.length === 2;
+const isUkOrder = valid && rest === 'uk-sim/order' && segments.length === 2;
 const known =
   valid &&
   (rest === '' ||
@@ -78,6 +83,8 @@ const known =
     isVpnPurchase ||
     isVpnOrder ||
     isVpnConfig ||
+    isUkPurchase ||
+    isUkOrder ||
     isDestination);
 
 // Transactional routes load (and may redirect) in the route, before any output
@@ -119,6 +126,12 @@ if (vpnOrderResult?.kind === 'redirect') return vpnOrderResult.response;
 const vpnConfigResult = isVpnConfig ? await prepareVpnConfig(Astro, lang) : null;
 if (vpnConfigResult?.kind === 'redirect') return vpnConfigResult.response;
 
+const ukPurchaseResult = isUkPurchase ? await prepareUkPurchase(Astro, lang) : null;
+if (ukPurchaseResult?.kind === 'redirect') return ukPurchaseResult.response;
+
+const ukOrderResult = isUkOrder ? await prepareUkOrder(Astro, lang) : null;
+if (ukOrderResult?.kind === 'redirect') return ukOrderResult.response;
+
 if (!known || destinationResult?.kind === 'not-found') Astro.response.status = 404;
 else if (destinationResult?.kind === 'unavailable') Astro.response.status = 503;
 ---
@@ -152,6 +165,8 @@ else if (destinationResult?.kind === 'unavailable') Astro.response.status = 503;
 {vpnPurchaseResult?.kind === 'ok' && <VpnPurchasePage props={vpnPurchaseResult.props} />}
 {vpnOrderResult?.kind === 'ok' && <VpnOrderPage props={vpnOrderResult.props} />}
 {vpnConfigResult?.kind === 'ok' && <VpnConfigPage props={vpnConfigResult.props} />}
+{ukPurchaseResult?.kind === 'ok' && <UkPurchasePage props={ukPurchaseResult.props} />}
+{ukOrderResult?.kind === 'ok' && <UkOrderPage props={ukOrderResult.props} />}
 {smsCheckResult?.kind === 'ok' && <SmsCheckPage props={smsCheckResult.props} />}
 
 {!known && <NotFoundPage lang={valid ? lang : 'en'} />}

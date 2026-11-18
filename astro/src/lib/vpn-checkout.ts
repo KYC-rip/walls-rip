@@ -1,5 +1,6 @@
 import type { AstroGlobal } from 'astro';
 import { ApiError, apiGet } from './api';
+import { isDeadOrderError } from './order-errors';
 import {
   fetchVpnCatalog,
   fetchVpnPlans,
@@ -93,10 +94,7 @@ export async function fetchVpnConfig(
   );
 }
 
-/** A 404/401 on status means the order (or its wallet) is gone for good. */
-export function isDeadOrderError(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 404 || error.status === 401);
-}
+export { isDeadOrderError } from './order-errors';
 
 /** 4xx from the config endpoint means the pair drifted, not an outage. */
 export function isConfigSelectionError(error: unknown): boolean {

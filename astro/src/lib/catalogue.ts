@@ -424,7 +424,13 @@ export async function fetchVpnCatalog(locals: unknown): Promise<VpnCatalog> {
   };
 }
 
-export async function fetchUkNumberPlans(locals: unknown): Promise<ConnectivityPlan[]> {
-  const data = await apiGet<unknown>(locals, '/v1/tools/phone/rentals/plans', { ttlMs: 10 * 60_000 });
+export async function fetchUkNumberPlans(
+  locals: unknown,
+  options: { fresh?: boolean } = {},
+): Promise<ConnectivityPlan[]> {
+  const data = await apiGet<unknown>(locals, '/v1/tools/phone/rentals/plans', {
+    ttlMs: 10 * 60_000,
+    ...(options.fresh ? { fresh: true } : {}),
+  });
   return publicConnectivityPlans(data).sort((a, b) => (a.months ?? 0) - (b.months ?? 0));
 }

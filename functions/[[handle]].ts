@@ -166,6 +166,7 @@ export const onRequest: PagesFunction = async (context) => {
     '/faq', '/api', '/checkout', '/pay', '/order', '/robots.txt', '/sitemap.xml',
     // Exact paths, not prefixes: /phone/topup and /phone/uk-esim are React.
     '/phone/purchase', '/vpn/purchase', '/vpn/order', '/vpn/config',
+    '/uk-sim/purchase', '/uk-sim/order',
   ]);
   // /sms/ carries the no-JS purchase + code pages; React has no /sms/* route,
   // so the prefix cannot shadow it.

@@ -1,0 +1,11 @@
+---
+import UkOrderPage from '../../components/pages/UkOrderPage.astro';
+import { prepareUkOrder } from '../../lib/uk-checkout';
+import { pageLang } from '../../lib/page';
+
+const lang = pageLang(Astro);
+const result = await prepareUkOrder(Astro, lang);
+if (result.kind === 'redirect') return result.response;
+---
+
+<UkOrderPage props={result.props} />

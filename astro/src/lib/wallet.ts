@@ -24,6 +24,9 @@ export const COOKIE = {
   /** VPN order (config download) and its idempotency ref. */
   vpn: 'wr_vpn',
   refVpn: 'wr_ref_vpn',
+  /** UK number order (delivery + renewals) and its idempotency ref. */
+  uk: 'wr_uk',
+  refUk: 'wr_ref_uk',
   flash: 'wr_flash',
 } as const;
 
@@ -243,6 +246,32 @@ export function readVpnOrderState(ctx: CookieContext): VpnOrderState | null {
 
 export function clearVpnOrderState(ctx: CookieContext) {
   ctx.cookies.delete(COOKIE.vpn, { path: '/' });
+}
+
+/* ── Last UK number order ───────────────────────────────────────────── */
+
+export interface UkOrderState {
+  orderId: string;
+  name: string;
+  charged: number;
+  /** Entered on renewal; prefilled next time. */
+  phone?: string;
+  /** New end date after a renewal (API `activeUntil`). */
+  activeUntil?: string;
+  at: number;
+}
+
+export function setUkOrderState(ctx: CookieContext, state: UkOrderState) {
+  writeJson(ctx, COOKIE.uk, state, 7 * DAY);
+}
+
+export function readUkOrderState(ctx: CookieContext): UkOrderState | null {
+  const state = readJson<UkOrderState>(ctx, COOKIE.uk);
+  return state && typeof state.orderId === 'string' && state.orderId ? state : null;
+}
+
+export function clearUkOrderState(ctx: CookieContext) {
+  ctx.cookies.delete(COOKIE.uk, { path: '/' });
 }
 
 /* ── Idempotency reference ──────────────────────────────────────────── */

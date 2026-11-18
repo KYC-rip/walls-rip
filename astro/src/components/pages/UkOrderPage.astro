@@ -1,0 +1,154 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
+import QrSvg from '../QrSvg.astro';
+import { formatUsd } from '../../lib/data';
+import { localePath } from '../../lib/i18n';
+import type { UkOrderProps } from '../../lib/uk-checkout';
+
+export interface Props {
+  props: UkOrderProps;
+}
+
+const {
+  order, delivery, status, renewalPlans, renewalError, unreachable, csrf, lang, flash,
+} = Astro.props.props;
+
+const pending = status === 'PENDING' || status === 'UNKNOWN';
+const active = status === 'ACTIVE';
+const expired = status === 'EXPIRED';
+const ready = !!delivery?.qrCode || !!delivery?.activationCode;
+---
+
+<Base
+  title="UK number order — walls.rip"
+  description="UK number order status, eSIM delivery and renewals."
+  path="/uk-sim/order"
+  lang={lang}
+  noindex
+  refreshSeconds={pending ? 15 : undefined}
+>
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href={localePath('/uk-sim', lang)}>UK numbers</a>
+    <Icon name="chevron" size={10} />
+    <span>Order</span>
+  </nav>
+
+  <h1>
+    {ready ? 'Your number is ready.' : unreachable ? 'Status unavailable.' : expired ? 'This plan ended.' : 'Preparing your number…'}
+  </h1>
+
+  {flash && <p class="flash" role="alert">{flash}</p>}
+
+  <div class="panel">
+    <div class="row"><span>Plan</span><strong>{order.name}</strong></div>
+    <div class="row"><span>Paid so far</span><strong>{formatUsd(order.charged)}</strong></div>
+    <div class="row"><span>Status</span><strong>{status}</strong></div>
+    {order.activeUntil && <div class="row"><span>Active until</span><strong>{order.activeUntil}</strong></div>}
+    {order.phone && <div class="row"><span>Number</span><code>{order.phone}</code></div>}
+  </div>
+
+  {unreachable && (
+    <p class="hint">
+      The status service could not be reached. Nothing has been charged twice — check again
+      in a moment.
+    </p>
+  )}
+
+  {pending && !unreachable && (
+    <p class="hint">
+      Provisioning can take a few minutes. This page refreshes itself every 15 seconds — no
+      JavaScript needed.
+    </p>
+  )}
+
+  {delivery && (delivery.qrCode || delivery.activationCode || delivery.activationUrl) && (
+    <section class="panel" aria-labelledby="delivery-title">
+      <h2 id="delivery-title">Install the eSIM</h2>
+      {delivery.qrCode && (
+        <div class="qr">
+          <QrSvg value={delivery.qrCode} size={220} label="eSIM installation QR code" />
+        </div>
+      )}
+      {delivery.activationUrl && (
+        <div class="row"><span>Activation string</span><code>{delivery.activationUrl}</code></div>
+      )}
+      {delivery.smdpAddress && (
+        <div class="row"><span>SM-DP+ address</span><code>{delivery.smdpAddress}</code></div>
+      )}
+      {delivery.activationCode && (
+        <div class="row"><span>Activation code</span><code>{delivery.activationCode}</code></div>
+      )}
+      {delivery.pukCode && (
+        <div class="row"><span>PUK</span><code>{delivery.pukCode}</code></div>
+      )}
+    </section>
+  )}
+
+  {active && renewalError && (
+    <p class="hint">Renewal terms are unavailable right now. Refresh this page in a moment.</p>
+  )}
+
+  {active && !renewalError && renewalPlans.length > 0 && (
+    <section class="panel" aria-labelledby="renew-title">
+      <h2 id="renew-title">Renew this number</h2>
+      <p class="hint">
+        Enter the UK number assigned to this eSIM (it is shown in your phone once installed).
+        Check it carefully — renewing the wrong number extends another line.
+      </p>
+      <form method="post" action="/actions/uk/renew" class="form">
+        <input type="hidden" name="csrf" value={csrf} />
+        <input type="hidden" name="lang" value={lang} />
+        <label class="field">
+          <span>UK number</span>
+          <input
+            type="tel"
+            name="phone"
+            value={order.phone ?? ''}
+            placeholder="+447123456789"
+            pattern="\+447[0-9]{9}"
+            autocomplete="tel"
+            required
+          />
+          <small>+44 7… (11 digits).</small>
+        </label>
+        <label class="field">
+          <span>Term</span>
+          <select name="periods" required>
+            {renewalPlans.map((plan) => (
+              <option value={plan.periods}>
+                {plan.days >= 30 ? `${Math.round(plan.days / 30)} months` : `${plan.days} days`} — {formatUsd(plan.price)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button class="btn btn-primary wide" type="submit">Renew from wallet</button>
+      </form>
+    </section>
+  )}
+
+  {expired && (
+    <p class="hint">This line reached the end of its term. Buy a new plan from the UK numbers page.</p>
+  )}
+
+  <p class="hint"><a href={localePath('/uk-sim', lang)}>Buy another plan</a></p>
+</Base>
+
+<style>
+  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; padding: 1.1rem 0; font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+  h1 { font-size: clamp(1.7rem, 5vw, 2.3rem); font-weight: 900; }
+  h2 { font-size: 1.05rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .flash { margin-top: 1rem; padding: 0.75rem 1rem; border: 1px solid var(--error-color); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--error-color) 10%, transparent); font-size: 0.84rem; }
+  .panel { margin-top: 1.25rem; padding: 1.15rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-panel); }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.35rem 0; font-family: var(--font-mono); font-size: 0.78rem; border-bottom: 1px solid var(--border-color); }
+  .row:last-child { border-bottom: 0; }
+  .row code { overflow-wrap: anywhere; text-align: right; }
+  .qr { display: flex; justify-content: center; padding: 0.5rem 0 0.9rem; }
+  .hint { margin-top: 0.9rem; font-size: 0.8rem; line-height: 1.55; color: var(--text-dim); }
+  .hint a { color: var(--brand-color); }
+  .form { display: flex; flex-direction: column; gap: 0.85rem; margin-top: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+  .field input, .field select { min-height: 2.75rem; padding: 0 0.7rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); font-size: 0.9rem; }
+  .field small { font-size: 0.66rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-dim); }
+  .wide { width: 100%; }
+</style>

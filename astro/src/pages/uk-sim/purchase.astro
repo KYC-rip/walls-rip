@@ -1,0 +1,11 @@
+---
+import UkPurchasePage from '../../components/pages/UkPurchasePage.astro';
+import { prepareUkPurchase } from '../../lib/uk-checkout';
+import { pageLang } from '../../lib/page';
+
+const lang = pageLang(Astro);
+const result = await prepareUkPurchase(Astro, lang);
+if (result.kind === 'redirect') return result.response;
+---
+
+<UkPurchasePage props={result.props} />
