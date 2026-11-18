@@ -138,4 +138,15 @@ describe('wallet cookie', () => {
     setWalletToken(ctx, 'a'.repeat(64));
     expect(walletToken(ctx)).toBe('a'.repeat(64));
   });
+
+  it('accepts only token-shaped imports', async () => {
+    const { isWalletToken } = await import('../src/lib/wallet');
+    expect(isWalletToken('a'.repeat(16))).toBe(true);
+    expect(isWalletToken('ab_-'.repeat(8))).toBe(true);
+    expect(isWalletToken('a'.repeat(128))).toBe(true);
+    expect(isWalletToken('a'.repeat(15))).toBe(false);
+    expect(isWalletToken('a'.repeat(129))).toBe(false);
+    expect(isWalletToken('has space in it')).toBe(false);
+    expect(isWalletToken('<script>alert(1)</script>')).toBe(false);
+  });
 });

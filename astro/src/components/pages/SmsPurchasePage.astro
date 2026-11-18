@@ -70,6 +70,31 @@ const serviceName = service.charAt(0).toUpperCase() + service.slice(1);
           this device.
         </p>
       )}
+
+      <details class="topup">
+        <summary>Have an existing wallet token?</summary>
+        <form method="post" action="/actions/wallet/import" class="form">
+          <input type="hidden" name="csrf" value={csrf} />
+          <input type="hidden" name="lang" value={lang} />
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <label class="field">
+            <span>Wallet token</span>
+            <input
+              type="text"
+              name="token"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              required
+            />
+            <small>
+              Restores a wallet created in the classic app or on another device. The
+              balance comes with it.
+            </small>
+          </label>
+          <button class="btn wide" type="submit">Restore wallet</button>
+        </form>
+      </details>
     </section>
 
     <section class="pay" aria-labelledby="pay-title">

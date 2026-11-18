@@ -84,13 +84,18 @@ export function checkCsrf(ctx: CookieContext, submitted: FormDataEntryValue | nu
 
 /* ── Wallet token ───────────────────────────────────────────────────── */
 
+/** Shape check only — a token still has to be accepted by the API. */
+export function isWalletToken(value: string): boolean {
+  return /^[A-Za-z0-9_-]{16,128}$/.test(value);
+}
+
 export function walletToken(ctx: CookieContext): string | null {
   const token = ctx.cookies.get(COOKIE.wallet)?.value;
-  return token && /^[A-Za-z0-9_-]{16,128}$/.test(token) ? token : null;
+  return token && isWalletToken(token) ? token : null;
 }
 
 export function setWalletToken(ctx: CookieContext, token: string) {
-  if (!/^[A-Za-z0-9_-]{16,128}$/.test(token)) return;
+  if (!isWalletToken(token)) return;
   ctx.cookies.set(COOKIE.wallet, token, cookieOptions(ctx, 90 * DAY));
 }
 
@@ -341,4 +346,18 @@ export async function walletBalance(locals: unknown, token: string): Promise<num
   } catch {
     return 0;
   }
+}
+
+/**
+ * Validate a pasted wallet token. Unlike `walletBalance`, a rejected token
+ * throws instead of reporting 0 — the import flow must tell a $0 wallet apart
+ * from a token the API refuses.
+ */
+export async function walletBalanceStrict(locals: unknown, token: string): Promise<number> {
+  const data = await apiGet<{ balanceUSD?: number }>(
+    locals,
+    `/v1/tools/esim/balance?token=${encodeURIComponent(token)}`,
+    { fresh: true },
+  );
+  return typeof data.balanceUSD === 'number' ? data.balanceUSD : 0;
 }
