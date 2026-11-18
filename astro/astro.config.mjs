@@ -23,7 +23,18 @@ export default defineConfig({
   // Origin checks for form POSTs live in src/middleware.ts. Astro's strict
   // check rejects Tor Browser / privacy-browser POSTs, which send no usable
   // Origin header for some form submissions.
-  security: { checkOrigin: false },
+  //
+  // The Node adapter only lets the request Host control `Astro.url` when it
+  // matches `allowedDomains`; otherwise it falls back to `localhost:<port>`.
+  // On the onion that fallback would (a) put localhost in canonical/OG/JSON-LD
+  // and (b) make the same-origin form check refuse every POST, because the
+  // browser sends `Origin: http://<onion>` while the request URL says
+  // localhost. Caddy preserves the Host header, so trust onion hosts here.
+  // A v3 onion address is a single label, which `*.onion` matches.
+  security: {
+    checkOrigin: false,
+    ...(onion ? { allowedDomains: [{ hostname: '*.onion' }] } : {}),
+  },
   build: {
     // Inline every stylesheet into <head>. A cold .onion load has no JS to
     // cover a late stylesheet, and Tor latency makes the extra round-trip
