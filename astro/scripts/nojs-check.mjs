@@ -121,7 +121,12 @@ for (const path of targets) {
     `${path}: broken images ${desktop.images.filter((image) => !image.loaded).map((image) => image.src).join(', ')}`,
   );
   // Transactional pages are noindex and intentionally carry no schema.
-  const needsJsonLd = !/\/(checkout|pay|order|sms\/purchase|sms\/check)(\?|$)/.test(path);
+  // JS-only notice pages (Ghost Mail, Dead Drop, Comms) are deliberate dead
+  // ends — there is no product to describe and the onion build is not indexed.
+  const noticePath = path.replace(/^\/(es|ja|pt|ru|zh-TW|zh)(?=\/)/, '');
+  const isJsOnlyNotice = /^\/(mail|drop|comms)(\/|$)/.test(noticePath.split('?')[0]);
+  const needsJsonLd = !isJsOnlyNotice
+    && !/\/(checkout|pay|order|sms\/purchase|sms\/check)(\?|$)/.test(path);
   check(!needsJsonLd || desktop.jsonLd > 0, `${path}: no JSON-LD`);
   check(
     mobile.scrollWidth <= MOBILE.width + 1,

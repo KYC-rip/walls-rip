@@ -1,0 +1,104 @@
+name: astro
+
+# The Astro app has two adapters: Cloudflare (clearnet Worker) and Node (the
+# Tor box). CI proves both build and that the no-JS surface still holds, then
+# publishes the onion image the box's Watchtower pulls.
+on:
+  push:
+    branches: [production]
+    paths:
+      - 'astro/**'
+      - '.github/workflows/astro.yml'
+  pull_request:
+    paths:
+      - 'astro/**'
+      - '.github/workflows/astro.yml'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: astro
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: astro/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: astro/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm build:onion
+
+  nojs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: astro/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build:onion
+      - name: Serve the onion build and check no-JS parity
+        run: |
+          HOST=127.0.0.1 PORT=8080 NODE_ENV=production node dist/server/entry.mjs &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/ >/dev/null && break
+            sleep 1
+          done
+          node scripts/nojs-check.mjs --base=http://127.0.0.1:8080 \
+            "/sms" "/sms?c=TH" "/es/sms" "/mail" "/destination/thailand"
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: astro
+          file: astro/Dockerfile.onion
+          push: true
+          tags: |
+            ghcr.io/kyc-rip/walls-onion:latest
+            ghcr.io/kyc-rip/walls-onion:sha-${{ github.sha }}
