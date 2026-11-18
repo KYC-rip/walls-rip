@@ -168,12 +168,24 @@ export const onRequest: PagesFunction = async (context) => {
   // /sms/ carries the no-JS purchase + code pages; React has no /sms/* route,
   // so the prefix cannot shadow it.
   const ASTRO_PREFIXES = ['/destination/', '/actions/', '/flags/', '/sms/'];
+  // PNG icon set + favicon the Astro pages reference (Tor Browser does not
+  // paint SVG). Exact paths, because /icons/ itself belongs to the React PWA
+  // (/icons/icon-192.png etc.) and must stay on Pages.
+  const ASTRO_ASSETS = new Set([
+    '/favicon.png',
+    '/icons/arrow.png', '/icons/calendar.png', '/icons/check.png',
+    '/icons/chevron.png', '/icons/clock.png', '/icons/close.png',
+    '/icons/globe.png', '/icons/lock.png', '/icons/message.png',
+    '/icons/phone.png', '/icons/refresh.png', '/icons/shield.png',
+    '/icons/wifi.png', '/icons/zap.png',
+  ]);
   const LOCALES = ['es', 'ja', 'pt', 'ru', 'zh-TW', 'zh'];
   const localeMatch = url.pathname.match(/^\/(es|ja|pt|ru|zh-TW|zh)(\/.*)?$/);
   // Localized commerce paths are server-rendered too; localized Mail/Drop/
   // Comms and the home page stay on React.
   const effectivePath = localeMatch ? (localeMatch[2] || '/') : url.pathname;
   const isAstroPath = ASTRO_EXACT.has(effectivePath)
+    || ASTRO_ASSETS.has(effectivePath)
     || ASTRO_PREFIXES.some((prefix) => effectivePath.startsWith(prefix));
   if (isAstroPath) {
     // Keep the locale prefix upstream; effectivePath is only for matching.
