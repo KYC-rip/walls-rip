@@ -148,7 +148,9 @@ export const onRequest: PagesFunction = async (context) => {
     '/esim', '/sms', '/phone', '/proxy', '/vpn', '/uk-sim', '/network',
     '/faq', '/api', '/checkout', '/pay', '/order', '/robots.txt', '/sitemap.xml',
   ]);
-  const ASTRO_PREFIXES = ['/destination/', '/actions/', '/flags/'];
+  // /sms/ carries the no-JS purchase + code pages; React has no /sms/* route,
+  // so the prefix cannot shadow it.
+  const ASTRO_PREFIXES = ['/destination/', '/actions/', '/flags/', '/sms/'];
   const LOCALES = ['es', 'ja', 'pt', 'ru', 'zh-TW', 'zh'];
   const localeMatch = url.pathname.match(/^\/(es|ja|pt|ru|zh-TW|zh)(\/.*)?$/);
   // Localized commerce paths are server-rendered too; localized Mail/Drop/
