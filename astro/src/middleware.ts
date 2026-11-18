@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { canonicalPath, crossSiteFormPost, needsTrailingSlashRedirect } from './lib/security';
+import { ONION_ORIGIN } from './lib/seo';
 
 /**
  * Per-request policy shared by both origins:
@@ -22,6 +23,12 @@ function securityHeaders(headers: Headers, url: URL) {
   // HSTS is meaningless on .onion and only correct on an HTTPS origin.
   if (!__ONION__ && url.protocol === 'https:') {
     headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+
+  // Tor Browser offers a one-click switch when a clearnet response advertises
+  // its mirror. Only HTML, and never on the onion itself (a self-reference).
+  if (!__ONION__ && (headers.get('content-type') || '').includes('text/html')) {
+    headers.set('Onion-Location', ONION_ORIGIN + url.pathname + url.search);
   }
 
   // Report-only first (Phase A acceptance). Phase D flips this to enforcement

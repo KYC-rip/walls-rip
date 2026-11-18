@@ -1,5 +1,6 @@
 ---
 import { type Lang, localePath, resolveLang, t } from '../lib/i18n';
+import { ONION_ORIGIN } from '../lib/seo';
 
 export interface Props {
   lang?: Lang;
@@ -45,7 +46,12 @@ const LEARN = [
       {LEARN.map((item) => (
         <a href={localePath(item.href, lang)}>{t(lang, item.key, undefined, item.fallback)}</a>
       ))}
-      <a href="/.well-known/canary.txt">Warrant canary</a>
+      <a href="https://kyc.rip/.well-known/canary.txt">Warrant canary</a>
+      {!__ONION__ && (
+        <a href={ONION_ORIGIN} rel="noopener">
+          {t(lang, 'footer.onion', undefined, 'Tor mirror (.onion)')}
+        </a>
+      )}
     </nav>
   </div>
 

@@ -114,6 +114,23 @@ function isCrawler(ua: string): boolean {
   return /bot|crawl|spider|slurp|facebook|twitter|telegram|discord|slack|whatsapp|signal|preview|embed|curl|wget|headless/i.test(ua);
 }
 
+/** The published Tor mirror, advertised to Tor Browser on HTML responses. */
+const ONION_ORIGIN =
+  'http://wallsg4qendpmhrqqoz2q2mctb4zcipprylxm7iqyi6d64yzqf2lxtyd.onion';
+
+/** Add `Onion-Location` to an HTML response so Tor Browser offers the switch. */
+function withOnionLocation(res: Response, url: URL): Response {
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('text/html')) return res;
+  const headers = new Headers(res.headers);
+  headers.set('Onion-Location', ONION_ORIGIN + url.pathname + url.search);
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
+}
+
 // The catch-all Function runs before `_redirects`, so ISO-code and
 // sub-threshold redirects are resolved here from a build-generated map:
 //   "TH"/"th" -> "thailand" (301 to the slug page)
@@ -221,10 +238,10 @@ export const onRequest: PagesFunction = async (context) => {
     if (asset.status === 200 && (asset.headers.get('content-type') || '').includes('text/html')) {
       const html = await asset.text();
       if (html.includes(`name="x-prerender" content="${slug}"`)) {
-        return new Response(html, {
+        return withOnionLocation(new Response(html, {
           status: 200,
           headers: { ...Object.fromEntries(asset.headers.entries()), 'content-type': 'text/html; charset=utf-8' },
-        });
+        }), url);
       }
     }
   }
@@ -234,7 +251,7 @@ export const onRequest: PagesFunction = async (context) => {
 
   // Only inject OG tags for crawlers or if we have meta for this path
   const meta = OG_META[url.pathname];
-  if (!meta) return res;
+  if (!meta) return withOnionLocation(res, url);
 
   const ua = context.request.headers.get('user-agent') || '';
 
@@ -264,12 +281,12 @@ ${ldJsonScripts}`;
 
     html = html.replace('</head>', `${ogTags}\n</head>`);
 
-    return new Response(html, {
+    return withOnionLocation(new Response(html, {
       headers: {
         ...Object.fromEntries(res.headers.entries()),
         'content-type': 'text/html; charset=utf-8',
       },
-    });
+    }), url);
   }
 
   // For regular users, inject geo country code for client-side use
@@ -277,10 +294,10 @@ ${ldJsonScripts}`;
   if (geoCountry && url.pathname === '/esim') {
     let html = await res.text();
     html = html.replace('</head>', `<script>window.__GEO_COUNTRY="${geoCountry}";</script>\n</head>`);
-    return new Response(html, {
+    return withOnionLocation(new Response(html, {
       headers: { ...Object.fromEntries(res.headers.entries()), 'content-type': 'text/html; charset=utf-8' },
-    });
+    }), url);
   }
 
-  return res;
+  return withOnionLocation(res, url);
 };

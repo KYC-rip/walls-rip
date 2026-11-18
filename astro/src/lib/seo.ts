@@ -3,6 +3,14 @@ import type { AstroGlobal } from 'astro';
 export const CLEARNET_ORIGIN = 'https://walls.rip';
 
 /**
+ * The published Tor mirror. Advertised on the clearnet build through the
+ * `Onion-Location` header (Tor Browser shows a switch button) and a footer
+ * link. Never link or advertise it from the onion build itself.
+ */
+export const ONION_ORIGIN =
+  'http://wallsg4qendpmhrqqoz2q2mctb4zcipprylxm7iqyi6d64yzqf2lxtyd.onion';
+
+/**
  * Absolute URLs in canonical/OG/JSON-LD. The clearnet build always points at
  * walls.rip; the onion build points at whatever host the request arrived on
  * (the .onion address), because there is no other public identity there.

@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { resolveLang, localePath } from '../utils/localePath';
 
+/** The published Tor mirror (also advertised via the Onion-Location header). */
+const ONION_ORIGIN =
+  'http://wallsg4qendpmhrqqoz2q2mctb4zcipprylxm7iqyi6d64yzqf2lxtyd.onion';
+
 export function Footer() {
   const { t, i18n } = useTranslation();
   const currentLang = resolveLang(i18n.language);
@@ -51,6 +55,7 @@ export function Footer() {
             <h4 className="text-[11px] text-wr-dim uppercase tracking-[0.16em] font-bold mb-3">{t('footer.learn')}</h4>
             <ul className="space-y-2 text-[12px]">
               <li><Link to={localePath('/faq', currentLang)} className="hover:text-wr-accent transition-colors">{t('header.faq')}</Link></li>
+              <li><a href={ONION_ORIGIN} rel="noopener" className="hover:text-wr-accent transition-colors">{t('footer.onion', 'Tor mirror (.onion)')}</a></li>
               <li><a href="https://stables.rip" target="_blank" rel="noreferrer" className="hover:text-wr-accent transition-colors">{t('footer.freeze_tracker')}</a></li>
             </ul>
           </div>
