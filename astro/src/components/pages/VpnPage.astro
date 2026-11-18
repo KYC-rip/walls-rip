@@ -1,6 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
 import { fetchVpnPlans } from '../../lib/catalogue';
+import { encodePlanRef } from '../../lib/checkout';
 import { formatDays, formatUsd } from '../../lib/data';
 import { localePath } from '../../lib/i18n';
 import { pageLang } from '../../lib/page';
@@ -53,14 +55,17 @@ try {
           </div>
           <p class="tile-meta"><span>WireGuard · OpenVPN · VLESS</span></p>
           <p class="tile-meta"><span>Configuration file + QR</span></p>
+          <a class="buy" href={localePath(`/vpn/purchase?plan=${encodePlanRef(plan.id)}`, lang)}>
+            Buy <Icon name="chevron" size={10} />
+          </a>
         </article>
       ))}
     </div>
   )}
 
   <p class="hint">
-    VPN checkout on this mirror arrives in Phase C. Until then, buy on the clearnet
-    site; the same wallet works across every walls.rip product.
+    Buying opens a server-rendered checkout — no JavaScript needed. The configuration
+    is available from the order page once provisioning completes.
   </p>
 
   <p class="back"><a href={localePath('/network', lang)}>← All products</a></p>
@@ -133,6 +138,27 @@ try {
     font-size: 0.76rem;
     line-height: 1.55;
     color: var(--text-dim);
+  }
+
+  .buy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 2.5rem;
+    margin-top: 0.75rem;
+    padding: 0 0.9rem;
+    border: 1px solid var(--brand-color);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brand-color);
+  }
+
+  .buy:hover {
+    background: color-mix(in srgb, var(--brand-color) 12%, transparent);
   }
 
   .back {

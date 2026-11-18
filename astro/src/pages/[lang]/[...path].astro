@@ -20,6 +20,9 @@ import OrderPage from '../../components/pages/OrderPage.astro';
 import SmsPurchasePage from '../../components/pages/SmsPurchasePage.astro';
 import SmsCheckPage from '../../components/pages/SmsCheckPage.astro';
 import PhonePurchasePage from '../../components/pages/PhonePurchasePage.astro';
+import VpnPurchasePage from '../../components/pages/VpnPurchasePage.astro';
+import VpnOrderPage from '../../components/pages/VpnOrderPage.astro';
+import VpnConfigPage from '../../components/pages/VpnConfigPage.astro';
 import NotFoundPage from '../../components/pages/NotFoundPage.astro';
 import UnavailablePage from '../../components/pages/UnavailablePage.astro';
 import { prepareDestinationRoute } from '../../lib/destination-route';
@@ -27,6 +30,7 @@ import { redirectEsimCountry } from '../../lib/esim-route';
 import { prepareCheckout, preparePay, prepareOrder } from '../../lib/payment-pages';
 import { prepareSmsCheck, prepareSmsPurchase } from '../../lib/sms-checkout';
 import { preparePhonePurchase } from '../../lib/phone-checkout';
+import { prepareVpnPurchase, prepareVpnOrder, prepareVpnConfig } from '../../lib/vpn-checkout';
 import { SUPPORTED_LANGS, resolveLang } from '../../lib/i18n';
 
 const requested = Astro.params.lang ?? '';
@@ -59,6 +63,9 @@ const isDestination = valid && page === 'destination' && segments.length === 2 &
 const isSmsPurchase = valid && rest === 'sms/purchase' && segments.length === 2;
 const isSmsCheck = valid && rest === 'sms/check' && segments.length === 2;
 const isPhonePurchase = valid && rest === 'phone/purchase' && segments.length === 2;
+const isVpnPurchase = valid && rest === 'vpn/purchase' && segments.length === 2;
+const isVpnOrder = valid && rest === 'vpn/order' && segments.length === 2;
+const isVpnConfig = valid && rest === 'vpn/config' && segments.length === 2;
 const known =
   valid &&
   (rest === '' ||
@@ -68,6 +75,9 @@ const known =
     isSmsPurchase ||
     isSmsCheck ||
     isPhonePurchase ||
+    isVpnPurchase ||
+    isVpnOrder ||
+    isVpnConfig ||
     isDestination);
 
 // Transactional routes load (and may redirect) in the route, before any output
@@ -100,6 +110,15 @@ if (smsCheckResult?.kind === 'redirect') return smsCheckResult.response;
 const phonePurchaseResult = isPhonePurchase ? await preparePhonePurchase(Astro, lang) : null;
 if (phonePurchaseResult?.kind === 'redirect') return phonePurchaseResult.response;
 
+const vpnPurchaseResult = isVpnPurchase ? await prepareVpnPurchase(Astro, lang) : null;
+if (vpnPurchaseResult?.kind === 'redirect') return vpnPurchaseResult.response;
+
+const vpnOrderResult = isVpnOrder ? await prepareVpnOrder(Astro, lang) : null;
+if (vpnOrderResult?.kind === 'redirect') return vpnOrderResult.response;
+
+const vpnConfigResult = isVpnConfig ? await prepareVpnConfig(Astro, lang) : null;
+if (vpnConfigResult?.kind === 'redirect') return vpnConfigResult.response;
+
 if (!known || destinationResult?.kind === 'not-found') Astro.response.status = 404;
 else if (destinationResult?.kind === 'unavailable') Astro.response.status = 503;
 ---
@@ -130,6 +149,9 @@ else if (destinationResult?.kind === 'unavailable') Astro.response.status = 503;
 
 {smsPurchaseResult?.kind === 'ok' && <SmsPurchasePage props={smsPurchaseResult.props} />}
 {phonePurchaseResult?.kind === 'ok' && <PhonePurchasePage props={phonePurchaseResult.props} />}
+{vpnPurchaseResult?.kind === 'ok' && <VpnPurchasePage props={vpnPurchaseResult.props} />}
+{vpnOrderResult?.kind === 'ok' && <VpnOrderPage props={vpnOrderResult.props} />}
+{vpnConfigResult?.kind === 'ok' && <VpnConfigPage props={vpnConfigResult.props} />}
 {smsCheckResult?.kind === 'ok' && <SmsCheckPage props={smsCheckResult.props} />}
 
 {!known && <NotFoundPage lang={valid ? lang : 'en'} />}

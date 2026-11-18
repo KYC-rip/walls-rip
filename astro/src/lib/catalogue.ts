@@ -364,9 +364,64 @@ function publicConnectivityPlans(input: unknown): ConnectivityPlan[] {
     .filter((plan): plan is ConnectivityPlan => plan !== null);
 }
 
-export async function fetchVpnPlans(locals: unknown): Promise<ConnectivityPlan[]> {
-  const data = await apiGet<unknown>(locals, '/v1/tools/vpn/plans', { ttlMs: 10 * 60_000 });
+export async function fetchVpnPlans(
+  locals: unknown,
+  options: { fresh?: boolean } = {},
+): Promise<ConnectivityPlan[]> {
+  const data = await apiGet<unknown>(locals, '/v1/tools/vpn/plans', {
+    ttlMs: 10 * 60_000,
+    ...(options.fresh ? { fresh: true } : {}),
+  });
   return publicConnectivityPlans(data).sort((a, b) => (a.days ?? 0) - (b.days ?? 0));
+}
+
+export type VpnProtocol = 'wireguard' | 'openvpn' | 'vless';
+
+export interface VpnServer {
+  id: number;
+  countryCode: string;
+  city: string;
+  protocol: VpnProtocol;
+}
+
+export interface VpnCatalog {
+  plans: ConnectivityPlan[];
+  servers: VpnServer[];
+  protocols: VpnProtocol[];
+}
+
+const VPN_PROTOCOLS: VpnProtocol[] = ['wireguard', 'openvpn', 'vless'];
+
+/** Servers/protocols are needed for the config form and are never rendered raw. */
+export async function fetchVpnCatalog(locals: unknown): Promise<VpnCatalog> {
+  const data = await apiGet<unknown>(locals, '/v1/tools/vpn/plans', {
+    ttlMs: 10 * 60_000,
+    fresh: true,
+  });
+  const root = (data ?? {}) as Record<string, unknown>;
+  const servers = (Array.isArray(root.servers) ? root.servers : [])
+    .map((entry): VpnServer | null => {
+      const server = entry as Record<string, unknown>;
+      const id = typeof server.id === 'number' ? server.id : Number.NaN;
+      const protocol = str(server.protocol).toLowerCase() as VpnProtocol;
+      if (!Number.isSafeInteger(id) || id <= 0 || !VPN_PROTOCOLS.includes(protocol)) return null;
+      return {
+        id,
+        countryCode: str(server.country_code).toUpperCase(),
+        city: str(server.city),
+        protocol,
+      };
+    })
+    .filter((server): server is VpnServer => server !== null)
+    .sort((a, b) => a.countryCode.localeCompare(b.countryCode) || a.city.localeCompare(b.city) || a.id - b.id);
+  const protocols = (Array.isArray(root.protocols) ? root.protocols : [])
+    .map((value) => str(value).toLowerCase() as VpnProtocol)
+    .filter((value) => VPN_PROTOCOLS.includes(value));
+  return {
+    plans: publicConnectivityPlans(data).sort((a, b) => (a.days ?? 0) - (b.days ?? 0)),
+    servers,
+    protocols: protocols.length ? [...new Set(protocols)] : VPN_PROTOCOLS,
+  };
 }
 
 export async function fetchUkNumberPlans(locals: unknown): Promise<ConnectivityPlan[]> {

@@ -1,0 +1,139 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
+import { regionDisplayName } from '../../lib/catalogue';
+import { formatUsd } from '../../lib/data';
+import { localePath } from '../../lib/i18n';
+import { pairAllowed, type VpnOrderProps } from '../../lib/vpn-checkout';
+
+export interface Props {
+  props: VpnOrderProps;
+}
+
+const {
+  order, status, expiresAt, username, password, servers, protocols,
+  catalogError, unreachable, csrf, lang, flash,
+} = Astro.props.props;
+
+const pending = status === 'PENDING' || status === 'UNKNOWN';
+const active = status === 'ACTIVE';
+const expiryLabel = typeof expiresAt === 'number' ? new Date(expiresAt).toISOString().slice(0, 10) : null;
+
+// Every server we render is usable with at least one advertised protocol; the
+// pair is validated again server-side (and by the API) on submit.
+const usableServers = servers.filter((server) => protocols.some((protocol) => pairAllowed(server, protocol, protocols)));
+function serverLabel(server: (typeof servers)[number]): string {
+  const place = [regionDisplayName(server.countryCode), server.city].filter(Boolean).join(' · ');
+  return `${place} — ${server.protocol}`;
+}
+---
+
+<Base
+  title="VPN order — walls.rip"
+  description="VPN order status and configuration."
+  path="/vpn/order"
+  lang={lang}
+  noindex
+  refreshSeconds={pending ? 15 : undefined}
+>
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href={localePath('/vpn', lang)}>VPN</a>
+    <Icon name="chevron" size={10} />
+    <span>Order</span>
+  </nav>
+
+  <h1>
+    {active ? 'Your VPN is active.' : unreachable ? 'Status unavailable.' : status === 'EXPIRED' ? 'This plan expired.' : 'Setting up your VPN…'}
+  </h1>
+
+  {flash && <p class="flash" role="alert">{flash}</p>}
+
+  <div class="panel">
+    <div class="row"><span>Plan</span><strong>{order.name}</strong></div>
+    <div class="row"><span>Charged</span><strong>{formatUsd(order.charged)}</strong></div>
+    <div class="row"><span>Status</span><strong>{status}</strong></div>
+    {expiryLabel && <div class="row"><span>Expires</span><strong>{expiryLabel}</strong></div>}
+  </div>
+
+  {unreachable && (
+    <p class="hint">
+      The status service could not be reached. Nothing has been charged twice — check again
+      in a moment.
+    </p>
+  )}
+
+  {pending && !unreachable && (
+    <p class="hint">
+      Provisioning can take a few minutes. This page refreshes itself every 15 seconds — no
+      JavaScript needed.
+    </p>
+  )}
+
+  {status === 'EXPIRED' && (
+    <p class="hint">This plan reached the end of its term. Buy a new one from the VPN page.</p>
+  )}
+
+  {active && (username || password) && (
+    <section class="panel">
+      <h2>Login</h2>
+      {username && <div class="row"><span>Username</span><code>{username}</code></div>}
+      {password && <div class="row"><span>Password</span><code>{password}</code></div>}
+    </section>
+  )}
+
+  {active && catalogError && (
+    <p class="hint">The server list is unavailable right now. Refresh this page in a moment.</p>
+  )}
+
+  {active && !catalogError && usableServers.length > 0 && (
+    <section class="panel" aria-labelledby="config-title">
+      <h2 id="config-title">Get your configuration</h2>
+      <p class="hint">
+        Pick a protocol and a server that supports it (the server label shows its protocol).
+        You can fetch a new config at any time while the plan is active.
+      </p>
+      <form method="post" action="/actions/vpn/config" class="form">
+        <input type="hidden" name="csrf" value={csrf} />
+        <input type="hidden" name="lang" value={lang} />
+        <label class="field">
+          <span>Protocol</span>
+          <select name="protocol" required>
+            {protocols.map((protocol) => <option value={protocol}>{protocol}</option>)}
+          </select>
+        </label>
+        <label class="field">
+          <span>Server</span>
+          <select name="server" required>
+            {usableServers.map((server) => (
+              <option value={server.id}>{serverLabel(server)}</option>
+            ))}
+          </select>
+        </label>
+        <button class="btn btn-primary wide" type="submit">
+          <Icon name="arrow" size={13} /> Show configuration
+        </button>
+      </form>
+    </section>
+  )}
+
+  <p class="hint">
+    <a href={localePath('/vpn', lang)}>Buy another plan</a>
+  </p>
+</Base>
+
+<style>
+  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; padding: 1.1rem 0; font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+  h1 { font-size: clamp(1.7rem, 5vw, 2.3rem); font-weight: 900; }
+  h2 { font-size: 1.05rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .flash { margin-top: 1rem; padding: 0.75rem 1rem; border: 1px solid var(--error-color); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--error-color) 10%, transparent); font-size: 0.84rem; }
+  .panel { margin-top: 1.25rem; padding: 1.15rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-panel); }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.35rem 0; font-family: var(--font-mono); font-size: 0.78rem; border-bottom: 1px solid var(--border-color); }
+  .row:last-child { border-bottom: 0; }
+  .row code { overflow-wrap: anywhere; }
+  .hint { margin-top: 0.9rem; font-size: 0.8rem; line-height: 1.55; color: var(--text-dim); }
+  .hint a { color: var(--brand-color); }
+  .form { display: flex; flex-direction: column; gap: 0.85rem; margin-top: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+  .field select { min-height: 2.75rem; padding: 0 0.7rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); font-size: 0.9rem; }
+  .wide { width: 100%; }
+</style>

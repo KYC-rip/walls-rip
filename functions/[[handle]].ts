@@ -164,8 +164,8 @@ export const onRequest: PagesFunction = async (context) => {
   const ASTRO_EXACT = new Set([
     '/esim', '/sms', '/phone', '/proxy', '/vpn', '/uk-sim', '/network',
     '/faq', '/api', '/checkout', '/pay', '/order', '/robots.txt', '/sitemap.xml',
-    // Exact, not a /phone/ prefix: /phone/topup and /phone/uk-esim are React.
-    '/phone/purchase',
+    // Exact paths, not prefixes: /phone/topup and /phone/uk-esim are React.
+    '/phone/purchase', '/vpn/purchase', '/vpn/order', '/vpn/config',
   ]);
   // /sms/ carries the no-JS purchase + code pages; React has no /sms/* route,
   // so the prefix cannot shadow it.

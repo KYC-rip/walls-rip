@@ -1,0 +1,80 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
+import QrSvg from '../QrSvg.astro';
+import { configFilename, type VpnConfigProps } from '../../lib/vpn-checkout';
+import { localePath } from '../../lib/i18n';
+
+export interface Props {
+  props: VpnConfigProps;
+}
+
+const { protocol, server, config, csrf, lang, flash } = Astro.props.props;
+const filename = configFilename(protocol, server.id);
+---
+
+<Base
+  title="VPN configuration — walls.rip"
+  description="Your VPN configuration."
+  path="/vpn/config"
+  lang={lang}
+  noindex
+>
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href={localePath('/vpn', lang)}>VPN</a>
+    <Icon name="chevron" size={10} />
+    <a href={localePath('/vpn/order', lang)}>Order</a>
+    <Icon name="chevron" size={10} />
+    <span>Configuration</span>
+  </nav>
+
+  <h1>{config.name || 'Your configuration'}</h1>
+
+  {flash && <p class="flash" role="alert">{flash}</p>}
+
+  <p class="hint">
+    {protocol.toUpperCase()} · {server.countryCode} {server.city}. This page is not cached;
+    reloading fetches a fresh configuration for the same server.
+  </p>
+
+  <section class="panel">
+    <pre class="config">{config.content}</pre>
+  </section>
+
+  {config.qrPayload && (
+    <section class="panel qr">
+      <QrSvg value={config.qrPayload} size={220} label="Configuration QR code" />
+      <p class="hint">Scan with the VPN app if it supports QR import.</p>
+    </section>
+  )}
+
+  <section class="panel">
+    <form method="post" action="/actions/vpn/download" class="form">
+      <input type="hidden" name="csrf" value={csrf} />
+      <input type="hidden" name="lang" value={lang} />
+      <input type="hidden" name="protocol" value={protocol} />
+      <input type="hidden" name="server" value={server.id} />
+      <button class="btn btn-primary wide" type="submit">
+        <Icon name="arrow" size={13} /> Download {filename}
+      </button>
+    </form>
+    <p class="hint">
+      Import the file into WireGuard, OpenVPN or your VLESS client. Treat it as a secret.
+    </p>
+  </section>
+
+  <p class="hint"><a href={localePath('/vpn/order', lang)}>Back to the order</a></p>
+</Base>
+
+<style>
+  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; padding: 1.1rem 0; font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+  h1 { font-size: clamp(1.5rem, 4.5vw, 2.1rem); font-weight: 900; overflow-wrap: anywhere; }
+  .flash { margin-top: 1rem; padding: 0.75rem 1rem; border: 1px solid var(--error-color); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--error-color) 10%, transparent); font-size: 0.84rem; }
+  .panel { margin-top: 1.1rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-panel); }
+  .config { margin: 0; padding: 0.35rem; overflow-x: auto; font-family: var(--font-mono); font-size: 0.76rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .qr { display: flex; flex-direction: column; align-items: center; }
+  .hint { margin-top: 0.85rem; font-size: 0.8rem; line-height: 1.55; color: var(--text-dim); }
+  .hint a { color: var(--brand-color); }
+  .form { margin-top: 0.25rem; }
+  .wide { width: 100%; }
+</style>

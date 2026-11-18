@@ -10,11 +10,28 @@ export const DEFAULT_API_BASE = 'https://api.kyc.rip';
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** Stable API error code (`{ error, code }` bodies), when the API sent one. */
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
+}
+
+/** Parse an API error body once, keeping both the message and the code. */
+async function errorFrom(response: Response): Promise<ApiError> {
+  let data: unknown = null;
+  try {
+    data = await response.clone().json();
+  } catch {
+    /* empty or non-JSON error body */
+  }
+  const body = (data ?? {}) as { error?: unknown; code?: unknown };
+  const message = typeof body.error === 'string' ? body.error : `Upstream responded ${response.status}`;
+  const code = typeof body.code === 'string' ? body.code : undefined;
+  return new ApiError(response.status, message, code);
 }
 
 /**
@@ -47,14 +64,21 @@ export interface ApiOptions {
   timeoutMs?: number;
   /** Skip the read cache (admin/checkout paths will want this). */
   fresh?: boolean;
+  /**
+   * Wallet capability token for private endpoints. Sent as
+   * `Authorization: Bearer`, and never cached or coalesced (the cache key is
+   * the URL, not the caller).
+   */
+  token?: string;
 }
 
 export async function apiGet<T>(_locals: unknown, path: string, options: ApiOptions = {}): Promise<T> {
   const base = apiBase();
   const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
   const ttl = options.ttlMs ?? 60_000;
+  const isPrivate = typeof options.token === 'string' && options.token.length > 0;
 
-  if (!options.fresh) {
+  if (!options.fresh && !isPrivate) {
     const hit = cache.get(url);
     if (hit && Date.now() - hit.at < ttl) return hit.value as T;
     const pending = inflight.get(url);
@@ -68,6 +92,7 @@ export async function apiGet<T>(_locals: unknown, path: string, options: ApiOpti
         headers: {
           accept: 'application/json',
           'user-agent': 'walls-astro/0.1 (+https://walls.rip)',
+          ...(isPrivate ? { authorization: `Bearer ${options.token}` } : {}),
         },
         signal:
           typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
@@ -78,9 +103,7 @@ export async function apiGet<T>(_locals: unknown, path: string, options: ApiOpti
       throw new ApiError(503, `Upstream unreachable: ${(error as Error).message}`);
     }
 
-    if (!response.ok) {
-      throw new ApiError(response.status, `Upstream responded ${response.status}`);
-    }
+    if (!response.ok) throw await errorFrom(response);
 
     let data: unknown;
     try {
@@ -89,12 +112,14 @@ export async function apiGet<T>(_locals: unknown, path: string, options: ApiOpti
       throw new ApiError(502, 'Upstream returned invalid JSON');
     }
 
-    cache.set(url, { at: Date.now(), value: data });
-    evict();
+    if (!isPrivate) {
+      cache.set(url, { at: Date.now(), value: data });
+      evict();
+    }
     return data as T;
   })().finally(() => inflight.delete(url));
 
-  if (!options.fresh) inflight.set(url, request);
+  if (!options.fresh && !isPrivate) inflight.set(url, request);
   return request;
 }
 
@@ -103,10 +128,11 @@ export async function apiPost<T>(
   _locals: unknown,
   path: string,
   body: unknown,
-  options: { timeoutMs?: number } = {},
+  options: { timeoutMs?: number; token?: string } = {},
 ): Promise<T> {
   const base = apiBase();
   const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  const token = typeof options.token === 'string' && options.token.length > 0 ? options.token : null;
 
   let response: Response;
   try {
@@ -116,6 +142,7 @@ export async function apiPost<T>(
         accept: 'application/json',
         'content-type': 'application/json',
         'user-agent': 'walls-astro/0.1 (+https://walls.rip)',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(body),
       signal:
@@ -135,11 +162,11 @@ export async function apiPost<T>(
   }
 
   if (!response.ok) {
+    const bodyObj = (data ?? {}) as { error?: unknown; code?: unknown };
     const message =
-      data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string'
-        ? (data as { error: string }).error
-        : `Upstream responded ${response.status}`;
-    throw new ApiError(response.status, message);
+      typeof bodyObj.error === 'string' ? bodyObj.error : `Upstream responded ${response.status}`;
+    const code = typeof bodyObj.code === 'string' ? bodyObj.code : undefined;
+    throw new ApiError(response.status, message, code);
   }
 
   return data as T;

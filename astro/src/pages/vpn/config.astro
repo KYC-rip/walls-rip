@@ -1,0 +1,11 @@
+---
+import VpnConfigPage from '../../components/pages/VpnConfigPage.astro';
+import { prepareVpnConfig } from '../../lib/vpn-checkout';
+import { pageLang } from '../../lib/page';
+
+const lang = pageLang(Astro);
+const result = await prepareVpnConfig(Astro, lang);
+if (result.kind === 'redirect') return result.response;
+---
+
+<VpnConfigPage props={result.props} />

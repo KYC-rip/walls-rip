@@ -21,6 +21,9 @@ export const COOKIE = {
   refSms: 'wr_ref_sms',
   /** Phone purchases keep their own idempotency ref (never clobber eSIM/SMS). */
   refPhone: 'wr_ref_phone',
+  /** VPN order (config download) and its idempotency ref. */
+  vpn: 'wr_vpn',
+  refVpn: 'wr_ref_vpn',
   flash: 'wr_flash',
 } as const;
 
@@ -216,6 +219,30 @@ export function readSmsOrderState(ctx: CookieContext): SmsOrderState | null {
 
 export function clearSmsOrderState(ctx: CookieContext) {
   ctx.cookies.delete(COOKIE.sms, { path: '/' });
+}
+
+/* ── Last VPN order ─────────────────────────────────────────────────── */
+
+export interface VpnOrderState {
+  orderId: string;
+  name: string;
+  charged: number;
+  at: number;
+}
+
+export function setVpnOrderState(ctx: CookieContext, state: VpnOrderState) {
+  // The config stays fetchable as long as the order exists at the provider;
+  // 7 days matches the other order cookies and the API's hot records.
+  writeJson(ctx, COOKIE.vpn, state, 7 * DAY);
+}
+
+export function readVpnOrderState(ctx: CookieContext): VpnOrderState | null {
+  const state = readJson<VpnOrderState>(ctx, COOKIE.vpn);
+  return state && typeof state.orderId === 'string' && state.orderId ? state : null;
+}
+
+export function clearVpnOrderState(ctx: CookieContext) {
+  ctx.cookies.delete(COOKIE.vpn, { path: '/' });
 }
 
 /* ── Idempotency reference ──────────────────────────────────────────── */
