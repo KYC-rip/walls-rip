@@ -149,9 +149,15 @@ export const onRequest: PagesFunction = async (context) => {
     '/faq', '/api', '/checkout', '/pay', '/order', '/robots.txt', '/sitemap.xml',
   ]);
   const ASTRO_PREFIXES = ['/destination/', '/actions/', '/flags/'];
-  const isAstroPath = ASTRO_EXACT.has(url.pathname)
-    || ASTRO_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+  const LOCALES = ['es', 'ja', 'pt', 'ru', 'zh-TW', 'zh'];
+  const localeMatch = url.pathname.match(/^\/(es|ja|pt|ru|zh-TW|zh)(\/.*)?$/);
+  // Localized commerce paths are server-rendered too; localized Mail/Drop/
+  // Comms and the home page stay on React.
+  const effectivePath = localeMatch ? (localeMatch[2] || '/') : url.pathname;
+  const isAstroPath = ASTRO_EXACT.has(effectivePath)
+    || ASTRO_PREFIXES.some((prefix) => effectivePath.startsWith(prefix));
   if (isAstroPath) {
+    // Keep the locale prefix upstream; effectivePath is only for matching.
     const target = new URL(url.pathname + url.search, ASTRO_ORIGIN);
     const headers = new Headers(context.request.headers);
     headers.set('origin', ASTRO_ORIGIN);
