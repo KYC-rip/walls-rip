@@ -27,6 +27,9 @@ export const COOKIE = {
   /** UK number order (delivery + renewals) and its idempotency ref. */
   uk: 'wr_uk',
   refUk: 'wr_ref_uk',
+  /** Proxy order (credentials) and its idempotency ref. */
+  proxy: 'wr_proxy',
+  refProxy: 'wr_ref_proxy',
   flash: 'wr_flash',
 } as const;
 
@@ -134,7 +137,7 @@ export function localeFrom(value: FormDataEntryValue | null): Lang {
 
 /* ── Deposit state ──────────────────────────────────────────────────── */
 
-export type DepositService = 'esim' | 'sms';
+export type DepositService = 'esim' | 'sms' | 'proxy';
 
 export interface PayState {
   paymentId: string;
@@ -274,6 +277,28 @@ export function clearUkOrderState(ctx: CookieContext) {
   ctx.cookies.delete(COOKIE.uk, { path: '/' });
 }
 
+/* ── Last proxy order ───────────────────────────────────────────────── */
+
+export interface ProxyOrderState {
+  orderId: string;
+  name: string;
+  charged: number;
+  at: number;
+}
+
+export function setProxyOrderState(ctx: CookieContext, state: ProxyOrderState) {
+  writeJson(ctx, COOKIE.proxy, state, 7 * DAY);
+}
+
+export function readProxyOrderState(ctx: CookieContext): ProxyOrderState | null {
+  const state = readJson<ProxyOrderState>(ctx, COOKIE.proxy);
+  return state && typeof state.orderId === 'string' && state.orderId ? state : null;
+}
+
+export function clearProxyOrderState(ctx: CookieContext) {
+  ctx.cookies.delete(COOKIE.proxy, { path: '/' });
+}
+
 /* ── Idempotency reference ──────────────────────────────────────────── */
 
 /**
@@ -356,6 +381,13 @@ export interface DepositResult {
  * endpoint so the deposit stats are attributed honestly (`service` in the API's
  * deposit log) and its limits apply.
  */
+/** Per-product deposit limits (match the API's own clamps). */
+export function depositLimits(svc: DepositService): { minUsd: number; maxUsd: number } {
+  if (svc === 'proxy') return { minUsd: 1, maxUsd: 500 };
+  if (svc === 'sms') return { minUsd: 0.5, maxUsd: 100 };
+  return { minUsd: 0.5, maxUsd: 200 };
+}
+
 export async function createDeposit(
   locals: unknown,
   input: {
@@ -365,7 +397,7 @@ export async function createDeposit(
     svc?: DepositService;
   },
 ): Promise<DepositResult> {
-  const svc: DepositService = input.svc === 'sms' ? 'sms' : 'esim';
+  const svc: DepositService = input.svc === 'sms' ? 'sms' : input.svc === 'proxy' ? 'proxy' : 'esim';
   const result = await apiPost<DepositResult>(locals, `/v1/tools/${svc}/payment/create`, {
     amount: input.amount,
     method: input.method,
@@ -380,10 +412,11 @@ export async function paymentStatus(
   paymentId: string,
   svc: DepositService = 'esim',
 ): Promise<'COMPLETED' | 'PENDING' | 'EXPIRED'> {
+  const target: DepositService = svc === 'sms' || svc === 'proxy' ? svc : 'esim';
   try {
     const data = await apiGet<{ status?: string }>(
       locals,
-      `/v1/tools/${svc === 'sms' ? 'sms' : 'esim'}/payment/check?paymentId=${encodeURIComponent(paymentId)}`,
+      `/v1/tools/${target}/payment/check?paymentId=${encodeURIComponent(paymentId)}`,
       // 2s coalesces simultaneous tabs/refreshes without hiding a real change.
       { ttlMs: 2000 },
     );

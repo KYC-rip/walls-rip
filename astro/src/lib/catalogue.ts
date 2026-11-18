@@ -65,6 +65,8 @@ export interface SmsRoute {
 }
 
 export interface ProxyLocation {
+  /** Provider location id — required for a purchase (not shown). */
+  id?: string;
   code: string;
   name: string;
   count?: number;
@@ -78,6 +80,8 @@ export interface ProxyPlan {
   gb?: number;
   price: number;
   currency: string;
+  /** residential | datacenter | mobile */
+  type?: string;
 }
 
 export interface ConnectivityPlan {
@@ -283,9 +287,15 @@ export const POPULAR_SMS_SERVICES: Array<{ id: string; name: string }> = [
 
 /* ── Proxy ──────────────────────────────────────────────────────────── */
 
-export async function fetchProxyLocations(locals: unknown): Promise<ProxyLocation[]> {
+export async function fetchProxyLocations(
+  locals: unknown,
+  options: { fresh?: boolean } = {},
+): Promise<ProxyLocation[]> {
   try {
-    const data = await apiGet<unknown[]>(locals, '/v1/tools/proxy/locations', { ttlMs: 10 * 60_000 });
+    const data = await apiGet<unknown[]>(locals, '/v1/tools/proxy/locations', {
+      ttlMs: 10 * 60_000,
+      ...(options.fresh ? { fresh: true } : {}),
+    });
     return (Array.isArray(data) ? data : [])
       .map((entry): ProxyLocation | null => {
         const row = entry as Record<string, unknown>;
@@ -294,7 +304,9 @@ export async function fetchProxyLocations(locals: unknown): Promise<ProxyLocatio
         const code = str(row.countryCode ?? row.code).toUpperCase();
         if (!/^[A-Z]{2}$/.test(code)) return null;
         const name = str(row.name) || str(row.country);
+        const id = str(row.id);
         return {
+          ...(id ? { id } : {}),
           code,
           name: name && name.toUpperCase() !== code ? name : regionDisplayName(code),
           count: typeof row.count === 'number' ? row.count : undefined,
@@ -307,12 +319,16 @@ export async function fetchProxyLocations(locals: unknown): Promise<ProxyLocatio
   }
 }
 
-export async function fetchProxyPlans(locals: unknown, country: string): Promise<ProxyPlan[]> {
+export async function fetchProxyPlans(
+  locals: unknown,
+  country: string,
+  options: { fresh?: boolean } = {},
+): Promise<ProxyPlan[]> {
   try {
     const data = await apiGet<unknown[]>(
       locals,
       `/v1/tools/proxy/plans?country=${encodeURIComponent(country)}`,
-      { ttlMs: 5 * 60_000 },
+      { ttlMs: 5 * 60_000, ...(options.fresh ? { fresh: true } : {}) },
     );
     return (Array.isArray(data) ? data : [])
       .map((entry): ProxyPlan | null => {
@@ -329,6 +345,7 @@ export async function fetchProxyPlans(locals: unknown, country: string): Promise
             : typeof plan.gb === 'number' ? plan.gb : undefined,
           price: num(plan.price),
           currency: str(plan.currency) || 'USD',
+          type: str(plan.type) || undefined,
         };
       })
       .filter((plan): plan is ProxyPlan => plan !== null)

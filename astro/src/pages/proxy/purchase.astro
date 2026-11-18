@@ -1,0 +1,11 @@
+---
+import ProxyPurchasePage from '../../components/pages/ProxyPurchasePage.astro';
+import { prepareProxyPurchase } from '../../lib/proxy-checkout';
+import { pageLang } from '../../lib/page';
+
+const lang = pageLang(Astro);
+const result = await prepareProxyPurchase(Astro, lang);
+if (result.kind === 'redirect') return result.response;
+---
+
+<ProxyPurchasePage props={result.props} />

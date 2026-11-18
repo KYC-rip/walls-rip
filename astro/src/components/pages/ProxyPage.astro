@@ -3,6 +3,7 @@ import Base from '../../layouts/Base.astro';
 import CountryGrid from '../../components/CountryGrid.astro';
 import Icon from '../../components/Icon.astro';
 import { fetchProxyLocations, fetchProxyPlans } from '../../lib/catalogue';
+import { encodeProxyRef } from '../../lib/proxy-checkout';
 import { formatUsd } from '../../lib/data';
 import { localePath } from '../../lib/i18n';
 import { pageLang } from '../../lib/page';
@@ -70,6 +71,17 @@ const plans = selected ? await fetchProxyPlans(Astro.locals, selected.code) : []
                 {plan.days && <span>{plan.days} days</span>}
                 <span>Residential</span>
               </p>
+              {selected.id && (
+                <a
+                  class="buy"
+                  href={localePath(
+                    `/proxy/purchase?plan=${encodeProxyRef({ planId: plan.id, locationId: selected.id })}`,
+                    lang,
+                  )}
+                >
+                  Buy <Icon name="chevron" size={10} />
+                </a>
+              )}
             </article>
           ))}
         </div>
@@ -94,8 +106,9 @@ const plans = selected ? await fetchProxyPlans(Astro.locals, selected.code) : []
   )}
 
   <p class="hint">
-    Proxy checkout on this mirror arrives in Phase C. The same prepaid wallet funds every
-    walls.rip product.
+    Buying opens a server-rendered checkout — no JavaScript needed. Proxy has its own
+    prepaid balance, funded with Monero or Lightning; credentials appear on the order page
+    once the package is active.
   </p>
 </Base>
 
@@ -170,6 +183,27 @@ const plans = selected ? await fetchProxyPlans(Astro.locals, selected.code) : []
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+  }
+
+  .buy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 2.5rem;
+    margin-top: 0.75rem;
+    padding: 0 0.9rem;
+    border: 1px solid var(--brand-color);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brand-color);
+  }
+
+  .buy:hover {
+    background: color-mix(in srgb, var(--brand-color) 12%, transparent);
   }
 
   .empty {

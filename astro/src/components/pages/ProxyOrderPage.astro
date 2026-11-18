@@ -1,0 +1,117 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
+import { formatUsd } from '../../lib/data';
+import { localePath } from '../../lib/i18n';
+import type { ProxyOrderProps } from '../../lib/proxy-checkout';
+
+export interface Props {
+  props: ProxyOrderProps;
+}
+
+const {
+  order, status, credentials, credentialsError, credentialsDead, unreachable, lang, flash,
+} = Astro.props.props;
+
+const pending = status === 'PENDING' || status === 'UNKNOWN';
+const active = status === 'ACTIVE';
+const suspended = status === 'SUSPENDED';
+const expired = status === 'EXPIRED';
+---
+
+<Base
+  title="Proxy order — walls.rip"
+  description="Proxy order status and credentials."
+  path="/proxy/order"
+  lang={lang}
+  noindex
+  refreshSeconds={pending ? 15 : undefined}
+>
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href={localePath('/proxy', lang)}>Proxy</a>
+    <Icon name="chevron" size={10} />
+    <span>Order</span>
+  </nav>
+
+  <h1>
+    {active ? 'Your proxy is active.' : suspended ? 'This proxy is suspended.' : expired ? 'This package expired.' : unreachable ? 'Status unavailable.' : 'Provisioning your proxy…'}
+  </h1>
+
+  {flash && <p class="flash" role="alert">{flash}</p>}
+
+  <div class="panel">
+    <div class="row"><span>Package</span><strong>{order.name}</strong></div>
+    <div class="row"><span>Charged</span><strong>{formatUsd(order.charged)}</strong></div>
+    <div class="row"><span>Status</span><strong>{status}</strong></div>
+  </div>
+
+  {unreachable && (
+    <p class="hint">
+      The status service could not be reached. Nothing has been charged twice — check again
+      in a moment.
+    </p>
+  )}
+
+  {pending && !unreachable && (
+    <p class="hint">
+      Provisioning can take a minute. This page refreshes itself every 15 seconds — no
+      JavaScript needed.
+    </p>
+  )}
+
+  {suspended && (
+    <p class="hint">
+      The provider suspended this package. Contact support with the order time; do not buy
+      a second package for the same use.
+    </p>
+  )}
+
+  {expired && (
+    <p class="hint">This package reached the end of its term. Buy a new one from the proxy page.</p>
+  )}
+
+  {active && credentialsError && (
+    <p class="hint">
+      {credentialsDead
+        ? 'The credentials are no longer available from the provider. Contact support with the order time.'
+        : 'The credentials are not available right now. Refresh this page in a moment.'}
+    </p>
+  )}
+
+  {active && credentials && (
+    <section class="panel" aria-labelledby="creds-title">
+      <h2 id="creds-title">Credentials</h2>
+      <div class="row"><span>Host</span><code>{credentials.host}</code></div>
+      <div class="row"><span>Port</span><code>{credentials.port}</code></div>
+      <div class="row"><span>Username</span><code>{credentials.username}</code></div>
+      <div class="row"><span>Password</span><code>{credentials.password}</code></div>
+      <div class="row"><span>Protocol</span><code>{credentials.protocol.toUpperCase()}</code></div>
+      <p class="hint">
+        Treat these as a secret: they are the access to the proxy. This page is not cached;
+        reloading fetches them again while the package is active.
+      </p>
+    </section>
+  )}
+
+  {active && (
+    <p class="hint">
+      Access to this page follows the wallet cookie on this device. If you lose it and still
+      need the credentials, contact support with the order time.
+    </p>
+  )}
+
+  <p class="hint"><a href={localePath('/proxy', lang)}>Buy another package</a></p>
+</Base>
+
+<style>
+  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; padding: 1.1rem 0; font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+  h1 { font-size: clamp(1.7rem, 5vw, 2.3rem); font-weight: 900; }
+  h2 { font-size: 1.05rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .flash { margin-top: 1rem; padding: 0.75rem 1rem; border: 1px solid var(--error-color); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--error-color) 10%, transparent); font-size: 0.84rem; }
+  .panel { margin-top: 1.25rem; padding: 1.15rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-panel); }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.35rem 0; font-family: var(--font-mono); font-size: 0.78rem; border-bottom: 1px solid var(--border-color); }
+  .row:last-of-type { border-bottom: 0; }
+  .row code { overflow-wrap: anywhere; text-align: right; }
+  .hint { margin-top: 0.9rem; font-size: 0.8rem; line-height: 1.55; color: var(--text-dim); }
+  .hint a { color: var(--brand-color); }
+</style>

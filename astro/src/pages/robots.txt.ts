@@ -21,6 +21,8 @@ export const GET: APIRoute = ({ url }) => {
         'Disallow: /vpn/config',
         'Disallow: /uk-sim/purchase',
         'Disallow: /uk-sim/order',
+        'Disallow: /proxy/purchase',
+        'Disallow: /proxy/order',
         '',
         `Sitemap: ${origin}/sitemap.xml`,
         '',

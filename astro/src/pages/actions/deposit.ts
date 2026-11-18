@@ -3,6 +3,7 @@ import { localePath } from '../../lib/i18n';
 import {
   checkCsrf,
   createDeposit,
+  depositLimits,
   localeFrom,
   paymentStatus,
   readPayState,
@@ -30,16 +31,17 @@ export const POST: APIRoute = async (context) => {
   }
 
   // Which product's deposit endpoint mints the payment (and whose limits
-  // apply). Anything but an explicit `sms` stays on the eSIM path.
-  const svc = form.get('svc') === 'sms' ? 'sms' : 'esim';
-  const maxUsd = svc === 'sms' ? 100 : 200;
+  // apply). Anything but an explicit `sms`/`proxy` stays on the eSIM path.
+  // Proxy has its own wallet namespace and the API's own limits ($1–$500).
+  const svc = form.get('svc') === 'sms' ? 'sms' : form.get('svc') === 'proxy' ? 'proxy' : 'esim';
+  const { minUsd, maxUsd } = depositLimits(svc);
 
   const amount = Number(form.get('amount'));
   const method = form.get('method') === 'LN' ? 'LN' : 'XMR';
   const usd = Math.round(amount * 100) / 100;
 
-  if (!Number.isFinite(usd) || usd < 0.5 || usd > maxUsd) {
-    setFlash(context, `Deposit amount must be between $0.50 and $${maxUsd}.`);
+  if (!Number.isFinite(usd) || usd < minUsd || usd > maxUsd) {
+    setFlash(context, `Deposit amount must be between $${minUsd.toFixed(2)} and $${maxUsd}.`);
     return context.redirect(returnTo, 303);
   }
 
