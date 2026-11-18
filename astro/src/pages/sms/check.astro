@@ -1,0 +1,11 @@
+---
+import SmsCheckPage from '../../components/pages/SmsCheckPage.astro';
+import { prepareSmsCheck } from '../../lib/sms-checkout';
+import { pageLang } from '../../lib/page';
+
+const lang = pageLang(Astro);
+const result = await prepareSmsCheck(Astro, lang);
+if (result.kind === 'redirect') return result.response;
+---
+
+<SmsCheckPage props={result.props} />

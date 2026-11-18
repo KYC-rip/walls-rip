@@ -78,6 +78,54 @@ describe('clientRefFor', () => {
     clearClientRef(ctx);
     expect(clientRefFor(ctx, 'plan-a')).not.toBe(first);
   });
+
+  it('keeps the SMS reference apart from a pending eSIM retry', async () => {
+    const { COOKIE } = await import('../src/lib/wallet');
+    const ctx = mockContext();
+    const esimRef = clientRefFor(ctx, 'plan-a');
+    const smsRef = clientRefFor(ctx, 'sms:route-a', COOKIE.refSms);
+
+    expect(smsRef).not.toBe(esimRef);
+    // Opening an SMS checkout must not have replaced the eSIM retry key.
+    expect(clientRefFor(ctx, 'plan-a')).toBe(esimRef);
+  });
+
+  it('reuses a just-sold reference so a resubmitted form is refused, not re-bought', async () => {
+    const { COOKIE, markClientRefSold, rotateClientRef } = await import('../src/lib/wallet');
+    const ctx = mockContext();
+    const ref = rotateClientRef(ctx, 'sms:route-a', COOKIE.refSms);
+    markClientRefSold(ctx, COOKIE.refSms);
+
+    // The browser replays the same POST: the same ref reaches the API, whose
+    // dedup answers 409 instead of creating a second provider order.
+    expect(clientRefFor(ctx, 'sms:route-a', COOKIE.refSms)).toBe(ref);
+  });
+
+  it('allows a deliberate re-buy: a fresh page view rotates the reference', async () => {
+    const { COOKIE, markClientRefSold, rotateClientRef } = await import('../src/lib/wallet');
+    const ctx = mockContext();
+    const first = rotateClientRef(ctx, 'sms:route-a', COOKIE.refSms);
+    markClientRefSold(ctx, COOKIE.refSms);
+    const second = rotateClientRef(ctx, 'sms:route-a', COOKIE.refSms);
+
+    expect(second).not.toBe(first);
+    expect(clientRefFor(ctx, 'sms:route-a', COOKIE.refSms)).toBe(second);
+  });
+
+  it('mints a new reference once the sold window has passed', async () => {
+    const { COOKIE, markClientRefSold, rotateClientRef } = await import('../src/lib/wallet');
+    const ctx = mockContext();
+    const ref = rotateClientRef(ctx, 'sms:route-a', COOKIE.refSms);
+    markClientRefSold(ctx, COOKIE.refSms);
+    // Age the sold marker beyond the replay window.
+    const stored = JSON.parse((ctx as never as { jar: Map<string, string> }).jar.get(COOKIE.refSms)!);
+    (ctx as never as { jar: Map<string, string> }).jar.set(
+      COOKIE.refSms,
+      JSON.stringify({ ...stored, soldAt: Date.now() - 11 * 60_000 }),
+    );
+
+    expect(clientRefFor(ctx, 'sms:route-a', COOKIE.refSms)).not.toBe(ref);
+  });
 });
 
 describe('wallet cookie', () => {

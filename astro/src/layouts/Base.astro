@@ -24,6 +24,8 @@ export interface Props {
   hreflang?: boolean;
   /** Meta refresh for the no-JS payment/order pages. */
   refreshSeconds?: number;
+  /** Explicit target for the meta refresh (a same-origin path). */
+  refreshUrl?: string;
 }
 
 const {
@@ -37,6 +39,7 @@ const {
   preloadImage,
   hreflang = false,
   refreshSeconds,
+  refreshUrl,
 } = Astro.props;
 
 const lang = resolveLang(rawLang ?? Astro.url.pathname.split('/')[1]);
@@ -89,7 +92,12 @@ const alternates = hreflang
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
 
-    {refreshSeconds ? <meta http-equiv="refresh" content={String(refreshSeconds)} /> : null}
+    {refreshSeconds ? (
+      <meta
+        http-equiv="refresh"
+        content={refreshUrl ? `${refreshSeconds};url=${refreshUrl}` : String(refreshSeconds)}
+      />
+    ) : null}
     <meta name="theme-color" content={theme === 'light' ? '#ffffff' : '#0f172a'} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 

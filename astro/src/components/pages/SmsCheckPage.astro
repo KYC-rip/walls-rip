@@ -1,0 +1,397 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../Icon.astro';
+import { formatUsd } from '../../lib/data';
+import { localePath } from '../../lib/i18n';
+import type { SmsCheckProps } from '../../lib/sms-checkout';
+
+export interface Props {
+  props: SmsCheckProps;
+}
+
+const {
+  order,
+  status,
+  unreachable,
+  messages,
+  number,
+  charged,
+  refunded,
+  balance,
+  csrf,
+  lang,
+  flash,
+  refreshUrl,
+  plainUrl,
+  watching,
+  stopped,
+  terminal,
+} = Astro.props.props;
+
+const received = status === 'RECEIVED';
+const expired = status === 'EXPIRED' || status === 'REFUNDED';
+const cancelled = status === 'CANCELLED' || status === 'CANCELED';
+const failed = status === 'FAILED' || cancelled;
+const active = !terminal;
+const latest = messages[0] ?? null;
+const serviceName = order.service.charAt(0).toUpperCase() + order.service.slice(1);
+---
+
+<Base
+  title={received ? `Your code — ${serviceName} | walls.rip` : `Your ${serviceName} number — walls.rip`}
+  description="Your reserved SMS verification number and its incoming code."
+  path="/sms/check"
+  lang={lang}
+  noindex
+  refreshSeconds={refreshUrl ? 5 : undefined}
+  refreshUrl={refreshUrl ?? undefined}
+>
+  <section class="head">
+    <p class="mono-label">{serviceName} · {order.country}</p>
+    <h1>
+      {received ? 'Your code is here.' : unreachable ? 'Status unavailable.' : failed
+        ? 'This order was closed.'
+        : expired
+          ? 'This number expired.'
+          : 'Waiting for the code…'}
+    </h1>
+    <p class="lede">
+      {received
+        ? 'Use the code below in the app or site you are verifying. This page keeps it until you leave.'
+        : unreachable
+          ? 'The status service could not be reached. Nothing has been charged twice and no code is lost — check again in a moment.'
+          : failed
+            ? 'No code arrived on this number.'
+            : expired
+              ? refunded && refunded > 0
+                ? `No code arrived before the provider expired the number. ${formatUsd(refunded)} was refunded to your wallet — nothing to do.`
+                : 'No code arrived before the provider expired the number.'
+              : 'Leave this page open. It refreshes itself every 5 seconds and stops as soon as a code arrives — no JavaScript required.'}
+    </p>
+  </section>
+
+  {flash && <p class="flash" role="alert">{flash}</p>}
+
+  <div class="layout">
+    <section class="summary" aria-labelledby="summary-title">
+      <h2 id="summary-title">The number</h2>
+      {number ? (
+        <p class="number">{number}</p>
+      ) : (
+        <p class="hint">The provider did not return the number yet.</p>
+      )}
+
+      <dl>
+        <div><dt>Service</dt><dd>{serviceName}</dd></div>
+        <div><dt>Route</dt><dd>{order.country}</dd></div>
+        <div><dt>Charged</dt><dd>{formatUsd(charged)}</dd></div>
+        <div><dt>Reference</dt><dd><code>{order.orderId.slice(0, 8)}…</code></dd></div>
+        <div><dt>Wallet</dt><dd>{formatUsd(balance)}</dd></div>
+      </dl>
+
+      {active && (
+        <div class="forms">
+          <form method="post" action="/actions/sms/resend" class="inline-form">
+            <input type="hidden" name="csrf" value={csrf} />
+            <input type="hidden" name="lang" value={lang} />
+            <button class="btn" type="submit">
+              <Icon name="refresh" size={12} /> {received ? 'Request another code' : 'Send the code again'}
+            </button>
+          </form>
+
+          {!received && (
+            <form method="post" action="/actions/sms/cancel" class="inline-form">
+              <input type="hidden" name="csrf" value={csrf} />
+              <input type="hidden" name="lang" value={lang} />
+              <button class="btn" type="submit">
+                <Icon name="close" size={12} /> Cancel and refund
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {number && <p class="hint">Keep this page bookmarked — the wallet cookie on this device reopens it.</p>}
+
+      <p class="actions">
+        <a class="btn" href={localePath('/sms', lang)}>Buy another number</a>
+        <a class="btn" href={localePath('/esim', lang)}>eSIM data</a>
+      </p>
+    </section>
+
+    <section class="codes" aria-labelledby="codes-title">
+      <div class="section-head">
+        <h2 id="codes-title">Messages</h2>
+        {refreshUrl && <span class="mono-label">Refreshing</span>}
+      </div>
+
+      {latest ? (
+        <div class="code-hero" aria-live="polite">
+          <p class="mono-label">Latest message</p>
+          <p class="code">{latest.message}</p>
+          {latest.sender && <p class="code-meta">from {latest.sender}</p>}
+        </div>
+      ) : (
+        <div class="waiting">
+          {refreshUrl ? <span class="spinner" aria-hidden="true"></span> : <Icon name="clock" size={14} />}
+          <p>
+            {unreachable
+              ? 'Status could not be checked. Use “Check again” below.'
+              : 'No code yet. The provider usually answers within a minute or two.'}
+          </p>
+        </div>
+      )}
+
+      {messages.length > 1 && (
+        <details class="history">
+          <summary>All messages ({messages.length})</summary>
+          <ol>
+            {messages.slice(1).map((row) => (
+              <li>
+                <p>{row.message}</p>
+                {row.timestamp && <time>{row.timestamp}</time>}
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
+
+      {refreshUrl ? (
+        <p class="hint">
+          This page refreshes every 5 seconds.
+          <a href={`${plainUrl}?stop=1`}>Stop refreshing to read at your own pace</a>.
+        </p>
+      ) : watching && !terminal ? (
+        <p class="hint">
+          Another code was requested but the provider has not answered yet.
+          <a href={`${plainUrl}?watch=1`}>Keep checking</a>.
+        </p>
+      ) : !terminal ? (
+        <p class="hint">
+          <a href={plainUrl}>Check again</a> — nothing is lost while this page waits.
+          {stopped && ' Refreshing is stopped.'}
+        </p>
+      ) : null}
+    </section>
+  </div>
+</Base>
+
+<style>
+  .head {
+    max-width: 46rem;
+    padding: 2.5rem 0 1.5rem;
+  }
+
+  .head h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(1.8rem, 5.5vw, 2.8rem);
+    font-weight: 900;
+    line-height: 1.08;
+  }
+
+  .lede {
+    margin-top: 0.8rem;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .flash {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+    font-size: 0.84rem;
+  }
+
+  .layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  @media (min-width: 900px) {
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      align-items: start;
+      gap: 2rem;
+    }
+  }
+
+  .summary,
+  .codes {
+    padding: 1.15rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+  }
+
+  h2 {
+    font-size: 1.05rem;
+    font-weight: 800;
+  }
+
+  .number {
+    margin-top: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    gap: 0.8rem;
+    margin: 1rem 0 0;
+  }
+
+  dt {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  dd {
+    margin: 0.2rem 0 0;
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+  }
+
+  .forms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .inline-form {
+    margin: 0;
+  }
+
+  .hint {
+    margin-top: 0.7rem;
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+
+  .hint a {
+    color: var(--brand-color);
+    text-decoration: underline;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .code-hero {
+    padding: 1.1rem;
+    border: 1px solid color-mix(in srgb, var(--brand-color) 45%, var(--border-color));
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--brand-color) 7%, var(--bg-primary));
+  }
+
+  .code {
+    margin-top: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+
+  .code-meta {
+    margin-top: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    color: var(--text-dim);
+  }
+
+  .waiting {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 7rem;
+    padding: 1.25rem;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+
+  .spinner {
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--brand-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .history {
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+  }
+
+  .history summary {
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .history ol {
+    margin: 0.6rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .history li {
+    padding: 0.5rem 0;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .history time {
+    display: block;
+    margin-top: 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--text-dim);
+  }
+</style>

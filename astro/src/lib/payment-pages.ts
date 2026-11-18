@@ -120,7 +120,7 @@ export async function preparePay(
     return { kind: 'redirect', response: redirect(localePath('/esim', lang)) };
   }
 
-  const status = await paymentStatus(astro.locals, pay.paymentId);
+  const status = await paymentStatus(astro.locals, pay.paymentId, pay.svc);
   if (status === 'COMPLETED') {
     clearPayState(astro);
     return { kind: 'redirect', response: redirect(pay.returnTo) };

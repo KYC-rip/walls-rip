@@ -121,7 +121,7 @@ for (const path of targets) {
     `${path}: broken images ${desktop.images.filter((image) => !image.loaded).map((image) => image.src).join(', ')}`,
   );
   // Transactional pages are noindex and intentionally carry no schema.
-  const needsJsonLd = !/\/(checkout|pay|order)(\?|$)/.test(path);
+  const needsJsonLd = !/\/(checkout|pay|order|sms\/purchase|sms\/check)(\?|$)/.test(path);
   check(!needsJsonLd || desktop.jsonLd > 0, `${path}: no JSON-LD`);
   check(
     mobile.scrollWidth <= MOBILE.width + 1,

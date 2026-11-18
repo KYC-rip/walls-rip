@@ -16,6 +16,9 @@ export const COOKIE = {
   pay: 'wr_pay',
   order: 'wr_order',
   ref: 'wr_ref',
+  /** SMS orders and their idempotency ref live apart from the eSIM ones. */
+  sms: 'wr_sms',
+  refSms: 'wr_ref_sms',
   flash: 'wr_flash',
 } as const;
 
@@ -118,6 +121,8 @@ export function localeFrom(value: FormDataEntryValue | null): Lang {
 
 /* ── Deposit state ──────────────────────────────────────────────────── */
 
+export type DepositService = 'esim' | 'sms';
+
 export interface PayState {
   paymentId: string;
   method: 'XMR' | 'LN';
@@ -126,6 +131,8 @@ export interface PayState {
   usd: number;
   returnTo: string;
   createdAt: number;
+  /** Which deposit endpoint minted this payment; the status check must match. */
+  svc?: DepositService;
 }
 
 export function setPayState(ctx: CookieContext, state: PayState) {
@@ -178,6 +185,32 @@ export function readOrderState(ctx: CookieContext): OrderState | null {
   return readJson<OrderState>(ctx, COOKIE.order);
 }
 
+/* ── Last SMS order ─────────────────────────────────────────────────── */
+
+export interface SmsOrderState {
+  orderId: string;
+  service: string;
+  country: string;
+  number?: string;
+  charged: number;
+  at: number;
+}
+
+export function setSmsOrderState(ctx: CookieContext, state: SmsOrderState) {
+  // The API keeps the hot order record for 7 days; a longer cookie would only
+  // promise status the API can no longer serve.
+  writeJson(ctx, COOKIE.sms, state, 7 * DAY);
+}
+
+export function readSmsOrderState(ctx: CookieContext): SmsOrderState | null {
+  const state = readJson<SmsOrderState>(ctx, COOKIE.sms);
+  return state && typeof state.orderId === 'string' && state.orderId ? state : null;
+}
+
+export function clearSmsOrderState(ctx: CookieContext) {
+  ctx.cookies.delete(COOKIE.sms, { path: '/' });
+}
+
 /* ── Idempotency reference ──────────────────────────────────────────── */
 
 /**
@@ -185,18 +218,63 @@ export function readOrderState(ctx: CookieContext): OrderState | null {
  * the API's dedup cannot create a second provider order; a different plan
  * gets a fresh reference.
  */
-export function clearClientRef(ctx: CookieContext) {
-  ctx.cookies.delete(COOKIE.ref, { path: '/' });
+interface RefState {
+  planId: string;
+  ref: string;
+  /** Set when a purchase with this ref was submitted successfully. */
+  soldAt?: number;
 }
 
-export function clientRefFor(ctx: CookieContext, planId: string): string {
-  const existing = readJson<{ planId: string; ref: string }>(ctx, COOKIE.ref);
+/**
+ * How long a sold ref stays in the cookie. A browser replay of the purchase
+ * form (back button, "confirm resubmission", double Enter) then hits the API's
+ * clientRef dedup and is refused, instead of buying a second number.
+ */
+const SOLD_REF_TTL = 10 * 60_000;
+
+export function clearClientRef(ctx: CookieContext, cookie: string = COOKIE.ref) {
+  ctx.cookies.delete(cookie, { path: '/' });
+}
+
+/**
+ * One ref per (product, route) pair. eSIM and SMS use separate cookies: a
+ * shared one meant opening an SMS checkout page quietly replaced a pending
+ * eSIM retry ref, so the retry created a second provider order.
+ */
+export function clientRefFor(
+  ctx: CookieContext,
+  planId: string,
+  cookie: string = COOKIE.ref,
+): string {
+  const existing = readJson<RefState>(ctx, cookie);
   if (existing && existing.planId === planId && /^[a-f0-9-]{16,64}$/i.test(existing.ref)) {
-    return existing.ref;
+    const sold = typeof existing.soldAt === 'number';
+    if (!sold || Date.now() - existing.soldAt! < SOLD_REF_TTL) return existing.ref;
   }
   const ref = crypto.randomUUID();
-  writeJson(ctx, COOKIE.ref, { planId, ref }, DAY);
+  writeJson(ctx, cookie, { planId, ref }, DAY);
   return ref;
+}
+
+/** Mint a brand-new ref, keeping the previous one for replay detection. */
+export function rotateClientRef(
+  ctx: CookieContext,
+  planId: string,
+  cookie: string = COOKIE.ref,
+): string {
+  const ref = crypto.randomUUID();
+  writeJson(ctx, cookie, { planId, ref }, DAY);
+  return ref;
+}
+
+/**
+ * Mark the ref as used. The ref stays for SOLD_REF_TTL so a resubmitted form
+ * reuses it; the API then answers 409 instead of creating a second order.
+ */
+export function markClientRefSold(ctx: CookieContext, cookie: string = COOKIE.ref) {
+  const existing = readJson<RefState>(ctx, cookie);
+  if (!existing?.ref) return;
+  writeJson(ctx, cookie, { ...existing, soldAt: Date.now() }, DAY);
 }
 
 /* ── API calls ──────────────────────────────────────────────────────── */
@@ -210,11 +288,22 @@ export interface DepositResult {
   walletToken?: string;
 }
 
+/**
+ * Deposits credit one shared wallet, but each product posts to its own create
+ * endpoint so the deposit stats are attributed honestly (`service` in the API's
+ * deposit log) and its limits apply.
+ */
 export async function createDeposit(
   locals: unknown,
-  input: { amount: number; method: 'XMR' | 'LN'; walletToken: string | null },
+  input: {
+    amount: number;
+    method: 'XMR' | 'LN';
+    walletToken: string | null;
+    svc?: DepositService;
+  },
 ): Promise<DepositResult> {
-  const result = await apiPost<DepositResult>(locals, '/v1/tools/esim/payment/create', {
+  const svc: DepositService = input.svc === 'sms' ? 'sms' : 'esim';
+  const result = await apiPost<DepositResult>(locals, `/v1/tools/${svc}/payment/create`, {
     amount: input.amount,
     method: input.method,
     ...(input.walletToken ? { walletToken: input.walletToken } : {}),
@@ -226,11 +315,12 @@ export async function createDeposit(
 export async function paymentStatus(
   locals: unknown,
   paymentId: string,
+  svc: DepositService = 'esim',
 ): Promise<'COMPLETED' | 'PENDING' | 'EXPIRED'> {
   try {
     const data = await apiGet<{ status?: string }>(
       locals,
-      `/v1/tools/esim/payment/check?paymentId=${encodeURIComponent(paymentId)}`,
+      `/v1/tools/${svc === 'sms' ? 'sms' : 'esim'}/payment/check?paymentId=${encodeURIComponent(paymentId)}`,
       // 2s coalesces simultaneous tabs/refreshes without hiding a real change.
       { ttlMs: 2000 },
     );

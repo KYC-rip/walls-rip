@@ -13,6 +13,8 @@ export const GET: APIRoute = ({ url }) => {
         'Disallow: /checkout',
         'Disallow: /pay',
         'Disallow: /actions',
+        'Disallow: /sms/purchase',
+        'Disallow: /sms/check',
         '',
         `Sitemap: ${origin}/sitemap.xml`,
         '',

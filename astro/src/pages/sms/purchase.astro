@@ -1,0 +1,11 @@
+---
+import SmsPurchasePage from '../../components/pages/SmsPurchasePage.astro';
+import { prepareSmsPurchase } from '../../lib/sms-checkout';
+import { pageLang } from '../../lib/page';
+
+const lang = pageLang(Astro);
+const result = await prepareSmsPurchase(Astro, lang);
+if (result.kind === 'redirect') return result.response;
+---
+
+<SmsPurchasePage props={result.props} />

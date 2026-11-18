@@ -5,13 +5,15 @@ import Icon from '../../components/Icon.astro';
 import {
   POPULAR_SMS_SERVICES,
   fetchSmsCountries,
-  fetchSmsOffers,
+  fetchSmsRoutes,
   fetchSmsServices,
 } from '../../lib/catalogue';
+import { encodeRouteRef } from '../../lib/sms-checkout';
 import { formatUsd } from '../../lib/data';
 import { countryMatches } from '../../lib/countryAliases';
 import { localePath } from '../../lib/i18n';
 import { pageLang } from '../../lib/page';
+import { readFlash } from '../../lib/wallet';
 import { organizationSchema, siteOrigin, websiteSchema } from '../../lib/seo';
 
 const lang = pageLang(Astro);
@@ -21,6 +23,9 @@ const POPULAR_COUNTRIES = [
   'US', 'GB', 'DE', 'FR', 'NL', 'CA', 'AU', 'ES', 'IT', 'PL',
   'SE', 'RO', 'ID', 'PH', 'VN', 'TH', 'BR', 'MX', 'IN', 'UA',
 ];
+
+// A purchase/cancel action that bounces back here leaves one flash message.
+const flash = readFlash(Astro);
 
 const country = (Astro.url.searchParams.get('c') ?? '').toUpperCase();
 const service = (Astro.url.searchParams.get('s') ?? '').trim();
@@ -36,14 +41,21 @@ try {
 const byCode = new Map(countries.map((row) => [row.code, row]));
 const pickedCountry = byCode.get(country) ?? null;
 
-let offers: Awaited<ReturnType<typeof fetchSmsOffers>> = [];
+let routes: Awaited<ReturnType<typeof fetchSmsRoutes>> = [];
 if (pickedCountry && service) {
   try {
-    offers = await fetchSmsOffers(Astro.locals, country, service);
+    routes = await fetchSmsRoutes(Astro.locals, country, service);
   } catch {
-    offers = [];
+    routes = [];
   }
 }
+
+const ROUTE_LABELS = 'ABCDEFGHIJ';
+const purchaseHref = (route: (typeof routes)[number]) =>
+  localePath(
+    `/sms/purchase?c=${country}&s=${encodeURIComponent(service)}&route=${encodeURIComponent(encodeRouteRef(route))}`,
+    lang,
+  );
 
 let serviceMatches: Array<{ id: string; name: string }> = [];
 if (pickedCountry && query) {
@@ -89,6 +101,7 @@ const serviceHref = (id: string) => localePath(`/sms?c=${country}&s=${encodeURIC
       Pick a country and a service, pay per message, and read the code here. No account,
       no SIM and no identity document.
     </p>
+    {flash && <p class="flash" role="alert">{flash}</p>}
   </section>
 
   <div class="layout">
@@ -192,31 +205,46 @@ const serviceHref = (id: string) => localePath(`/sms?c=${country}&s=${encodeURIC
 
           <div class="section-head">
             <h2>{service} · {pickedCountry.name}</h2>
-            <span class="mono-label">{offers.length} routes</span>
+            <span class="mono-label">{routes.length} routes</span>
           </div>
 
-          {offers.length === 0 ? (
+          {routes.length === 0 ? (
             <p class="empty">
               No stock for this service right now. Try another service or country.
             </p>
           ) : (
             <ul class="offer-list">
-              {offers.map((offer, index) => (
-                <li>
-                  <span class="offer-rank">{index === 0 ? 'Best price' : `Route ${index + 1}`}</span>
-                  <span class="offer-price">{formatUsd(offer.price)}</span>
-                  <span class="offer-meta">
-                    {offer.stock != null ? `${offer.stock.toLocaleString('en-US')} in stock` : 'Stock unknown'}
-                    {offer.successRate > 0 ? ` · ${offer.successRate}% success` : ''}
+              {routes.map((route, index) => (
+                <li class:list={['offer', { 'offer-out': !route.available }]}>
+                  <span class="offer-rank">
+                    {index === 0 && route.available
+                      ? 'Best price'
+                      : `Route ${ROUTE_LABELS[index] ?? index + 1}`}
                   </span>
+                  <span class="offer-price">{formatUsd(route.price)}</span>
+                  <span class="offer-meta">
+                    {route.stock != null
+                      ? `${route.stock.toLocaleString('en-US')} in stock`
+                      : 'Stock unknown'}
+                    {route.successRate > 0 ? ` · ${route.successRate}% success` : ''}
+                    {!route.available ? ' · out of stock right now' : ''}
+                  </span>
+                  {route.available ? (
+                    <a class="btn offer-buy" href={purchaseHref(route)}>
+                      Buy <Icon name="arrow" size={11} />
+                    </a>
+                  ) : (
+                    <span class="offer-buy offer-buy-off" aria-hidden="true">Unavailable</span>
+                  )}
                 </li>
               ))}
             </ul>
           )}
 
           <p class="hint">
-            Checkout over the onion mirror is being wired up in Phase C. The clearnet
-            site already completes this purchase.
+            Prices include everything. Pay from a prepaid wallet funded with Monero or
+            Lightning — the number and its code appear on the next page, no JavaScript
+            required.
           </p>
         </div>
       )}
@@ -257,6 +285,15 @@ const serviceHref = (id: string) => localePath(`/sms?c=${country}&s=${encodeURIC
     font-size: 0.98rem;
     line-height: 1.65;
     color: var(--text-dim);
+  }
+
+  .flash {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--warning-color);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--warning-color) 10%, transparent);
+    font-size: 0.84rem;
   }
 
   .layout {
@@ -401,8 +438,9 @@ const serviceHref = (id: string) => localePath(`/sms?c=${country}&s=${encodeURIC
 
   .offer-list li {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.15rem 1rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.2rem 1rem;
     padding: 0.8rem 1rem;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-panel);
@@ -416,7 +454,13 @@ const serviceHref = (id: string) => localePath(`/sms?c=${country}&s=${encodeURIC
     background: color-mix(in srgb, var(--brand-color) 7%, var(--bg-panel));
   }
 
+  .offer-out {
+    opacity: 0.62;
+  }
+
   .offer-rank {
+    grid-column: 1;
+    grid-row: 1;
     font-family: var(--font-mono);
     font-size: 0.64rem;
     font-weight: 700;
@@ -426,9 +470,9 @@ const serviceHref = (id: string) => localePath(`/sms?c=${country}&s=${encodeURIC
   }
 
   .offer-price {
-    grid-row: 1 / 3;
     grid-column: 2;
-    align-self: center;
+    grid-row: 1;
+    justify-self: end;
     font-family: var(--font-mono);
     font-size: 1.2rem;
     font-weight: 800;
@@ -436,7 +480,29 @@ const serviceHref = (id: string) => localePath(`/sms?c=${country}&s=${encodeURIC
   }
 
   .offer-meta {
+    grid-column: 1;
+    grid-row: 2;
     font-size: 0.74rem;
+    color: var(--text-dim);
+  }
+
+  .offer-buy {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    min-height: 2.25rem;
+    padding: 0.3rem 0.8rem;
+  }
+
+  .offer-buy-off {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     color: var(--text-dim);
   }
 

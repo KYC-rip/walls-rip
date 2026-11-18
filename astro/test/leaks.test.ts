@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchComparePlans } from '../src/lib/data';
-import { fetchSmsOffers } from '../src/lib/catalogue';
+import { fetchSmsRoutes } from '../src/lib/catalogue';
+import { encodeRouteRef } from '../src/lib/sms-checkout';
 
 /**
  * White-label guarantee: provider names and raw costs exist in the upstream
@@ -62,8 +63,8 @@ describe('eSIM compare plans', () => {
   });
 });
 
-describe('SMS offers', () => {
-  it('keeps price, stock and success rate only', async () => {
+describe('SMS routes', () => {
+  it('drops raw cost; the rendered reference carries no provider name', async () => {
     stubFetch({
       results: [
         {
@@ -81,10 +82,20 @@ describe('SMS offers', () => {
       ],
     });
 
-    const offers = await fetchSmsOffers({}, 'US-LEAK-TEST', 'telegram');
-    expect(offers).toHaveLength(1);
-    expect(offers[0]).toEqual({ price: 0.9, successRate: 45, stock: 7073, available: true });
-    expect(JSON.stringify(offers)).not.toContain('smspool');
-    expect(JSON.stringify(offers)).not.toContain('costPrice');
+    const routes = await fetchSmsRoutes({}, 'US-LEAK-TEST', 'telegram');
+    expect(routes).toHaveLength(1);
+    expect(routes[0]).toMatchObject({
+      price: 0.9,
+      successRate: 45,
+      stock: 7073,
+      available: true,
+      pool: '7',
+    });
+    // The engine stays available server-side (the purchase re-resolves it) but
+    // the only provider-bearing value a page may render is the opaque ref.
+    expect(JSON.stringify(routes)).not.toContain('costPrice');
+    const ref = encodeRouteRef(routes[0]);
+    expect(ref).not.toContain('smspool');
+    expect(ref).not.toContain('costPrice');
   });
 });

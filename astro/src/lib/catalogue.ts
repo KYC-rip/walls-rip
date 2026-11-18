@@ -45,7 +45,17 @@ export interface SmsService {
   category?: string;
 }
 
-export interface SmsOffer {
+/**
+ * One purchasable SMS route. `engine`/`countryId`/`serviceId`/`pool`/`quoteId`
+ * stay server-side; the pages only ever render the opaque `ref`, the price and
+ * the stock/success figures. Raw cost never survives this shape.
+ */
+export interface SmsRoute {
+  engine: string;
+  countryId: string;
+  serviceId: string;
+  pool?: string;
+  quoteId?: string;
   price: number;
   successRate: number;
   stock: number | null;
@@ -200,28 +210,51 @@ export async function fetchSmsServices(locals: unknown): Promise<SmsService[]> {
     .filter((service): service is SmsService => service !== null);
 }
 
-export async function fetchSmsOffers(
+/**
+ * Purchasable routes for one country/service. Available routes come first,
+ * then cheapest; unavailable ones are still listed so the page can say so.
+ * `fresh` skips the isolate cache on the buy path, where a stale price and a
+ * stale `quoteId` must never be used to charge someone.
+ */
+export async function fetchSmsRoutes(
   locals: unknown,
   country: string,
   service: string,
-): Promise<SmsOffer[]> {
+  options: { fresh?: boolean } = {},
+): Promise<SmsRoute[]> {
   const data = await apiGet<{ results?: unknown[] }>(
     locals,
     `/v1/tools/sms/compare?country=${encodeURIComponent(country)}&service=${encodeURIComponent(service)}`,
-    { ttlMs: 2 * 60_000 },
+    options.fresh ? { fresh: true } : { ttlMs: 2 * 60_000 },
   );
   return (data.results ?? [])
-    .map((entry) => {
-      const offer = entry as Record<string, unknown>;
+    .map((entry): SmsRoute | null => {
+      const route = entry as Record<string, unknown>;
+      const engine = str(route.engine);
+      const countryId = str(route.countryId);
+      const serviceId = str(route.serviceId);
+      const price = num(route.price);
+      // An unidentifiable or unpriced route cannot be bought: drop it rather
+      // than render a button that always fails.
+      if (!engine || !countryId || !serviceId || price <= 0) return null;
       return {
-        price: num(offer.price),
-        successRate: num(offer.successRate),
-        stock: typeof offer.stock === 'number' ? offer.stock : null,
-        available: offer.available !== false,
+        engine,
+        countryId,
+        serviceId,
+        pool: str(route.pool) || undefined,
+        quoteId: str(route.quoteId) || undefined,
+        price,
+        successRate: num(route.successRate),
+        stock: typeof route.stock === 'number' ? route.stock : null,
+        available: route.available !== false,
       };
     })
-    .filter((offer) => offer.price > 0)
-    .sort((a, b) => a.price - b.price);
+    .filter((route): route is SmsRoute => route !== null)
+    .sort((a, b) => {
+      if (a.available !== b.available) return a.available ? -1 : 1;
+      if (a.price !== b.price) return a.price - b.price;
+      return (a.pool ?? '').localeCompare(b.pool ?? '');
+    });
 }
 
 /** Curated services shown before the visitor searches the full list. */
