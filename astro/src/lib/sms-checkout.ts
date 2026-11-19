@@ -66,17 +66,9 @@ export function decodeRouteRef(ref: string): RouteRef | null {
  * pays, so a stale pool changes what is offered, never what is charged
  * silently. A route that is gone (engine/country/service) resolves to null.
  */
-export async function findSmsRoute(
-  locals: unknown,
-  country: string,
-  service: string,
-  ref: string,
-  options: { fresh?: boolean } = {},
-): Promise<SmsRoute | null> {
-  const wanted = decodeRouteRef(ref);
-  if (!wanted) return null;
-
-  const routes = await fetchSmsRoutes(locals, country, service, options);
+/** Match a decoded ref against a route list (exact pool, else the same
+ *  engine/country/service's cheapest row — pools re-tier constantly). */
+export function matchSmsRoute(routes: SmsRoute[], wanted: RouteRef): SmsRoute | null {
   let exact: SmsRoute | null = null;
   let sameRoute: SmsRoute | null = null;
   for (const route of routes) {
@@ -88,6 +80,50 @@ export async function findSmsRoute(
     if (!exact || route.price < exact.price) exact = route;
   }
   return exact ?? sameRoute;
+}
+
+export async function findSmsRoute(
+  locals: unknown,
+  country: string,
+  service: string,
+  ref: string,
+  options: { fresh?: boolean } = {},
+): Promise<SmsRoute | null> {
+  const wanted = decodeRouteRef(ref);
+  if (!wanted) return null;
+  const routes = await fetchSmsRoutes(locals, country, service, options);
+  return matchSmsRoute(routes, wanted);
+}
+
+/**
+ * Purchase fallback: the selected route first, then any available route priced
+ * at or below it, cheapest first. The buyer is never charged more than the
+ * price the purchase page showed, and a drained route no longer kills the
+ * sale while another engine still has stock.
+ */
+export function fallbackCandidates(routes: SmsRoute[], selected: SmsRoute): SmsRoute[] {
+  const keyOf = (route: SmsRoute) => `${route.engine}|${route.countryId}|${route.serviceId}|${route.pool ?? ''}`;
+  const selectedKey = keyOf(selected);
+  const others = routes
+    .filter((route) => route.available
+      && route.price > 0
+      && route.price <= selected.price + 0.001
+      && keyOf(route) !== selectedKey)
+    .sort((a, b) => a.price - b.price);
+  return [selected, ...others];
+}
+
+/**
+ * A provider refusal that another route can plausibly satisfy (stock, pool,
+ * whitelist, lost price race). Ambiguous outcomes (held), wallet problems and
+ * duplicates are never retried: those must settle/redirect, not buy again.
+ */
+export function isRetryableRefusal(error: unknown): boolean {
+  if (!(error instanceof ApiError) || error.status !== 502) return false;
+  const message = error.message ?? '';
+  if (/held|review/i.test(message)) return false;
+  if (/insufficient|balance|not enough|no funds|top ?up|low balance/i.test(message)) return false;
+  return /no[_ ]?free|no[_ ]?numbers|out[_ ]?of[_ ]?stock|no[_ ]?stock|sold out|unavailable|whitelist|max price|declined/i.test(message);
 }
 
 export interface SmsPurchaseResult {
@@ -253,6 +289,8 @@ export interface SmsPurchaseProps {
   service: string;
   routeRef: string;
   price: number;
+  /** Cheapest fallback route at or below `price` (equal when there is none). */
+  priceMin: number;
   successRate: number;
   stock: number | null;
   balance: number;
@@ -279,10 +317,13 @@ export async function prepareSmsPurchase(
 
   const listPath = `${smsPath(lang)}?c=${encodeURIComponent(country)}&s=${encodeURIComponent(service)}`;
 
-  let route: SmsRoute | null;
+  let route: SmsRoute | null = null;
+  let routes: SmsRoute[] = [];
   try {
     // Fresh: the price on this page is what the visitor confirms.
-    route = await findSmsRoute(astro.locals, country, service, ref, { fresh: true });
+    routes = await fetchSmsRoutes(astro.locals, country, service, { fresh: true });
+    const wanted = decodeRouteRef(ref);
+    route = wanted ? matchSmsRoute(routes, wanted) : null;
   } catch {
     setFlash(astro, 'Routes are unavailable right now. Nothing was charged — try again shortly.');
     return { kind: 'redirect', response: redirect(listPath) };
@@ -306,6 +347,9 @@ export async function prepareSmsPurchase(
   rotateClientRef(astro, `sms:${encodeRouteRef(route)}`, COOKIE.refSms);
 
   const returnTo = `${smsPath(lang, '/purchase')}?c=${encodeURIComponent(country)}&s=${encodeURIComponent(service)}&route=${encodeURIComponent(ref)}`;
+  // The fallback may use a cheaper route; it never uses a pricier one.
+  const cheaper = routes.filter((entry) => entry.available && entry.price > 0 && entry.price < route.price);
+  const priceMin = cheaper.length ? Math.min(...cheaper.map((entry) => entry.price)) : route.price;
   const shortfall = Math.max(0, route.price - balance);
 
   return {
@@ -315,6 +359,7 @@ export async function prepareSmsPurchase(
       service,
       routeRef: ref,
       price: route.price,
+      priceMin,
       successRate: route.successRate,
       stock: route.stock,
       balance,

@@ -205,7 +205,15 @@ const serviceHref = (id: string) => localePath(`/sms?c=${country}&s=${encodeURIC
 
           <div class="section-head">
             <h2>{service} · {pickedCountry.name}</h2>
-            <span class="mono-label">{routes.length} routes</span>
+            <span class="mono-label">
+              {(() => {
+                const available = routes.filter((route) => route.available && route.price > 0);
+                if (!available.length) return `${routes.length} routes`;
+                const low = Math.min(...available.map((route) => route.price));
+                const high = Math.max(...available.map((route) => route.price));
+                return low === high ? formatUsd(low) : `${formatUsd(low)} – ${formatUsd(high)}`;
+              })()}
+            </span>
           </div>
 
           {routes.length === 0 ? (

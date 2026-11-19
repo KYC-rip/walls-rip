@@ -10,10 +10,11 @@ export interface Props {
   props: SmsPurchaseProps;
 }
 
-const { country, service, routeRef, price, successRate, stock, balance, hasWallet, csrf, lang, returnTo, flash, depositAmount } =
+const { country, service, routeRef, price, priceMin, successRate, stock, balance, hasWallet, csrf, lang, returnTo, flash, depositAmount } =
   Astro.props.props;
 
 const covered = balance >= price;
+const hasRange = priceMin < price;
 const countryName = regionDisplayName(country);
 const serviceName = service.charAt(0).toUpperCase() + service.slice(1);
 ---
@@ -45,7 +46,9 @@ const serviceName = service.charAt(0).toUpperCase() + service.slice(1);
       <div class="plan">
         <div class="plan-top">
           <span class="plan-data">{serviceName}</span>
-          <span class="plan-price">{formatUsd(price)}</span>
+          <span class="plan-price">
+            {hasRange ? `${formatUsd(priceMin)} – ${formatUsd(price)}` : formatUsd(price)}
+          </span>
         </div>
         <p class="plan-meta">
           <span>{countryName}</span>
@@ -59,6 +62,13 @@ const serviceName = service.charAt(0).toUpperCase() + service.slice(1);
         You get one number reserved for this service. If the provider expires the number
         before a code arrives, the charge is refunded to your wallet automatically.
       </p>
+      {hasRange && (
+        <p class="note">
+          Price range: you pay the route we can reserve — between {formatUsd(priceMin)} and
+          {' '}{formatUsd(price)}, never more than the higher figure. If the selected route
+          sells out, the best available route at or below that price is used.
+        </p>
+      )}
 
       <div class="wallet-line">
         <span>Wallet balance</span>
@@ -115,7 +125,8 @@ const serviceName = service.charAt(0).toUpperCase() + service.slice(1);
             <input type="hidden" name="route" value={routeRef} />
 
             <button class="btn btn-primary wide" type="submit">
-              <Icon name="lock" size={13} /> Pay {formatUsd(price)} from wallet
+              <Icon name="lock" size={13} />
+              {hasRange ? `Pay up to ${formatUsd(price)} from wallet` : `Pay ${formatUsd(price)} from wallet`}
             </button>
             <p class="hint">
               The provider confirms the final price at submit. If the route moved in the

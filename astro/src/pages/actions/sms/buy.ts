@@ -1,11 +1,16 @@
 import type { APIRoute } from 'astro';
 import { ApiError } from '../../../lib/api';
 import { localePath } from '../../../lib/i18n';
+import { fetchSmsRoutes } from '../../../lib/catalogue';
 import {
   buySmsNumber,
+  decodeRouteRef,
   encodeRouteRef,
-  findSmsRoute,
+  fallbackCandidates,
+  isRetryableRefusal,
+  matchSmsRoute,
   purchaseErrorMessage,
+  type SmsPurchaseResult,
 } from '../../../lib/sms-checkout';
 import {
   COOKIE,
@@ -55,8 +60,11 @@ export const POST: APIRoute = async (context) => {
   const listWithService = `${listPath}?c=${encodeURIComponent(country)}&s=${encodeURIComponent(service)}`;
 
   let route;
+  let routes = [];
   try {
-    route = await findSmsRoute(context.locals, country, service, ref, { fresh: true });
+    routes = await fetchSmsRoutes(context.locals, country, service, { fresh: true });
+    const wanted = decodeRouteRef(ref);
+    route = wanted ? matchSmsRoute(routes, wanted) : null;
   } catch {
     setFlash(context, 'Routes are unavailable right now. Nothing was charged — try again shortly.');
     return context.redirect(listWithService, 303);
@@ -71,14 +79,31 @@ export const POST: APIRoute = async (context) => {
   }
 
   try {
-    const result = await buySmsNumber(context.locals, {
-      token,
-      route,
-      // Keyed on the canonical form of the resolved route, so a non-canonical
-      // but equivalent reference still reuses the same idempotency key.
-      clientRef: clientRefFor(context, `sms:${encodeRouteRef(route)}`, COOKIE.refSms),
-    });
-    if (!result.orderId) throw new ApiError(502, 'The provider did not return an order id.');
+    // Try the selected route first, then any available route priced at or
+    // below it (the amount the page showed). Provider stock refusals fall
+    // through; ambiguous outcomes never do.
+    let result: SmsPurchaseResult | undefined;
+    let used = route;
+    let lastError: unknown = null;
+    for (const candidate of fallbackCandidates(routes, route)) {
+      try {
+        const attempt = await buySmsNumber(context.locals, {
+          token,
+          route: candidate,
+          // Keyed on the canonical form of each candidate, so a retry of the
+          // same route reuses its idempotency key and another route gets its own.
+          clientRef: clientRefFor(context, `sms:${encodeRouteRef(candidate)}`, COOKIE.refSms),
+        });
+        if (!attempt.orderId) throw new ApiError(502, 'The provider did not return an order id.');
+        result = attempt;
+        used = candidate;
+        break;
+      } catch (error) {
+        lastError = error;
+        if (!isRetryableRefusal(error)) throw error;
+      }
+    }
+    if (!result?.orderId) throw lastError ?? new ApiError(502, 'The purchase could not be completed.');
 
     // Keep the reference for a few minutes but mark it sold: a browser replay
     // of this form then hits the API's dedup (409 → check page) instead of
@@ -91,7 +116,7 @@ export const POST: APIRoute = async (context) => {
       service,
       country,
       number: result.phoneNumber,
-      charged: result.charged ?? route.price,
+      charged: result.charged ?? used.price,
       at: Date.now(),
     });
 

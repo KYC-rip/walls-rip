@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../src/lib/api';
 import {
   decodeRouteRef,
   encodeRouteRef,
+  fallbackCandidates,
   findSmsRoute,
+  isRetryableRefusal,
+  matchSmsRoute,
   prepareSmsCheck,
   prepareSmsPurchase,
   purchaseErrorMessage,
@@ -292,5 +296,45 @@ describe('purchaseErrorMessage', () => {
     const leak = purchaseErrorMessage('herosms setStatus: ACCESS_CANCEL');
     expect(leak).not.toMatch(/herosms|access_cancel/i);
     expect(purchaseErrorMessage('boom')).toMatch(/try again/i);
+  });
+});
+
+describe('route fallback', () => {
+  const row = (engine: string, pool: string, price: number, available = true) => ({
+    engine, countryId: '1', serviceId: '907', pool, price, costPrice: 0,
+    successRate: 50, stock: 10, available,
+  });
+
+  it('matches the exact pool, else the same route cheapest row', () => {
+    const routes = [row('smspool', '7', 0.72), row('smspool', '12', 0.9), row('smspool', '9', 0.8)];
+    expect(matchSmsRoute(routes, { engine: 'smspool', countryId: '1', serviceId: '907', pool: '7' })?.pool).toBe('7');
+    expect(matchSmsRoute(routes, { engine: 'smspool', countryId: '1', serviceId: '907', pool: '3' })?.pool).toBe('7');
+    expect(matchSmsRoute(routes, { engine: 'other', countryId: '1', serviceId: '907', pool: '7' })).toBeNull();
+  });
+
+  it('offers the selected route then cheaper available ones, never pricier', () => {
+    const selected = row('smspool', '7', 1.08);
+    const routes = [
+      selected,
+      row('fivesim', '', 0.98),
+      row('herosms', '', 0.98),
+      row('pricier', '', 1.5),
+      row('gone', '', 0.8, false),
+    ];
+    const candidates = fallbackCandidates(routes as never, selected as never);
+    expect(candidates[0]).toBe(selected);
+    expect(candidates.slice(1).map((r) => r.engine)).toEqual(['fivesim', 'herosms']);
+    expect(candidates.some((r) => r.price > 1.08)).toBe(false);
+  });
+
+  it('retries stock-like refusals only', () => {
+    expect(isRetryableRefusal(new ApiError(502, 'NO_NUMBERS'))).toBe(true);
+    expect(isRetryableRefusal(new ApiError(502, 'No numbers available for this route'))).toBe(true);
+    expect(isRetryableRefusal(new ApiError(502, 'service not in whitelist'))).toBe(true);
+    expect(isRetryableRefusal(new ApiError(502, 'The provider outcome is under review. PURCHASE_HELD'))).toBe(false);
+    expect(isRetryableRefusal(new ApiError(502, 'insufficient provider balance'))).toBe(false);
+    expect(isRetryableRefusal(new ApiError(402, 'Insufficient wallet'))).toBe(false);
+    expect(isRetryableRefusal(new ApiError(409, 'duplicate'))).toBe(false);
+    expect(isRetryableRefusal(new Error('network'))).toBe(false);
   });
 });
